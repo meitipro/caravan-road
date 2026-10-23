@@ -1,0 +1,85 @@
+[
+  {
+    "id": 1,
+    "type": "tick",
+    "at": 1793534330,
+    "data": {
+      "tick": 41
+    }
+  },
+  {
+    "id": 2,
+    "type": "faucet",
+    "at": 1793534334,
+    "data": {
+      "account_id": "newbie.fixture",
+      "fils": "50000"
+    }
+  },
+  {
+    "id": 3,
+    "type": "trade",
+    "at": 1793534345,
+    "data": {
+      "merchant": "dasht",
+      "good": "grain",
+      "side": "buy",
+      "qty": 20,
+      "total": "21000",
+      "fee": "210"
+    }
+  },
+  {
+    "id": 4,
+    "type": "journey_started",
+    "at": 1793534340,
+    "data": {
+      "account_id": "wanderer.fixture",
+      "from": "dasht",
+      "to": "shahr",
+      "guards": 1
+    }
+  },
+  {
+    "id": 5,
+    "type": "policy",
+    "at": 1793534360,
+    "data": {
+      "merchant": "bandar",
+      "spread_bp": 800,
+      "bias_bp": 0
+    }
+  },
+  {
+    "id": 6,
+    "type": "stall_create",
+    "at": 1793534370,
+    "data": {
+      "seller": "trader.fixture",
+      "city": "shahr",
+      "good": "salt",
+      "qty": 12,
+      "unit_price": "1700"
+    }
+  },
+  {
+    "id": 7,
+    "type": "journey_claimed",
+    "at": 1793534385,
+    "data": {
+      "account_id": "unlucky.fixture",
+      "ambushed": true,
+      "lost": {
+        "grain": 6
+      }
+    }
+  },
+  {
+    "id": 8,
+    "type": "tick",
+    "at": 1793534390,
+    "data": {
+      "tick": 42
+    }
+  }
+]

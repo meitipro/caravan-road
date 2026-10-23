@@ -42,6 +42,18 @@ export function quote(input: QuoteInput): Quote {
   return { bid: q.bid.toString(), mid: q.mid.toString(), ask: q.ask.toString() };
 }
 
+/**
+ * ASSUMPTION(A2): net worth = fils + sum(qty * base price). The spec does not define it
+ * (spec/OPEN_QUESTIONS.md #2); cargo in transit and stall goods are not counted.
+ */
+export function netWorthFils(fils: bigint, inventory: Partial<Record<GoodId, number>>): bigint {
+  let total = fils;
+  for (const [good, qty] of Object.entries(inventory) as Array<[GoodId, number | undefined]>) {
+    total += GOODS[good].baseFils * BigInt(qty ?? 0);
+  }
+  return total;
+}
+
 export type Side = "buy" | "sell";
 
 export interface TradeCostInput {

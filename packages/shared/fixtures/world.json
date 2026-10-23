@@ -1,0 +1,218 @@
+{
+  "tick": 42,
+  "now": 1793534400,
+  "mode": "PLAY",
+  "merchants": [
+    {
+      "id": "dasht",
+      "account_id": "dasht.merchant.fixture",
+      "treasury": "50000",
+      "stock": {
+        "grain": 240,
+        "salt": 130,
+        "iron": 85,
+        "spice": 35,
+        "silk": 26
+      },
+      "policy": {
+        "spread_bp": 800,
+        "bias_bp": 0
+      },
+      "quotes": {
+        "grain": {
+          "bid": "883",
+          "mid": "920",
+          "ask": "956"
+        },
+        "salt": {
+          "bid": "1392",
+          "mid": "1450",
+          "ask": "1508"
+        },
+        "iron": {
+          "bid": "4070",
+          "mid": "4240",
+          "ask": "4409"
+        },
+        "spice": {
+          "bid": "12096",
+          "mid": "12600",
+          "ask": "13104"
+        },
+        "silk": {
+          "bid": "20223",
+          "mid": "21066",
+          "ask": "21908"
+        }
+      },
+      "mood": "calm",
+      "last_line": {
+        "en": "Harvest is in. Grain is cheap today.",
+        "fa": "برداشت تمام شد. غله امروز ارزان است."
+      },
+      "verified": {
+        "model": "fixture-model",
+        "request_id": "fixture-request-0001",
+        "attested": false,
+        "at": 1793534280
+      }
+    },
+    {
+      "id": "madan",
+      "account_id": "madan.merchant.fixture",
+      "treasury": "50000",
+      "stock": {
+        "grain": 170,
+        "salt": 128,
+        "iron": 120,
+        "spice": 43,
+        "silk": 27
+      },
+      "policy": {
+        "spread_bp": 800,
+        "bias_bp": 0
+      },
+      "quotes": {
+        "grain": {
+          "bid": "1017",
+          "mid": "1060",
+          "ask": "1102"
+        },
+        "salt": {
+          "bid": "1401",
+          "mid": "1460",
+          "ask": "1518"
+        },
+        "iron": {
+          "bid": "3532",
+          "mid": "3680",
+          "ask": "3827"
+        },
+        "spice": {
+          "bid": "11174",
+          "mid": "11640",
+          "ask": "12105"
+        },
+        "silk": {
+          "bid": "19968",
+          "mid": "20800",
+          "ask": "21632"
+        }
+      },
+      "mood": "greedy",
+      "last_line": {
+        "en": "Iron by the cartload, but we are short on grain.",
+        "fa": "آهن فراوان است، اما غله کم داریم."
+      },
+      "verified": null
+    },
+    {
+      "id": "bandar",
+      "account_id": "bandar.merchant.fixture",
+      "treasury": "50000",
+      "stock": {
+        "grain": 180,
+        "salt": 108,
+        "iron": 75,
+        "spice": 52,
+        "silk": 39
+      },
+      "policy": {
+        "spread_bp": 800,
+        "bias_bp": 0
+      },
+      "quotes": {
+        "grain": {
+          "bid": "998",
+          "mid": "1040",
+          "ask": "1081"
+        },
+        "salt": {
+          "bid": "1497",
+          "mid": "1560",
+          "ask": "1622"
+        },
+        "iron": {
+          "bid": "4224",
+          "mid": "4400",
+          "ask": "4576"
+        },
+        "spice": {
+          "bid": "10137",
+          "mid": "10560",
+          "ask": "10982"
+        },
+        "silk": {
+          "bid": "16896",
+          "mid": "17600",
+          "ask": "18304"
+        }
+      },
+      "mood": "worried",
+      "last_line": {
+        "en": "Ships are late. Spice and silk will not stay cheap.",
+        "fa": "کشتی‌ها دیر کرده‌اند. ادویه و ابریشم ارزان نمی‌ماند."
+      },
+      "verified": null
+    },
+    {
+      "id": "shahr",
+      "account_id": "shahr.merchant.fixture",
+      "treasury": "50000",
+      "stock": {
+        "grain": 190,
+        "salt": 90,
+        "iron": 105,
+        "spice": 30,
+        "silk": 22
+      },
+      "policy": {
+        "spread_bp": 800,
+        "bias_bp": 0
+      },
+      "quotes": {
+        "grain": {
+          "bid": "979",
+          "mid": "1020",
+          "ask": "1060"
+        },
+        "salt": {
+          "bid": "1584",
+          "mid": "1650",
+          "ask": "1716"
+        },
+        "iron": {
+          "bid": "3763",
+          "mid": "3920",
+          "ask": "4076"
+        },
+        "spice": {
+          "bid": "12672",
+          "mid": "13200",
+          "ask": "13728"
+        },
+        "silk": {
+          "bid": "21246",
+          "mid": "22132",
+          "ask": "23017"
+        }
+      },
+      "mood": "generous",
+      "last_line": {
+        "en": "The capital pays well for salt.",
+        "fa": "پایتخت برای نمک خوب پول می‌دهد."
+      },
+      "verified": null
+    }
+  ],
+  "stalls": [
+    {
+      "id": 1,
+      "seller": "trader.fixture",
+      "city": "shahr",
+      "good": "salt",
+      "qty": 12,
+      "unit_price": "1700"
+    }
+  ]
+}

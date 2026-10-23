@@ -1,0 +1,75 @@
+{
+  "newPlayerInBandar": {
+    "account_id": "newbie.fixture",
+    "display_name": "Newbie",
+    "fils": "50000",
+    "location": "bandar",
+    "inventory": {
+      "grain": 0,
+      "salt": 0,
+      "iron": 0,
+      "spice": 0,
+      "silk": 0
+    },
+    "journey": null,
+    "net_worth": "50000"
+  },
+  "midJourney": {
+    "account_id": "wanderer.fixture",
+    "display_name": "Wanderer",
+    "fils": "30000",
+    "location": "dasht",
+    "inventory": {
+      "grain": 0,
+      "salt": 0,
+      "iron": 0,
+      "spice": 0,
+      "silk": 0
+    },
+    "journey": {
+      "id": 7,
+      "from": "dasht",
+      "to": "shahr",
+      "cargo": {
+        "grain": 20
+      },
+      "guards": 1,
+      "started_at": 1793534340,
+      "arrives_at": 1793534580,
+      "risk_bp": 780,
+      "status": "IN_TRANSIT"
+    },
+    "net_worth": "30000"
+  },
+  "ambushResult": {
+    "account_id": "unlucky.fixture",
+    "display_name": "Unlucky",
+    "fils": "28000",
+    "location": "shahr",
+    "inventory": {
+      "grain": 14,
+      "salt": 0,
+      "iron": 0,
+      "spice": 0,
+      "silk": 0
+    },
+    "journey": {
+      "id": 5,
+      "from": "dasht",
+      "to": "shahr",
+      "cargo": {
+        "grain": 20
+      },
+      "guards": 0,
+      "started_at": 1793534000,
+      "arrives_at": 1793534240,
+      "risk_bp": 1200,
+      "status": "ARRIVED",
+      "ambushed": true,
+      "lost": {
+        "grain": 6
+      }
+    },
+    "net_worth": "42000"
+  }
+}

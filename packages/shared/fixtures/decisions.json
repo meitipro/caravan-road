@@ -1,0 +1,67 @@
+[
+  {
+    "id": 1,
+    "merchant": "dasht",
+    "at": 1793534280,
+    "policy": {
+      "spread_bp": 800,
+      "bias_bp": 0
+    },
+    "mood": "calm",
+    "line": {
+      "en": "Harvest is in. Grain is cheap today.",
+      "fa": "برداشت تمام شد. غله امروز ارزان است."
+    },
+    "verified": {
+      "model": "fixture-model",
+      "request_id": "fixture-request-0001",
+      "attested": false,
+      "at": 1793534280
+    }
+  },
+  {
+    "id": 2,
+    "merchant": "madan",
+    "at": 1793534280,
+    "policy": {
+      "spread_bp": 800,
+      "bias_bp": 0
+    },
+    "mood": "greedy",
+    "line": {
+      "en": "Iron by the cartload, but we are short on grain.",
+      "fa": "آهن فراوان است، اما غله کم داریم."
+    },
+    "verified": null
+  },
+  {
+    "id": 3,
+    "merchant": "bandar",
+    "at": 1793534280,
+    "policy": {
+      "spread_bp": 800,
+      "bias_bp": 0
+    },
+    "mood": "worried",
+    "line": {
+      "en": "Ships are late. Spice and silk will not stay cheap.",
+      "fa": "کشتی‌ها دیر کرده‌اند. ادویه و ابریشم ارزان نمی‌ماند."
+    },
+    "verified": null
+  },
+  {
+    "id": 4,
+    "merchant": "shahr",
+    "at": 1793534280,
+    "policy": {
+      "spread_bp": 800,
+      "bias_bp": 0
+    },
+    "mood": "generous",
+    "line": {
+      "en": "The capital pays well for salt.",
+      "fa": "پایتخت برای نمک خوب پول می‌دهد."
+    },
+    "verified": null
+  }
+]

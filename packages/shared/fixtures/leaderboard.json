@@ -1,0 +1,24 @@
+{
+  "rows": [
+    {
+      "name": "Silk Baron",
+      "net_worth": "182400"
+    },
+    {
+      "name": "Salt Queen",
+      "net_worth": "97150"
+    },
+    {
+      "name": "Newbie",
+      "net_worth": "50000"
+    },
+    {
+      "name": "Unlucky",
+      "net_worth": "42000"
+    },
+    {
+      "name": "Wanderer",
+      "net_worth": "30000"
+    }
+  ]
+}
