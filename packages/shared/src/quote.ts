@@ -1,0 +1,83 @@
+// Integer price math from spec/ECONOMY.md section 4.
+// BigInt division truncates toward zero, matching Rust i128; never use Math.floor here.
+
+import type { GoodId, Quote } from "./types.js";
+import { GOODS, PARAMS } from "./world.js";
+
+const { BP, MULT_K_BP, MULT_MIN_BP, MULT_MAX_BP } = PARAMS;
+
+function clamp(v: bigint, lo: bigint, hi: bigint): bigint {
+  return v < lo ? lo : v > hi ? hi : v;
+}
+
+/** mult_bp(stock, target) = clamp(10000 + 4000 * (target - stock) / target, 7500, 13500) */
+export function multBp(stock: bigint, target: bigint): bigint {
+  return clamp(BP + (MULT_K_BP * (target - stock)) / target, MULT_MIN_BP, MULT_MAX_BP);
+}
+
+export interface QuoteInput {
+  good: GoodId;
+  stock: number | bigint;
+  spreadBp: number | bigint;
+  biasBp: number | bigint;
+}
+
+export interface QuoteBig { bid: bigint; mid: bigint; ask: bigint }
+
+export function quoteBig({ good, stock, spreadBp, biasBp }: QuoteInput): QuoteBig {
+  const spec = GOODS[good];
+  const spread = BigInt(spreadBp);
+  const bias = BigInt(biasBp);
+  const m = multBp(BigInt(stock), BigInt(spec.target));
+  const base = (spec.baseFils * m) / BP;
+  const mid = (base * (BP + bias)) / BP;
+  const ask = (mid * (BP + spread / 2n)) / BP;
+  const bid = (mid * (BP - spread / 2n)) / BP;
+  return { bid, mid, ask };
+}
+
+/** Same as quoteBig, with money rendered as decimal strings for the API boundary. */
+export function quote(input: QuoteInput): Quote {
+  const q = quoteBig(input);
+  return { bid: q.bid.toString(), mid: q.mid.toString(), ask: q.ask.toString() };
+}
+
+export type Side = "buy" | "sell";
+
+export interface TradeCostInput {
+  good: GoodId;
+  side: Side;
+  qty: number;
+  merchantStock: number;
+  spreadBp: number;
+  biasBp: number;
+}
+
+export interface TradeCost {
+  /** unit price at the trade's midpoint stock */
+  unit: bigint;
+  /** qty * unit, before the fee */
+  total: bigint;
+  /** 1% of total, taken from the player's side */
+  fee: bigint;
+}
+
+/**
+ * Prices a buy (player buys from merchant, at ask) or a sell (player sells to merchant, at bid)
+ * at the MIDPOINT stock of the trade: stock - qty/2 for a buy, stock + qty/2 for a sell.
+ *
+ * ASSUMPTION(A11, A12): total = qty * unit, fee = total * TRADE_FEE_BP / BP, both truncated.
+ * A buy costs total + fee; a sell pays total - fee.
+ */
+export function tradeCost(input: TradeCostInput): TradeCost {
+  const { good, side, qty, merchantStock, spreadBp, biasBp } = input;
+  if (!Number.isInteger(qty) || qty <= 0) throw new RangeError("qty must be a positive integer");
+  const half = BigInt(qty) / 2n;
+  const stock = BigInt(merchantStock);
+  const midStock = side === "buy" ? stock - half : stock + half;
+  const q = quoteBig({ good, stock: midStock, spreadBp, biasBp });
+  const unit = side === "buy" ? q.ask : q.bid;
+  const total = BigInt(qty) * unit;
+  const fee = (total * PARAMS.TRADE_FEE_BP) / PARAMS.BP;
+  return { unit, total, fee };
+}
