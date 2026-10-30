@@ -3,9 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "packageManager": "pnpm@10.18.2",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test"
+    "test": "pnpm -r --if-present test",
+    "sim": "pnpm --filter @caravan/shared sim"
   }
 }

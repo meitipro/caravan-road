@@ -3,12 +3,12 @@
 // simulated world instead of calling the server, so the UI can be built before the backend exists.
 
 import { createMockApiClient, type MockOptions } from "./mock.js";
-import type { Proof, Decision, Event } from "./provisional.js";
+import type { Proof, Event } from "./provisional.js";
 import type {
   DepositQuoteRequest, JourneyStartRequest, StallBuyRequest, StallCancelRequest, StallCreateRequest,
   TradeRequest, WithdrawRequest,
 } from "./schemas.js";
-import type { ApiResult, CityId, Fils, Journey, Player, Stall, WorldState } from "./types.js";
+import type { ApiResult, CityId, Decision, Fils, Journey, Player, Stall, WorldState } from "./types.js";
 
 export interface StateData { world: WorldState; me: Player | null; events: Event[] }
 export interface TradeData { player: Player; total: Fils; fee: Fils }

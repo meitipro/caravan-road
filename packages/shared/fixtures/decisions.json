@@ -1,67 +1,74 @@
 [
   {
-    "id": 1,
     "merchant": "dasht",
-    "at": 1793534280,
-    "policy": {
-      "spread_bp": 800,
-      "bias_bp": 0
-    },
+    "ts": 1793534280,
+    "spread_bp": 800,
+    "bias_bp": 0,
     "mood": "calm",
+    "ship": null,
     "line": {
       "en": "Harvest is in. Grain is cheap today.",
       "fa": "برداشت تمام شد. غله امروز ارزان است."
     },
-    "verified": {
-      "model": "fixture-model",
-      "request_id": "fixture-request-0001",
-      "attested": false,
-      "at": 1793534280
-    }
+    "reason": "Fixture decision: stock is near target, keep the default policy.",
+    "source": "llm",
+    "model": "fixture-model",
+    "request_id": "fixture-request-0001",
+    "attested": false,
+    "tx_hashes": []
   },
   {
-    "id": 2,
     "merchant": "madan",
-    "at": 1793534280,
-    "policy": {
-      "spread_bp": 800,
-      "bias_bp": 0
-    },
+    "ts": 1793534280,
+    "spread_bp": 800,
+    "bias_bp": 0,
     "mood": "greedy",
+    "ship": null,
     "line": {
       "en": "Iron by the cartload, but we are short on grain.",
       "fa": "آهن فراوان است، اما غله کم داریم."
     },
-    "verified": null
+    "reason": "Fixture decision: stock is near target, keep the default policy.",
+    "source": "baseline",
+    "model": null,
+    "request_id": null,
+    "attested": false,
+    "tx_hashes": []
   },
   {
-    "id": 3,
     "merchant": "bandar",
-    "at": 1793534280,
-    "policy": {
-      "spread_bp": 800,
-      "bias_bp": 0
-    },
+    "ts": 1793534280,
+    "spread_bp": 800,
+    "bias_bp": 0,
     "mood": "worried",
+    "ship": null,
     "line": {
       "en": "Ships are late. Spice and silk will not stay cheap.",
       "fa": "کشتی‌ها دیر کرده‌اند. ادویه و ابریشم ارزان نمی‌ماند."
     },
-    "verified": null
+    "reason": "Fixture decision: stock is near target, keep the default policy.",
+    "source": "baseline",
+    "model": null,
+    "request_id": null,
+    "attested": false,
+    "tx_hashes": []
   },
   {
-    "id": 4,
     "merchant": "shahr",
-    "at": 1793534280,
-    "policy": {
-      "spread_bp": 800,
-      "bias_bp": 0
-    },
+    "ts": 1793534280,
+    "spread_bp": 800,
+    "bias_bp": 0,
     "mood": "generous",
+    "ship": null,
     "line": {
       "en": "The capital pays well for salt.",
       "fa": "پایتخت برای نمک خوب پول می‌دهد."
     },
-    "verified": null
+    "reason": "Fixture decision: stock is near target, keep the default policy.",
+    "source": "baseline",
+    "model": null,
+    "request_id": null,
+    "attested": false,
+    "tx_hashes": []
   }
 ]

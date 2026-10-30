@@ -5,16 +5,16 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { netWorthFils, quote } from "../src/quote.js";
-import { CITY_IDS, GOODS, GOOD_IDS } from "../src/world.js";
-import type { CityId, Merchant, Player, GoodId } from "../src/types.js";
-import type { Decision, Event } from "../src/provisional.js";
+import { CITY_IDS, GOODS, GOOD_IDS, PARAMS } from "../src/world.js";
+import type { CityId, Decision, Merchant, Player, GoodId } from "../src/types.js";
+import type { Event } from "../src/provisional.js";
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures");
 mkdirSync(dir, { recursive: true });
 
 export const FIXTURE_NOW = 1793534400; // 2026-11-01 12:00:00 UTC
-const POLICY = { spread_bp: 800, bias_bp: 0 }; // ASSUMPTION: default policy = the golden-vector spread, no bias.
-const TREASURY = "50000"; // ASSUMPTION(A6): 5 USDC.
+const POLICY = { spread_bp: PARAMS.SPREAD_DEFAULT_BP, bias_bp: 0 };
+const TREASURY = String(PARAMS.MERCHANT_TREASURY_FILS);
 
 // Stock near target, nudged per city/good so quotes differ.
 const NUDGE: Record<CityId, Partial<Record<GoodId, number>>> = {
@@ -116,13 +116,19 @@ const leaderboard = {
 };
 
 const decisions: Decision[] = merchants.map((m, i) => ({
-  id: i + 1,
   merchant: m.id,
-  at: FIXTURE_NOW - 120,
-  policy: { ...m.policy },
+  ts: FIXTURE_NOW - 120,
+  spread_bp: m.policy.spread_bp,
+  bias_bp: m.policy.bias_bp,
   mood: m.mood,
-  line: m.last_line,
-  verified: m.verified,
+  ship: null,
+  line: LINES[m.id],
+  reason: "Fixture decision: stock is near target, keep the default policy.",
+  source: i === 0 ? ("llm" as const) : ("baseline" as const),
+  model: i === 0 ? "fixture-model" : null,
+  request_id: i === 0 ? "fixture-request-0001" : null,
+  attested: false,
+  tx_hashes: [],
 }));
 
 const files: Record<string, unknown> = { world, players, events, leaderboard, decisions };

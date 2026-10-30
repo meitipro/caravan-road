@@ -2,9 +2,11 @@
 // BigInt division truncates toward zero, matching Rust i128; never use Math.floor here.
 
 import type { GoodId, Quote } from "./types.js";
-import { GOODS, PARAMS } from "./world.js";
+import { BP, GOODS, PARAMS } from "./world.js";
 
-const { BP, MULT_K_BP, MULT_MIN_BP, MULT_MAX_BP } = PARAMS;
+const MULT_K_BP = BigInt(PARAMS.MULT_K_BP);
+const MULT_MIN_BP = BigInt(PARAMS.MULT_MIN_BP);
+const MULT_MAX_BP = BigInt(PARAMS.MULT_MAX_BP);
 
 function clamp(v: bigint, lo: bigint, hi: bigint): bigint {
   return v < lo ? lo : v > hi ? hi : v;
@@ -90,6 +92,6 @@ export function tradeCost(input: TradeCostInput): TradeCost {
   const q = quoteBig({ good, stock: midStock, spreadBp, biasBp });
   const unit = side === "buy" ? q.ask : q.bid;
   const total = BigInt(qty) * unit;
-  const fee = (total * PARAMS.TRADE_FEE_BP) / PARAMS.BP;
+  const fee = (total * BigInt(PARAMS.TRADE_FEE_BP)) / BP;
   return { unit, total, fee };
 }

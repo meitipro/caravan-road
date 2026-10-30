@@ -18,7 +18,7 @@ import {
   TradeRequestSchema,
 } from "./schemas.js";
 import type { ApiResult, CityId, ErrorCode, GoodId, Journey, Merchant, Player, Stall, WorldState } from "./types.js";
-import { CITIES, CITY_IDS, GOODS, GOOD_IDS, PARAMS, findRoute } from "./world.js";
+import { BP, CITIES, CITY_IDS, GOODS, GOOD_IDS, PARAMS, findRoute } from "./world.js";
 
 export interface MockOptions {
   /** Clock in unix seconds (injectable for tests). */
@@ -64,9 +64,7 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
   const world: WorldState = { ...clone(worldFixture), now: start, mode: "PLAY" };
   for (const m of world.merchants) if (m.verified) m.verified.at += shift;
   const events: Event[] = clone(eventsFixture).map((e) => ({ ...e, at: e.at + shift }));
-  const decisions = clone(decisionsFixture).map((d) => ({
-    ...d, at: d.at + shift, verified: d.verified ? { ...d.verified, at: d.verified.at + shift } : null,
-  }));
+  const decisions = clone(decisionsFixture).map((d) => ({ ...d, ts: d.ts + shift }));
 
   const me: Player = { ...clone(playersFixture.newPlayerInBandar), account_id: ME_ACCOUNT };
   let house = 0n;
@@ -160,7 +158,7 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
         const fils = BigInt(me.fils);
         if (req.side === "buy") {
           if (m.stock[req.good] < req.qty) return fail("INSUFFICIENT_STOCK", "The merchant does not have that much.");
-          if (cargoUnits(me.inventory) + req.qty > PARAMS.CARAVAN_CAPACITY) return fail("CARGO_LIMIT", "Caravan is full.");
+          if (cargoUnits(me.inventory) + req.qty > PARAMS.CARGO_CAP) return fail("CARGO_LIMIT", "Caravan is full.");
           const pay = cost.total + cost.fee;
           if (pay > limit) return fail("SLIPPAGE", "The price moved.");
           if (pay > fils) return fail("INSUFFICIENT_FUNDS", "Not enough dinar.");
@@ -209,11 +207,11 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
         }
         const units = cargoUnits(cargo);
         if (units === 0) return fail("BAD_REQUEST", "Cargo is empty.");
-        if (units > PARAMS.CARAVAN_CAPACITY) return fail("CARGO_LIMIT", "Caravan is full.");
+        if (units > PARAMS.CARGO_CAP) return fail("CARGO_LIMIT", "Caravan is full.");
         // ASSUMPTION(A9): the 0.65 multiplier applies per guard (compounding); cost = guards * 2% of base value.
         let risk = BigInt(route.riskBp);
-        for (let i = 0; i < req.guards; i++) risk = (risk * PARAMS.GUARD_RISK_MULT_BP) / PARAMS.BP;
-        const guardCost = (baseValue * PARAMS.GUARD_COST_BP * BigInt(req.guards)) / PARAMS.BP;
+        for (let i = 0; i < req.guards; i++) risk = (risk * BigInt(PARAMS.GUARD_RISK_FACTOR_BP)) / BP;
+        const guardCost = (baseValue * BigInt(PARAMS.GUARD_COST_BP) * BigInt(req.guards)) / BP;
         if (guardCost > BigInt(me.fils)) return fail("INSUFFICIENT_FUNDS", "Not enough dinar for guards.");
         me.fils = (BigInt(me.fils) - guardCost).toString();
         house += guardCost;
@@ -236,7 +234,7 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
         const ambushed = Math.floor(rand() * 10000) < j.risk_bp;
         const lost: Partial<Record<GoodId, number>> = {};
         for (const [g, n] of Object.entries(j.cargo) as Array<[GoodId, number]>) {
-          const l = ambushed ? Number((BigInt(n) * PARAMS.AMBUSH_LOSS_BP) / PARAMS.BP) : 0;
+          const l = ambushed ? Number((BigInt(n) * BigInt(PARAMS.AMBUSH_LOSS_BP)) / BP) : 0;
           if (l > 0) lost[g] = l;
           me.inventory[g] += n - l;
         }
@@ -276,9 +274,9 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
         if (stall.seller === me.account_id) return fail("BAD_REQUEST", "That is your own stall.");
         if (stall.city !== me.location) return fail("NOT_IN_CITY", "You are not in that city.");
         if (stall.qty < req.qty) return fail("INSUFFICIENT_STOCK", "The stall does not have that much.");
-        if (cargoUnits(me.inventory) + req.qty > PARAMS.CARAVAN_CAPACITY) return fail("CARGO_LIMIT", "Caravan is full.");
+        if (cargoUnits(me.inventory) + req.qty > PARAMS.CARGO_CAP) return fail("CARGO_LIMIT", "Caravan is full.");
         const price = BigInt(req.qty) * BigInt(stall.unit_price);
-        const fee = (price * PARAMS.STALL_FEE_BP) / PARAMS.BP; // ASSUMPTION(A12): buyer pays the 2% on top.
+        const fee = (price * BigInt(PARAMS.STALL_FEE_BP)) / BP; // ASSUMPTION(A12): buyer pays the 2% on top.
         if (price + fee > BigInt(req.limit_total)) return fail("SLIPPAGE", "The price moved.");
         if (price + fee > BigInt(me.fils)) return fail("INSUFFICIENT_FUNDS", "Not enough dinar.");
         me.fils = (BigInt(me.fils) - price - fee).toString();
@@ -307,8 +305,8 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
         if (world.mode !== "PLAY") return fail("MODE_NOT_ALLOWED", "The faucet only works in PLAY mode.");
         if (world.now - lastFaucetAt < MOCK_FAUCET_COOLDOWN_SECONDS) return fail("RATE_LIMIT", "Try again in a minute.");
         lastFaucetAt = world.now;
-        me.fils = (BigInt(me.fils) + PARAMS.PLAY_FAUCET_FILS).toString();
-        emit("faucet", { account_id: me.account_id, fils: PARAMS.PLAY_FAUCET_FILS.toString() });
+        me.fils = (BigInt(me.fils) + BigInt(PARAMS.FAUCET_FILS)).toString();
+        emit("faucet", { account_id: me.account_id, fils: String(PARAMS.FAUCET_FILS) });
         return ok({ player: clone(me) });
       }),
 

@@ -46,3 +46,14 @@ export type ErrorCode =
   | "INTERNAL";
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: { code: ErrorCode; message: string } };
+
+// Added in Phase 5 (append only), spec/API.md section 2.12:
+export type Mood = "calm" | "greedy" | "worried" | "generous";
+export interface Decision {
+  merchant: CityId; ts: number; spread_bp: number; bias_bp: number; mood: Mood;
+  ship: { to: CityId; good: GoodId; qty: number } | null;
+  line: { en: string; fa: string };       // <= 120 chars each
+  reason: string;                         // <= 240 chars, English
+  source: "llm" | "baseline" | "keep";
+  model: string | null; request_id: string | null; attested: boolean; tx_hashes: string[];
+}

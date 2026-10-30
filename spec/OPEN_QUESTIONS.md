@@ -1,58 +1,22 @@
 # OPEN QUESTIONS
 
-تناقض‌ها و ابهام‌های PDF پارت ۱ که بی‌صدا حل نشده‌اند. تا تصمیم مالک پروژه، هیچ‌کدام در `packages/shared` پیاده نمی‌شود. (طبق پرامپت گام ۲: تناقض را فهرست کن و متوقف شو.)
+Contradictions and gaps in `CARAVAN_ROAD_MASTER_PLAN.md` (spec-v1). Nothing here is resolved silently: each item names the provisional behaviour the code uses until Mahdi decides.
 
-بررسی‌شده و بی‌مشکل: هر هفت ردیف جدول بردارهای طلایی با فرمول‌های بخش ۴ و تقسیم به سمت صفر دقیقاً برابر است.
+Resolved by the master plan (were open against the old part-1 PDF): initial merchant treasury (50,000 fils), spread and bias ranges, guard risk formula, `Decision` shape, parameter names, simulation reference (Appendix B, reproduced exactly by `scripts/ref/economy_sim.py`).
 
-## مانع‌های گام ۳ (types / زود تصمیم بگیر)
+## Open
 
-1. **`Event` و `Decision` تعریف نشده‌اند.** `GET /api/state` آرایهٔ `Event[]` و `GET /api/npc/decisions` آرایهٔ `Decision[]` برمی‌گرداند، ولی بخش ۹ این دو نوع را ندارد. گام ۳ می‌گوید `types.ts` را «دقیقاً مطابق API.md» بنویس؛ بدون این دو، نمی‌شود و حدس‌زدن هم ممنوع است. رویدادهای NEP-297 در بخش ۱۱ فقط اسم دارند (بدون فیلد). پیشنهاد: پارت ۳/۴ شکل را بدهد یا خودت اینجا تعریف کنی.
-2. **`net_worth` تعریف نشده.** `Player.net_worth` و `/api/leaderboard` به آن وابسته‌اند. کالاهای موجودی با چه قیمتی ارزش‌گذاری شوند (قیمت پایه؟ `mid` شهر فعلی؟ `bid`؟ بدون کارمزد؟) و آیا شامل کالای روی غرفه و محمولهٔ در راه می‌شود؟
-3. **فیلدهای API بدون منبع در رابط قرارداد (بخش ۱۱).** `Player.display_name` (متد `register()` پارامتر ندارد)؛ `Merchant.mood`، `last_line`، `verified` (احتمالاً خارج از زنجیره، پارت ۴)؛ `Merchant.quotes` (محاسبه‌شده با `quote()` یا ذخیره‌شده؟).
+1. **`Event` is undefined.** `/api/state` returns `Event[]` and section 2.14 lists NEP-297 event names, but no fields. Provisional: `{ id, type, at, data }` in `packages/shared/src/provisional.ts` (A1).
+2. **`net_worth` has no formula** (`Player.net_worth`, leaderboard). Provisional (A2): `fils` + sum(qty x base price) of inventory; cargo in transit and stall goods are not counted.
+3. **`/api/proof/{merchant}` response shape is undefined** ("latest inference-evidence record"). Provisional (A18): `Merchant["verified"]` in the mock; to be defined in Phase 5.
+4. **PLAY faucet cooldown length is not given** (section 2.14: "with cooldown"; section 2.9 suggests a top-up for players under 50 dinars). Provisional (A7): 60 s in the mock.
+5. **Text vs table, section 2.3.** The text says each city produces two goods and consumes two or three, but `shahr` produces one good (iron 1) and consumes four. The table matches Appendix A and keeps production equal to consumption per good, so the table is used as written.
+6. **Ambush loss rounding.** Section 2.4: "30% of each cargo good is destroyed (floor)" means lost = floor(0.3 x qty). Appendix B keeps `q * 7000 // 10000`, so lost = ceil(0.3 x qty) (qty 11: sim loses 4, text loses 3). Provisional: the TypeScript sim reproduces Appendix B exactly (needed to match its published numbers); the mock follows the section 2.4 text. The contract must follow one of them.
+7. **`limit_total` semantics.** Not stated whether it bounds the gross total or the amount after the 1% fee. Provisional (A12): buy: `total + fee <= limit_total`; sell: `total - fee >= limit_total`. `tradeCost()` returns the gross `total` and `fee` separately.
+8. **Stall fee payer and rounding.** "2% fee to `house`": payer and rounding unstated. Provisional: buyer pays 2% on top, truncated.
+9. **Tie-breaks in the world tick** ("poorest merchant", richest/poorest stocked city). Provisional: first in the order dasht, madan, bandar, shahr, as in Appendix B.
+10. **Document placement.** Section 4 step 2 maps sections 1, 2.1-2.10 and 2.12-2.14 to spec files; 2.11 (layout) is placed at the end of `GAME.md` and 2.15 (colors) in `UI.md`.
 
-## تناقض در داده‌ها
+## Process notes
 
-4. **`shahr` فقط یک کالا تولید می‌کند** (`آهن 1`)، ولی متن زیر جدول می‌گوید «هر شهر دو کالا تولید … می‌کند». (متن همان‌جا اشاره می‌کند نسخهٔ اول پایتخت اصلاً تولید نداشت.) جمع‌ها بالانس هستند (تولید = مصرف برای هر پنج کالا: غله ۸، نمک ۵، آهن ۵، ادویه ۴، ابریشم ۳)، پس جدول احتمالاً درست و متن نادرست است. جدول همان‌طور که هست در `spec/GAME.md` آمده.
-5. **`shahr` چهار کالا مصرف می‌کند** (غله ۱، نمک ۳، ادویه ۲، ابریشم ۱)، ولی متن می‌گوید «دو یا سه کالا مصرف می‌کند».
-6. **خزانهٔ اولیهٔ بازرگان‌ها ذکر نشده.** فقط در LIVE «۴ × ۵ = ۲۰ USDC» آمده (یعنی ۵ USDC = ۵۰٬۰۰۰ fils = ۵۰۰ دینار برای هر بازرگان). در PLAY خزانه چقدر است؟ «مقدار اولیه» در بازتوزیع خزانه (بخش ۵، مرحلهٔ ۲: بیش از ۱۵۰٪ مقدار اولیه) همین عدد است؟ موجودی اولیهٔ کالا هم گفته نشده (احتمالاً `target`).
-7. **کمک‌هزینه در PLAY دو قاعدهٔ متفاوت دارد.** بخش ۱۱: `faucet()` «۵۰۰ دینار، با فاصلهٔ زمانی» (فاصله مشخص نیست). بخش ۶: «یک کمک‌هزینهٔ مجدد برای کسی که کمتر از ۵۰ دینار دارد کافی است». آیا شرط «کمتر از ۵۰ دینار» هم لازم است؟ فاصلهٔ زمانی چقدر؟
-8. **سقف‌های LIVE (بخش ۷) مبهم‌اند.** «واریز کل ۲۰ USDC؛ ۱۰ USDC برای هر بازیکن؛ برداشت روزانه ۱۰ USDC»: برداشت روزانه ۱۰ USDC برای هر بازیکن است یا کل سیستم؟
-
-## ابهام در قوانین
-
-9. **نگهبان.** «ریسک را در ۰٫۶۵ ضرب می‌کند»: برای هر نگهبان جداگانه (۰٫۶۵ⁿ) یا یک‌بار؟ گرد کردن `risk_bp` (عدد صحیح؟ کف/سقف/به سمت صفر؟). «۲٪ ارزش پایهٔ محموله» یعنی Σ(تعداد × قیمت پایهٔ کالا) به fils؟ کجا و چطور پرداخت می‌شود و گرد می‌شود؟
-10. **حمله.** «۳۰٪ هر کالای محموله از بین می‌رود»: گرد کردن برای تعداد صحیح (مثلاً ۳ واحد × ۳۰٪)؟ منبع تصادفی بودن حمله در قرارداد (seed) چیست و آیا قابل پیش‌بینی/دستکاری است؟ (جزئیات احتمالاً پارت ۲.)
-11. **قیمت معامله.** با `qty` فرد، `qty/2` به سمت صفر گرد می‌شود (برای مقدار مثبت کف) — تأیید شود. مبلغ کل = `qty × ask` در نقطهٔ میانی؟ ترتیب بررسی خطاها (`INSUFFICIENT_STOCK` وقتی `stock < qty` یا `stock - qty/2` منفی می‌شود؛ `CARGO_LIMIT`؛ `MERCHANT_BROKE`) مشخص نیست.
-12. **گرد کردن کارمزد.** کارمزد ۱٪ معامله و ۲٪ غرفه: روی چه مبلغی، با کدام جهت گرد کردن؟ در خرید به مبلغ اضافه می‌شود و در فروش از آن کم می‌شود (فرض)؟ در غرفه ۲٪ از خریدار گرفته می‌شود یا فروشنده؟
-13. **تیک جهان، مرحلهٔ ۲ تا ۴.** «فقیرترین بازرگان» در حالت تساوی و وقتی خودِ بازرگان است؛ «قیمت میانیِ دو شهر» برای کاروان خانگی یعنی میانگین دو `mid` یا `mid` یکی از آن‌ها؟ ترتیب اجرای مراحل نسبت به معامله‌های هم‌زمان؛ و اینکه `ship` را حساب بازرگان صدا می‌زند، ولی مرحلهٔ ۴ داخل `world_tick()` (هر کسی) تعریف شده است.
-14. **جایگذاری بخش‌های ۷ و ۸.** پرامپت گام ۲ فقط بخش‌های ۲–۶ و ۹–۱۱ را به فایل‌ها نگاشت می‌کند. بخش ۷ (حالت‌های اجرا) و ۸ (ساختار مخزن) به هیچ فایلی تعلق نگرفتند؛ موقتاً در انتهای `GAME.md` گذاشته شدند.
-
-## پارامترها و شبیه‌ساز
-
-15. **نام پارامترها.** بخش ۶ از `MULT_K_BP` نام می‌برد، ولی فرمول بخش ۴ عدد `4000` و کران‌های `7500`/`13500` را مستقیم دارد. نام ثابت‌ها در `PARAMS` (برای `4000`، `7500`، `13500`، ۱٪ کارمزد، ۲٪ غرفه، …) مشخص نشده. همچنین محدودهٔ مجاز `spread_bp` و `bias_bp` در `set_policy` («در محدودهٔ مجاز») داده نشده.
-16. **`economy_sim.py` همراه این PDF نبود.** بخش ۶ و گام ۵ می‌گویند همراه PDFهاست. بدون آن، پورت به TypeScript (گام ۵) ممکن نیست و رفتار ربات‌ها، `seed` و پارامترها را نمی‌شود حدس زد. همچنین «حفظ پول» در شبیه‌ساز باید `faucet`/واریز/برداشت را (که پول وارد یا خارج می‌کنند) مشخصاً از ادعای بقا کنار بگذارد.
-
-## فرایند
-
-17. **زمان‌بندی هکاتون.** PDF می‌گوید ساخت باید از ۱ تا ۱۴ نوامبر ۲۰۲۶ باشد و «اولین خط کد از روز ۱ نوامبر نوشته شود». کامیت‌های این مخزن در ۲۳ اکتبر ۲۰۲۶ زده شده‌اند. تصمیم مالک (۲۳ اکتبر): ادامه با گام‌های ۱ تا ۵؛ خطر قانونی/داوری با خود اوست. تاریخچهٔ گیت بازنویسی نمی‌شود.
-
-18. **پاسخ `/api/proof/{merchant}` تعریف نشده** («آخرین شواهد تأیید استنتاج»، بدون شکل). در mock همان `Merchant["verified"]` برگردانده می‌شود.
-
----
-
-## فرض‌های موقتی اعمال‌شده (تصمیم مالک، ۲۳ اکتبر: «فرض‌های معقول را خودت بنویس و علامت بزن»)
-
-هر فرض زیر باید توسط مالک تأیید یا عوض شود؛ تا آن موقع کد طبق همین فرض‌ها نوشته شده و در کد با `ASSUMPTION(n)` علامت خورده است. اگر عوض شد، نسخهٔ جدید (`spec-v1.1`) لازم است.
-
-- **A1 (مورد ۱):** `Event` و `Decision` در `packages/shared/src/provisional.ts` تعریف شده‌اند (حداقلی؛ `Event = {id, type, at, data}`، `type` از نام‌های NEP-297 بخش ۱۱). نه در `types.ts`، تا `types.ts` عین API.md بماند.
-- **A2 (مورد ۲):** `net_worth` در fixtureها = `fils` + مجموع (تعداد × قیمت پایه) موجودی؛ محمولهٔ در راه و غرفه حساب نمی‌شود.
-- **A6 (مورد ۶):** خزانهٔ اولیهٔ هر بازرگان در fixtureها ۵۰٬۰۰۰ fils (۵ USDC). در `PARAMS` ثابت خزانهٔ اولیه **تعریف نشده**.
-- **A7 (مورد ۷)، فقط در mock:** فاصلهٔ `faucet` برابر ۶۰ ثانیه و بدون شرط «کمتر از ۵۰ دینار».
-- **A9 (مورد ۹)، فقط در mock:** ضریب ۰٫۶۵ برای هر نگهبان جدا اعمال می‌شود (ترکیبی، با تقسیم به سمت صفر روی `risk_bp`)؛ هزینه = نگهبان × ۲٪ مجموع (تعداد × قیمت پایه) و به `house` می‌رود.
-- **A10 (مورد ۱۰)، فقط در mock:** حمله با PRNG بذردار؛ از هر کالا `trunc(qty × ۳۰٪)` کم می‌شود.
-- **A11 (مورد ۱۱):** `qty/2` با تقسیم BigInt (به سمت صفر)؛ مبلغ کل = `qty × ask` (یا `bid`) در موجودی نقطهٔ میانی؛ کارمزد = `total × 100 / 10000` به سمت صفر.
-- **A12 (مورد ۱۲):** `tradeCost()` مقدار `total` را **خام** (بدون کارمزد) برمی‌گرداند و `fee` جدا. در خرید بازیکن `total + fee` می‌پردازد و در فروش `total - fee` می‌گیرد. مطابقت `limit_total` با کدام مقدار است، هنوز تعیین نشده.
-- **A15 (مورد ۱۵):** نام ثابت‌ها در `PARAMS` را خودم گذاشتم (`MULT_K_BP` = 4000، `MULT_MIN_BP`، `MULT_MAX_BP`، `TRADE_FEE_BP` = 100، `STALL_FEE_BP` = 200، …). فقط عددهای صریح PDF آمده‌اند؛ محدودهٔ `spread_bp`/`bias_bp` و جزئیات نگهبان/حمله پیاده نشده‌اند.
-- **A16 (مورد ۱۶):** گام ۵ (شبیه‌ساز TypeScript) انجام **نشد**: `economy_sim.py` در دسترس نیست.
-- **A18 (مورد ۱۸):** mock برای `/api/proof` همان `verified` بازرگان را می‌دهد.
-- **A-mock:** در حالت mock هر ۵ ثانیه یک «تیک mock» اجرا می‌شود که فقط قانون ۱ بخش ۵ (تولید/مصرف) را به‌صورت کسری (۵/۶۰ تیک) اعمال می‌کند و قیمت‌ها را دوباره با `quote()` می‌سازد. مراحل ۲ تا ۴ تیک و نگهبان/حملهٔ واقعی شبیه‌سازی نمی‌شوند.
+- **P1 (2026-10-30): building before the date gate.** Section 0.3 rule 1 and the hackathon rule say code starts on 2026-11-01T00:00:00Z. Mahdi decided on 2026-10-30 to proceed anyway. Git history is not rewritten. The README, X post and submission must state the real dates and must not claim the project was built entirely inside the window.

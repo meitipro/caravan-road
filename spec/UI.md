@@ -1,5 +1,20 @@
-# UI — رابط کاربری
+# UI
 
-مشخصات این بخش در **PDF پارت ۵** است و هنوز به این مخزن منتقل نشده.
+Filled in during Phase 4 (user interface).
 
-از پارت ۱ فقط این‌ها قفل شده‌اند: رنگ‌های هویت بصری ([GAME.md](GAME.md) بخش ۳)؛ رابط فقط دینار نشان می‌دهد؛ UI هر ۲ ثانیه `/api/state` را می‌خواند ([API.md](API.md) بخش ۱۰)؛ UI روی `api-client` در حالت `NEXT_PUBLIC_MOCK=1` ساخته می‌شود.
+### 2.15 Visual identity (UI and art use only these colors)
+
+| name | hex | use |
+|---|---|---|
+| sand | `#E8D5A3` | light background, paper |
+| dune | `#C99A52` | ground, buttons |
+| terracotta | `#A8503A` | soft warning, houses |
+| night | `#1B1F2B` | dark background, text |
+| ink | `#0F1118` | outlines |
+| oasis | `#2F8F83` | profit, success |
+| sky | `#6FB1D6` | water, info |
+| gold | `#E0A526` | dinar, emphasis |
+| leaf | `#5A8F3C` | grain, growth |
+| blood | `#9C2F2F` | danger, loss, ambush |
+| cloth | `#F2EAD3` | panels |
+| stone | `#7A7468` | secondary text |

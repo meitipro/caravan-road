@@ -75,7 +75,7 @@ export const WorldStateSchema = z.object({
   stalls: z.array(StallSchema),
 }).strict();
 
-// ASSUMPTION(A1): Event / Decision shapes are provisional (see provisional.ts).
+// ASSUMPTION(A1): the Event shape is provisional (see provisional.ts); Decision is spec-v1.
 export const EventSchema = z.object({
   id: z.number().int().nonnegative(),
   type: z.enum(EVENT_TYPES),
@@ -84,13 +84,19 @@ export const EventSchema = z.object({
 }).strict();
 
 export const DecisionSchema = z.object({
-  id: z.number().int().nonnegative(),
   merchant: CityIdSchema,
-  at: z.number().int(),
-  policy: z.object({ spread_bp: z.number().int(), bias_bp: z.number().int() }).strict(),
+  ts: z.number().int(),
+  spread_bp: z.number().int().min(PARAMS.SPREAD_MIN_BP).max(PARAMS.SPREAD_MAX_BP),
+  bias_bp: z.number().int().min(PARAMS.BIAS_MIN_BP).max(PARAMS.BIAS_MAX_BP),
   mood: MerchantSchema.shape.mood,
-  line: z.object({ en: z.string(), fa: z.string() }).strict().nullable(),
-  verified: MerchantSchema.shape.verified,
+  ship: z.object({ to: CityIdSchema, good: GoodIdSchema, qty: z.number().int().positive() }).strict().nullable(),
+  line: z.object({ en: z.string().max(120), fa: z.string().max(120) }).strict(),
+  reason: z.string().max(240),
+  source: z.enum(["llm", "baseline", "keep"]),
+  model: z.string().nullable(),
+  request_id: z.string().nullable(),
+  attested: z.boolean(),
+  tx_hashes: z.array(z.string()),
 }).strict();
 
 export const LeaderboardRowSchema = z.object({ name: z.string(), net_worth: FilsSchema }).strict();
@@ -109,7 +115,7 @@ export const TradeRequestSchema = z.object({
   merchant: CityIdSchema,
   good: GoodIdSchema,
   side: z.enum(["buy", "sell"]),
-  qty: Qty.max(PARAMS.MAX_TRADE_QTY),
+  qty: Qty.max(PARAMS.MAX_QTY_PER_TRADE),
   limit_total: FilsSchema,
 }).strict();
 

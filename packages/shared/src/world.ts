@@ -55,30 +55,43 @@ export function findRoute(from: CityId, to: CityId): RouteSpec | undefined {
   return ROUTES.find((r) => (r.a === from && r.b === to) || (r.a === to && r.b === from));
 }
 
-// ASSUMPTION(A15): constant names are ours; only numbers written in the spec appear here.
+// Parameter names and values: spec/ECONOMY.md section 2.5 and Appendix A (world.py).
 export const PARAMS = {
-  BP: 10000n,
-  MULT_K_BP: 4000n,
-  MULT_MIN_BP: 7500n,
-  MULT_MAX_BP: 13500n,
-  TRADE_FEE_BP: 100n,
-  STALL_FEE_BP: 200n,
-  MAX_TRADE_QTY: 40,
-  CARAVAN_CAPACITY: 40,
-  STOCK_CAP_FACTOR: 2,
-  FILS_PER_DINAR: 100n,
-  FILS_PER_USDC: 10000n,
-  PLAY_FAUCET_FILS: 50000n, // 500 dinar
-  GUARD_COST_BP: 200n, // of the cargo base value, per guard
-  GUARD_RISK_MULT_BP: 6500n, // 0.65
-  MAX_GUARDS: 3,
-  AMBUSH_LOSS_BP: 3000n,
   TICK_SECONDS: 60,
-  TICK_MIN_INTERVAL_SECONDS: 55,
-  TICK_MAX_BACKLOG: 10,
-  TREASURY_REDISTRIBUTE_ABOVE_BP: 15000n, // of the initial treasury
-  TREASURY_REDISTRIBUTE_SHARE_BP: 3000n,
-  HOUSE_RECYCLE_BP: 1000n,
-  HOME_CARAVAN_GAP_BP: 5000n,
-  HOME_CARAVAN_MAX_UNITS: 4,
+  MULT_K_BP: 4000,
+  MULT_MIN_BP: 7500,
+  MULT_MAX_BP: 13500,
+  STOCK_CAP_FACTOR: 2,
+  SPREAD_DEFAULT_BP: 800,
+  SPREAD_MIN_BP: 400,
+  SPREAD_MAX_BP: 2000,
+  BIAS_MIN_BP: -1500,
+  BIAS_MAX_BP: 1500,
+  TRADE_FEE_BP: 100,
+  MAX_QTY_PER_TRADE: 40,
+  CARGO_CAP: 40,
+  GUARD_COST_BP: 200, // of the cargo base value, per guard
+  GUARD_RISK_FACTOR_BP: 6500,
+  MAX_GUARDS: 3,
+  AMBUSH_LOSS_BP: 3000,
+  MERCHANT_TREASURY_FILS: 50000, // 5 USDC
+  FAUCET_FILS: 50000, // 500 dinar (PLAY only)
+  MAX_DEPOSIT_FILS: 200000, // 20 USDC
+  DAILY_WITHDRAW_CAP_FILS: 100000, // 10 USDC
+  STALL_FEE_BP: 200,
+  NPC_SHIP_UNITS_PER_TICK: 4,
+  NPC_MIN_RATIO_GAP_BP: 5000,
+  REBALANCE_EXCESS_FROM_BP: 15000,
+  REBALANCE_PCT: 30,
+  HOUSE_RECYCLE_PCT: 10,
 } as const;
+
+/** Section 2.8: world_tick() rate limits. */
+export const TICK_RULES = { MIN_INTERVAL_SECONDS: 55, MAX_MISSED_TICKS: 10 } as const;
+
+/** Section 2.1. */
+export const FILS_PER_DINAR = 100;
+export const FILS_PER_USDC = 10000;
+
+/** 100% in basis points, as bigint for money math. */
+export const BP = 10000n;

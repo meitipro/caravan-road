@@ -1,5 +1,3 @@
-# NPC — مغز بازرگان‌ها
+# NPC
 
-مشخصات این بخش در **PDF پارت ۴** است و هنوز به این مخزن منتقل نشده.
-
-از پارت ۱ فقط این‌ها قفل شده‌اند: بازرگان‌های بازی در زمان اجرا از ابر هوش مصنوعی NEAR (NEAR AI Cloud) فکر می‌کنند، نه از Claude؛ هر بازرگان حساب NEAR و خزانهٔ خودش را دارد؛ قیمت‌گذاری فقط از راه `set_policy(spread_bp, bias_bp)` در محدودهٔ قرارداد انجام می‌شود؛ اجرای «کاروان‌های خانگی» (`ship`) با بازرگان‌هاست ([ECONOMY.md](ECONOMY.md) بخش ۵).
+Filled in during Phase 5 (NPC brain). Locked facts so far: see ECONOMY.md section 2.8 (world tick, house caravans) and API.md (`Decision`).

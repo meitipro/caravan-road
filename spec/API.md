@@ -1,10 +1,10 @@
-# API — قراردادهای داده و API سرور
+# API
 
-> منبع: PDF پارت ۱، بخش‌های ۹ و ۱۰.
+> Source: CARAVAN_ROAD_MASTER_PLAN.md, spec-v1, sections 2.12-2.13 (verbatim).
 
-## ۹. قراردادهای داده (در `packages/shared/src/types.ts`)
+### 2.12 Shared types (`packages/shared/src/types.ts`)
 
-همهٔ زمان‌های API به **ثانیهٔ یونیکس** هستند (قرارداد نانوثانیه دارد؛ سرور تبدیل می‌کند). مبلغ‌ها همیشه `string` هستند، نه `number` (جلوگیری از خطای دقت).
+All API times are **unix seconds** (the contract uses nanoseconds; the server converts). Money is always `string`.
 
 ```ts
 export type CityId = "dasht" | "madan" | "bandar" | "shahr";
@@ -35,15 +35,26 @@ export interface Player {
 export interface Stall { id: number; seller: string; city: CityId; good: GoodId; qty: number; unit_price: Fils }
 export interface WorldState { tick: number; now: number; mode: Mode; merchants: Merchant[]; stalls: Stall[] }
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: { code: ErrorCode; message: string } };
+
+// Added in Phase 5 (append only):
+export type Mood = "calm" | "greedy" | "worried" | "generous";
+export interface Decision {
+  merchant: CityId; ts: number; spread_bp: number; bias_bp: number; mood: Mood;
+  ship: { to: CityId; good: GoodId; qty: number } | null;
+  line: { en: string; fa: string };       // <= 120 chars each
+  reason: string;                         // <= 240 chars, English
+  source: "llm" | "baseline" | "keep";
+  model: string | null; request_id: string | null; attested: boolean; tx_hashes: string[];
+}
 ```
 
-کدهای خطا (`ErrorCode`): `UNAUTHENTICATED`، `BAD_REQUEST`، `RATE_LIMIT`، `MODE_NOT_ALLOWED`، `NOT_IN_CITY`، `IN_TRANSIT`، `NOT_ARRIVED`، `INSUFFICIENT_FUNDS`، `INSUFFICIENT_STOCK`، `MERCHANT_BROKE`، `SLIPPAGE`، `CARGO_LIMIT`، `PAUSED`، `INTERNAL`. هر `panic` قرارداد باید به یکی از این‌ها نگاشت شود.
+`ErrorCode`: `UNAUTHENTICATED`, `BAD_REQUEST`, `RATE_LIMIT`, `MODE_NOT_ALLOWED`, `NOT_IN_CITY`, `IN_TRANSIT`, `NOT_ARRIVED`, `INSUFFICIENT_FUNDS`, `INSUFFICIENT_STOCK`, `MERCHANT_BROKE`, `SLIPPAGE`, `CARGO_LIMIT`, `PAUSED`, `INTERNAL`. Every contract panic maps to one of these.
 
-## ۱۰. API سرور (پارت ۳ می‌سازد، پارت ۵ استفاده می‌کند)
+### 2.13 Server API (`apps/web/src/app/api`)
 
-همهٔ پاسخ‌ها `ApiResult<T>` هستند. همهٔ POSTها هدر `Idempotency-Key` می‌پذیرند. UI هر ۲ ثانیه `/api/state` را می‌خواند (به‌جای SSE؛ ساده و سازگار با Vercel).
+All responses are `ApiResult<T>`. All POSTs require an `Idempotency-Key` header. The UI polls `/api/state` every 3 s (no SSE).
 
-| متد | مسیر | بدنه | پاسخ |
+| Method | Path | Body | Response |
 |---|---|---|---|
 | GET | `/api/state` | — | `{ world: WorldState, me: Player or null, events: Event[] }` |
 | POST | `/api/trade` | `{ merchant: CityId, good, side: "buy" or "sell", qty, limit_total: Fils }` | `{ player, total, fee }` |
@@ -52,12 +63,10 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: { code: E
 | POST | `/api/stall/create` | `{ good, qty, unit_price }` | `{ stall }` |
 | POST | `/api/stall/buy` | `{ stall_id, qty, limit_total }` | `{ player }` |
 | POST | `/api/stall/cancel` | `{ stall_id }` | `{ player }` |
-| POST | `/api/faucet` | — (فقط PLAY) | `{ player }` |
+| POST | `/api/faucet` | — (PLAY only) | `{ player }` |
 | POST | `/api/deposit/quote` | `{ origin_asset, amount_in, refund_address }` | `{ quote_id, deposit_address, amount_in, expected_fils, deadline }` |
 | GET | `/api/deposit/status` | `?quote_id=` | `{ status, fils_credited? }` |
 | POST | `/api/withdraw` | `{ fils, dest_asset, dest_address }` | `{ request_id, status }` |
 | GET | `/api/leaderboard` | — | `{ rows: {name, net_worth}[] }` |
 | GET | `/api/npc/decisions` | `?merchant=` | `{ rows: Decision[] }` |
-| GET | `/api/proof/{merchant}` | — | آخرین شواهد تأیید استنتاج |
-
-> `Event` و `Decision` در PDF تعریف نشده‌اند؛ `OPEN_QUESTIONS.md` شمارهٔ ۱.
+| GET | `/api/proof/{merchant}` | — | latest inference-evidence record |
