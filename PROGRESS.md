@@ -32,7 +32,7 @@ Times are UTC.
   - [x] Fixtures + mock api-client (4 merchants, 3 players, 8 events, leaderboard; tick every 5 s)
   - [x] TS economy sim (`pnpm sim --bots 5 --ticks 240 --seed 7`): reproduces the Python reference exactly (64/5944/23, 177/1088/43, 342/1099/86) and asserts money conservation every tick; 34 tests pass
   - [x] Independent spec review (fresh Opus sub-agent), fixes applied (`6cb0cc6`)
-  - [ ] `git tag spec-v1` (after Mahdi resolves OPEN_QUESTIONS)
+  - [x] `git tag spec-v1` (2026-10-30; Mahdi delegated OPEN_QUESTIONS, provisional behaviours adopted; #6, #11, #12 to be finalised in Phase 2)
 - [ ] Phase 2 — smart contract (needs Rust toolchain from Mahdi)
 - [ ] Phase 3 — server, accounts, game endpoints (needs Postgres, OAuth, env values)
 - [x] Phase 4 — UI on the mock done (`dae8c64`): tasks 1-8 except live connect (needs Phase 3) and optional stalls screen. Re-verified by Claude 2026-10-30: typecheck all packages, 56 web tests, 35 shared tests, tree clean, no secrets. 25 screens at 390/1280 px in `docs/screens/`. Issues: `apps/web/src/ui/SHARED_ISSUES.md`. UI fonts (Pixelify Sans, Inter, Vazirmatn, OFL 1.1) still to be added to `docs/CREDITS.md`.

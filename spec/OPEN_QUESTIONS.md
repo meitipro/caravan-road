@@ -1,5 +1,7 @@
 # OPEN QUESTIONS
 
+**Status 2026-10-30:** Mahdi delegated these decisions ("do whichever you like, just go"). Every open item below is resolved by adopting its provisional behaviour; `spec-v1` is tagged on that basis. Items #6, #11 and #12 must be finalised in the contract (Phase 2); if the contract changes them, create `spec-v1.1`.
+
 Contradictions and gaps in `CARAVAN_ROAD_MASTER_PLAN.md` (spec-v1). Nothing here is resolved silently: each item names the provisional behaviour the code uses until Mahdi decides.
 
 Resolved by the master plan (were open against the old part-1 PDF): initial merchant treasury (50,000 fils), spread and bias ranges, guard risk formula, `Decision` shape, parameter names, simulation reference (Appendix B, reproduced exactly by `scripts/ref/economy_sim.py`).
