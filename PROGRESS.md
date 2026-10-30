@@ -7,7 +7,7 @@ Times are UTC.
 
 - Last checked: 2026-10-30 (`date -u`). Build window opens 2026-11-01T00:00:00Z. Mahdi decided on 2026-10-30 to build before the gate (see D1).
 - Branch: `chore/scaffold` (local only, no remote).
-- Phase 1 is functionally done except the independent spec review result and the `spec-v1` tag (review running).
+- Phase 1 done except the `spec-v1` tag. Independent review finished (12 findings: 8 fixed in `6cb0cc6`, 3 recorded as OPEN_QUESTIONS #11-13, 1 tag wording). Tag waits for Mahdi's answers on `spec/OPEN_QUESTIONS.md`.
 - Running in parallel (sub-agents, own folders only): Phase 6 art (`tools/art`, `apps/web/public/assets`, `docs/CREDITS.md`), Phase 4 UI against the mock (`apps/web/src/app/play`, `components`, `ui`).
 - Blocked on Mahdi (human checkpoints, section 0.4): Rust + wasm target + `cargo-near` and testnet accounts (Phase 2); `.env.local` values, Postgres, OAuth apps (Phase 3); `NEAR_AI_API_KEY` and credits (Phase 5); 1Click JWT (Phase 7).
 - Next action: collect the spec review, fix, tag `spec-v1`; then merge sub-agent results after checking their tests.
@@ -31,7 +31,8 @@ Times are UTC.
   - [x] Shared package: types, world/PARAMS (plan names), `quote()`, `tradeCost()`, zod schemas, golden vector tests
   - [x] Fixtures + mock api-client (4 merchants, 3 players, 8 events, leaderboard; tick every 5 s)
   - [x] TS economy sim (`pnpm sim --bots 5 --ticks 240 --seed 7`): reproduces the Python reference exactly (64/5944/23, 177/1088/43, 342/1099/86) and asserts money conservation every tick; 34 tests pass
-  - [ ] Independent spec review (fresh Opus sub-agent) and `git tag spec-v1`
+  - [x] Independent spec review (fresh Opus sub-agent), fixes applied (`6cb0cc6`)
+  - [ ] `git tag spec-v1` (after Mahdi resolves OPEN_QUESTIONS)
 - [ ] Phase 2 — smart contract (needs Rust toolchain from Mahdi)
 - [ ] Phase 3 — server, accounts, game endpoints (needs Postgres, OAuth, env values)
 - [ ] Phase 4 — user interface (sub-agent running, mock only)
@@ -50,7 +51,7 @@ Times are UTC.
 
 ## Open questions
 
-See `spec/OPEN_QUESTIONS.md` (10 open items: `Event` type, `net_worth`, `/api/proof` shape, faucet cooldown, shahr text vs table, ambush rounding, `limit_total`, stall fee, tie-breaks, document placement).
+See `spec/OPEN_QUESTIONS.md` (13 open items: `Event` type, `net_worth`, `/api/proof` shape, faucet cooldown, shahr text vs table, ambush rounding, `limit_total`, stall fee, tie-breaks, document placement).
 
 ## Completed items
 
