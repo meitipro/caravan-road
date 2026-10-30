@@ -1,0 +1,54 @@
+/* Design tokens. Palette is spec-v1 section 2.15; nothing else may introduce a color. */
+:root {
+  /* palette */
+  --sand: #e8d5a3;
+  --dune: #c99a52;
+  --terracotta: #a8503a;
+  --night: #1b1f2b;
+  --ink: #0f1118;
+  --oasis: #2f8f83;
+  --sky: #6fb1d6;
+  --gold: #e0a526;
+  --leaf: #5a8f3c;
+  --blood: #9c2f2f;
+  --cloth: #f2ead3;
+  --stone: #7a7468;
+
+  /* text colors derived from the palette (contrast >= 4.5:1 on cloth and sand) */
+  --text: var(--night);
+  --text-muted: color-mix(in srgb, var(--stone) 60%, var(--night));
+  --text-profit: color-mix(in srgb, var(--oasis) 60%, var(--ink));
+  --text-loss: var(--blood);
+  --text-info: color-mix(in srgb, var(--sky) 40%, var(--ink));
+  --text-on-dark: var(--cloth);
+
+  /* surfaces */
+  --bg: var(--sand);
+  --panel: var(--cloth);
+  --panel-dim: color-mix(in srgb, var(--sand) 55%, var(--cloth));
+  --line: var(--ink);
+
+  /* 8 px grid */
+  --s-0: 0;
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 16px;
+  --s-4: 24px;
+  --s-5: 32px;
+  --s-6: 48px;
+  --s-7: 64px;
+
+  --radius: 4px;
+  --border: 2px solid var(--ink);
+  --shadow: 4px 4px 0 var(--ink);
+  --shadow-sm: 2px 2px 0 var(--ink);
+  --focus: 0 0 0 3px var(--cloth), 0 0 0 6px var(--ink);
+
+  --topbar-h: 56px;
+  --tabbar-h: 64px;
+  --maxw: 1120px;
+
+  --font-pixel: var(--font-pixelify), "Courier New", monospace;
+  --font-body: var(--font-inter), system-ui, sans-serif;
+  --font-fa: var(--font-vazirmatn), "Tahoma", sans-serif;
+}
