@@ -17,6 +17,10 @@ Resolved by the master plan (were open against the old part-1 PDF): initial merc
 9. **Tie-breaks in the world tick** ("poorest merchant", richest/poorest stocked city). Provisional: first in the order dasht, madan, bandar, shahr, as in Appendix B.
 10. **Document placement.** Section 4 step 2 maps sections 1, 2.1-2.10 and 2.12-2.14 to spec files; 2.11 (layout) is placed at the end of `GAME.md` and 2.15 (colors) in `UI.md`.
 
+11. **World tick order.** Section 2.8 lists: production, rebalancing, recycling, house caravans. Appendix B (and the TypeScript sim) runs production, house caravans, rebalancing, recycling. Provisional: follow Appendix B. The contract must pick one.
+12. **House-caravan gap test is a float in the reference** (`(stock_hi/target - stock_lo/target) x 10000 >= 5000`). It cannot be written in integer math without changing results: at exact 50% gaps (e.g. silk 21 vs 6) the float test says no shipment, the integer test `(hi - lo) x 10000 >= 5000 x target` says ship (about 110 such stock pairs across the five goods). Provisional: the TypeScript sim keeps the float to reproduce Appendix B; the contract needs a decision (integer test recommended, then re-run the sim to re-baseline the section 2.9 numbers).
+13. **Off-chain fields.** `Merchant.mood`, `last_line`, `verified` and `Player.display_name` cannot be produced by the contract interface in section 2.14 (`set_policy` and `register()` carry no such data). Provisional: they come from the server database / worker, not the contract.
+
 ## Process notes
 
 - **P1 (2026-10-30): building before the date gate.** Section 0.3 rule 1 and the hackathon rule say code starts on 2026-11-01T00:00:00Z. Mahdi decided on 2026-10-30 to proceed anyway. Git history is not rewritten. The README, X post and submission must state the real dates and must not claim the project was built entirely inside the window.

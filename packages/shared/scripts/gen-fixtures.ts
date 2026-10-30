@@ -87,7 +87,7 @@ const players = {
     inventory: { ...zeroInv(), grain: 14 },
     journey: {
       id: 5, from: "dasht", to: "shahr", cargo: { grain: 20 }, guards: 0,
-      started_at: FIXTURE_NOW - 400, arrives_at: FIXTURE_NOW - 160, risk_bp: 1200, status: "ARRIVED",
+      started_at: FIXTURE_NOW - 400, arrives_at: FIXTURE_NOW - 160, risk_bp: 1200, status: "CLAIMED",
       ambushed: true, lost: { grain: 6 },
     },
   }),
@@ -97,7 +97,7 @@ const t = (n: number) => FIXTURE_NOW - n;
 const events: Event[] = [
   { id: 1, type: "tick", at: t(70), data: { tick: 41 } },
   { id: 2, type: "faucet", at: t(66), data: { account_id: "newbie.fixture", fils: "50000" } },
-  { id: 3, type: "trade", at: t(55), data: { merchant: "dasht", good: "grain", side: "buy", qty: 20, total: "21000", fee: "210" } },
+  { id: 3, type: "trade", at: t(64), data: { merchant: "dasht", good: "grain", side: "buy", qty: 20, total: "21000", fee: "210" } },
   { id: 4, type: "journey_started", at: t(60), data: { account_id: "wanderer.fixture", from: "dasht", to: "shahr", guards: 1 } },
   { id: 5, type: "policy", at: t(40), data: { merchant: "bandar", spread_bp: 800, bias_bp: 0 } },
   { id: 6, type: "stall_create", at: t(30), data: { seller: "trader.fixture", city: "shahr", good: "salt", qty: 12, unit_price: "1700" } },

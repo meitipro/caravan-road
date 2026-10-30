@@ -64,7 +64,7 @@
       "started_at": 1793534000,
       "arrives_at": 1793534240,
       "risk_bp": 1200,
-      "status": "ARRIVED",
+      "status": "CLAIMED",
       "ambushed": true,
       "lost": {
         "grain": 6

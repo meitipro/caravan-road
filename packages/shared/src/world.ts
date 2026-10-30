@@ -41,14 +41,14 @@ export interface RouteSpec {
   riskBp: number; // ambush risk without guards
 }
 
-// Routes are bidirectional; `a` and `b` follow the spec's written order.
+// Routes are bidirectional; `a` and `b` follow the written order of spec/GAME.md section 2.4.
 export const ROUTES: readonly RouteSpec[] = [
-  { a: "shahr", b: "bandar", durationSec: 180, riskBp: 800 },
-  { a: "dasht", b: "shahr", durationSec: 240, riskBp: 1200 },
-  { a: "madan", b: "dasht", durationSec: 300, riskBp: 1500 },
-  { a: "bandar", b: "madan", durationSec: 360, riskBp: 2000 },
-  { a: "dasht", b: "bandar", durationSec: 270, riskBp: 1000 },
-  { a: "madan", b: "shahr", durationSec: 330, riskBp: 1800 },
+  { a: "bandar", b: "shahr", durationSec: 180, riskBp: 800 },
+  { a: "shahr", b: "dasht", durationSec: 240, riskBp: 1200 },
+  { a: "dasht", b: "madan", durationSec: 300, riskBp: 1500 },
+  { a: "madan", b: "bandar", durationSec: 360, riskBp: 2000 },
+  { a: "bandar", b: "dasht", durationSec: 270, riskBp: 1000 },
+  { a: "shahr", b: "madan", durationSec: 330, riskBp: 1800 },
 ];
 
 export function findRoute(from: CityId, to: CityId): RouteSpec | undefined {

@@ -1,4 +1,4 @@
-// zod schemas for every request body in spec/API.md section 10, plus the entity schemas
+// zod schemas for every request body in spec/API.md section 2.13, plus the entity schemas
 // that fixtures and API responses are validated against.
 
 import { z } from "zod";
@@ -75,7 +75,7 @@ export const WorldStateSchema = z.object({
   stalls: z.array(StallSchema),
 }).strict();
 
-// ASSUMPTION(A1): the Event shape is provisional (see provisional.ts); Decision is spec-v1.
+// OPEN_QUESTIONS #1: the Event shape is provisional (see provisional.ts); Decision is spec-v1.
 export const EventSchema = z.object({
   id: z.number().int().nonnegative(),
   type: z.enum(EVENT_TYPES),
@@ -107,7 +107,7 @@ export const StateResponseSchema = z.object({
   events: z.array(EventSchema),
 }).strict();
 
-// ---- request bodies (spec/API.md section 10) ----
+// ---- request bodies (spec/API.md section 2.13) ----
 
 const Qty = z.number().int().positive();
 

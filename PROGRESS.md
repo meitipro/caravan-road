@@ -5,44 +5,53 @@ Times are UTC.
 
 ## Status
 
-- Last checked: 2026-10-30T15:46Z (`date -u`). Build window opens 2026-11-01T00:00:00Z. **Date gate: CLOSED.** No project code or art until it opens.
-- Current branch: `chore/scaffold` (local only, no remote). HEAD: `39b4a25`.
-- Next action: Mahdi decides what to do with code committed before the gate (see Decisions, D1); then walk the Phase 0 checklist.
+- Last checked: 2026-10-30 (`date -u`). Build window opens 2026-11-01T00:00:00Z. Mahdi decided on 2026-10-30 to build before the gate (see D1).
+- Branch: `chore/scaffold` (local only, no remote).
+- Phase 1 is functionally done except the independent spec review result and the `spec-v1` tag (review running).
+- Running in parallel (sub-agents, own folders only): Phase 6 art (`tools/art`, `apps/web/public/assets`, `docs/CREDITS.md`), Phase 4 UI against the mock (`apps/web/src/app/play`, `components`, `ui`).
+- Blocked on Mahdi (human checkpoints, section 0.4): Rust + wasm target + `cargo-near` and testnet accounts (Phase 2); `.env.local` values, Postgres, OAuth apps (Phase 3); `NEAR_AI_API_KEY` and credits (Phase 5); 1Click JWT (Phase 7).
+- Next action: collect the spec review, fix, tag `spec-v1`; then merge sub-agent results after checking their tests.
 
 ## Phases
 
-- [ ] Phase 0 — pre-flight (allowed now; documents only)
-  - [x] `date -u` reported: 2026-10-30, window closed (2026-10-30T15:46Z)
-  - [x] PROGRESS.md created (2026-10-30)
-  - [ ] Decision D1 on pre-gate code
+- [ ] Phase 0 — pre-flight
+  - [x] `date -u` reported (2026-10-30)
+  - [x] PROGRESS.md created
+  - [x] D1 decided
   - [ ] 1Click API JWT requested (Mahdi)
-  - [ ] Mainnet NEAR account for prize payout (Mahdi creates; never invented by Claude)
-  - [ ] X account ready for the demo post (Mahdi)
+  - [ ] Mainnet NEAR account for prize payout (Mahdi creates)
+  - [ ] X account ready (Mahdi)
   - [ ] International payment route for NEAR AI credits and hosting (Mahdi)
-  - [ ] Toolchain: Node LTS, pnpm, Rust + wasm target, `cargo-near`, Git, Postgres, Vercel project, Google and Discord OAuth apps
+  - [ ] Toolchain: Rust + wasm target, `cargo-near`, Postgres, Vercel project, Google and Discord OAuth apps (Node 24, pnpm 10, git, Python 3.12 are present)
   - [ ] Unique project name reserved (candidates: "Caravan Road", "Caravan Road: Silk Ledger", "Dinar Road")
-  - [ ] `spec/*.md` from section 2 (documents only; see D2)
-- [ ] Phase 1 — scaffold and shared package (Day 1–2)
-- [ ] Phase 2 — smart contract (Day 2–7; mainnet Day 10)
-- [ ] Phase 3 — server, accounts, game endpoints (Day 3–9)
-- [ ] Phase 4 — user interface (Day 3–10)
-- [ ] Phase 5 — NPC brain (Day 5–9)
-- [ ] Phase 6 — art pipeline (start Day 1)
-- [ ] Phase 7 — real money with NEAR Intents (Day 8–9; mainnet Day 10)
-- [ ] Phase 8 — integration, tuning, review (Day 7 gate; Day 11)
-- [ ] Phase 9 — README, docs, judge rehearsal (Day 12)
-- [ ] Phase 10 — demo, X post, submission (Day 13–14)
+  - [x] `spec/*.md` written from section 2 (verbatim extracts)
+- [ ] Phase 1 — scaffold and shared package
+  - [x] Scaffold (commit `3c8d4be`)
+  - [x] Spec files regenerated from the master plan (`e3ffe7f`)
+  - [x] Shared package: types, world/PARAMS (plan names), `quote()`, `tradeCost()`, zod schemas, golden vector tests
+  - [x] Fixtures + mock api-client (4 merchants, 3 players, 8 events, leaderboard; tick every 5 s)
+  - [x] TS economy sim (`pnpm sim --bots 5 --ticks 240 --seed 7`): reproduces the Python reference exactly (64/5944/23, 177/1088/43, 342/1099/86) and asserts money conservation every tick; 34 tests pass
+  - [ ] Independent spec review (fresh Opus sub-agent) and `git tag spec-v1`
+- [ ] Phase 2 — smart contract (needs Rust toolchain from Mahdi)
+- [ ] Phase 3 — server, accounts, game endpoints (needs Postgres, OAuth, env values)
+- [ ] Phase 4 — user interface (sub-agent running, mock only)
+- [ ] Phase 5 — NPC brain (needs `NEAR_AI_API_KEY`)
+- [ ] Phase 6 — art pipeline (sub-agent running)
+- [ ] Phase 7 — real money with NEAR Intents (needs JWT, mainnet actions are Mahdi's)
+- [ ] Phase 8 — integration, tuning, review
+- [ ] Phase 9 — README, docs, judge rehearsal
+- [ ] Phase 10 — demo, X post, submission
 
 ## Decisions
 
-- **D1 (OPEN) — code written before the date gate.** On 2026-10-23 (Tehran time), at Mahdi's request and under an earlier part-1 PDF that allowed it, four commits were made in `D:\caravan-road`: scaffold, spec Markdown, `packages/shared` (types, world constants, `quote()`, `tradeCost()`, zod schemas, 29 tests) and fixtures with a mock api-client. The master plan (section 0.3, rule 1) and the hackathon rule "Build the project during the hackathon" say code starts 2026-11-01T00:00:00Z. Options, awaiting Mahdi: (a) keep and disclose it in the README; (b) archive this folder outside the submission repo, do not reuse its code, and rebuild from a fresh repo after the gate (Claude's recommendation); (c) other. Nothing has been deleted or rewritten.
+- **D1 — building before the date gate.** The master plan (section 0.3 rule 1) and the hackathon rule say code starts 2026-11-01T00:00:00Z. Commits were made on 2026-10-23 (scaffold, spec, shared package, mock) and continue on 2026-10-30. On 2026-10-30 Mahdi said to ignore the gate and finish early. History is not rewritten. README, X post and submission text must state the real dates and must not claim the whole project was built inside the window. Risk accepted by Mahdi: the organisers may treat pre-window work as a rule violation.
+- **D2 — `spec/` regenerated from the master plan** (verbatim extracts); the older part-1 PDF is superseded.
+- **D3 — TS sim follows Appendix B exactly** (including its ambush rounding); see OPEN_QUESTIONS #6 for the conflict with section 2.4 text.
 
-## Open questions (details in `spec/OPEN_QUESTIONS.md`)
+## Open questions
 
-- D2: `spec/` and `packages/shared` were written from the older part-1 PDF. The master plan's spec-v1 differs in places (simulation table: 64/177/342 trips, medians 5,944/1,088/1,099, broke events 23/43/86; new parameters such as `SPREAD_MIN/MAX`, `BIAS_MIN/MAX`, `MERCHANT_TREASURY_FILS`, `MAX_DEPOSIT_FILS`, `DAILY_WITHDRAW_CAP_FILS`; `Decision` is defined in section 2.12). The master plan wins; the existing files must be regenerated from it, not patched.
-- Still undefined in the master plan: the `Event` type (used by `/api/state`), the `net_worth` formula, the `/api/proof` response shape, the PLAY faucet cooldown length, and exact tie-breaking in the world tick.
-- Text vs table: section 2.3 says each city produces two goods and consumes two or three, but `shahr` produces one good (iron 1) and consumes four.
+See `spec/OPEN_QUESTIONS.md` (10 open items: `Event` type, `net_worth`, `/api/proof` shape, faucet cooldown, shahr text vs table, ambush rounding, `limit_total`, stall fee, tie-breaks, document placement).
 
 ## Completed items
 
-- 2026-10-30T15:46Z — read master plan sections 0–3 and Phase 0.
+- 2026-10-30 — read master plan sections 0–3, PROGRESS.md, Phase 1 steps 1–5 (see commits `c79bff4`, `e3ffe7f`).

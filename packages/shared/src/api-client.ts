@@ -1,4 +1,4 @@
-// API client. Function signatures mirror spec/API.md section 10 one to one.
+// API client. Function signatures mirror spec/API.md section 2.13 one to one.
 // With NEXT_PUBLIC_MOCK=1 (or createApiClient({ mock: true })) it serves fixtures and a
 // simulated world instead of calling the server, so the UI can be built before the backend exists.
 

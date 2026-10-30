@@ -1,4 +1,4 @@
-// ASSUMPTION(A1): spec/API.md references `Event` but never defines it (spec/OPEN_QUESTIONS.md #1). Minimal shapes so the rest of the API type-checks;
+// OPEN_QUESTIONS #1: spec/API.md references `Event` but never defines it (spec/OPEN_QUESTIONS.md #1). Minimal shapes so the rest of the API type-checks;
 // replace when the owner supplies the real ones.
 
 import type { Merchant } from "./types.js";
@@ -17,5 +17,5 @@ export interface Event {
   data: Record<string, unknown>;
 }
 
-// ASSUMPTION(A18): /api/proof/{merchant} has no defined shape; the latest verification record.
+// OPEN_QUESTIONS #3: /api/proof/{merchant} has no defined shape; the latest verification record.
 export type Proof = Merchant["verified"];

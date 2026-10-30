@@ -1,4 +1,4 @@
-// Data contracts. Mirrors spec/API.md section 9 exactly.
+// Data contracts. Mirrors spec/API.md section 2.12 exactly.
 // Money is always a decimal string at the API boundary; times are unix seconds.
 
 export type CityId = "dasht" | "madan" | "bandar" | "shahr";

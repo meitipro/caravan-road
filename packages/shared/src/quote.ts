@@ -1,4 +1,4 @@
-// Integer price math from spec/ECONOMY.md section 4.
+// Integer price math from spec/ECONOMY.md section 2.6.
 // BigInt division truncates toward zero, matching Rust i128; never use Math.floor here.
 
 import type { GoodId, Quote } from "./types.js";
@@ -45,7 +45,7 @@ export function quote(input: QuoteInput): Quote {
 }
 
 /**
- * ASSUMPTION(A2): net worth = fils + sum(qty * base price). The spec does not define it
+ * OPEN_QUESTIONS #2: net worth = fils + sum(qty * base price). The spec does not define it
  * (spec/OPEN_QUESTIONS.md #2); cargo in transit and stall goods are not counted.
  */
 export function netWorthFils(fils: bigint, inventory: Partial<Record<GoodId, number>>): bigint {
@@ -80,7 +80,7 @@ export interface TradeCost {
  * Prices a buy (player buys from merchant, at ask) or a sell (player sells to merchant, at bid)
  * at the MIDPOINT stock of the trade: stock - qty/2 for a buy, stock + qty/2 for a sell.
  *
- * ASSUMPTION(A11, A12): total = qty * unit, fee = total * TRADE_FEE_BP / BP, both truncated.
+ * Spec 2.6: total = qty * unit, fee = total * TRADE_FEE_BP / BP, both truncated (OPEN_QUESTIONS #7 for limit_total).
  * A buy costs total + fee; a sell pays total - fee.
  */
 export function tradeCost(input: TradeCostInput): TradeCost {

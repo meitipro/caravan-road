@@ -1,6 +1,6 @@
 // In-memory mock of the server API (NEXT_PUBLIC_MOCK=1). Serves the fixtures and advances a
 // simulated world: every `tickSeconds` (default 5) it nudges stock and rebuilds quotes.
-// Rules here are the ones written in spec/ECONOMY.md; gaps are marked ASSUMPTION(...) and are
+// Rules here are the ones written in spec/ECONOMY.md; gaps are marked "OPEN_QUESTIONS #n" and are
 // listed in spec/OPEN_QUESTIONS.md. This is not the contract: it only has to feel alive.
 
 import type {
@@ -29,7 +29,7 @@ export interface MockOptions {
   seed?: number;
 }
 
-const MOCK_FAUCET_COOLDOWN_SECONDS = 60; // ASSUMPTION(A7): the spec gives no interval.
+const MOCK_FAUCET_COOLDOWN_SECONDS = 60; // OPEN_QUESTIONS #4: the spec gives no interval.
 const MAX_EVENTS = 100;
 const ME_ACCOUNT = "mock.player";
 
@@ -68,6 +68,7 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
 
   const me: Player = { ...clone(playersFixture.newPlayerInBandar), account_id: ME_ACCOUNT };
   let house = 0n;
+  const sellerBalances = new Map<string, bigint>(); // other sellers are not tracked elsewhere; keeps money conserved
   let lastTickAt = start;
   let lastFaucetAt = -Infinity;
   let nextEventId = Math.max(0, ...events.map((e) => e.id)) + 1;
@@ -94,7 +95,7 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
 
   function mockTick(): void {
     world.tick += 1;
-    // Only rule 1 of spec/ECONOMY.md section 5 (production and consumption), as a fraction of a tick.
+    // Only rule 1 of spec/ECONOMY.md section 2.8 (production and consumption), as a fraction of a tick.
     for (const city of CITY_IDS) {
       const m = merchantAt(city);
       for (const g of GOOD_IDS) {
@@ -169,7 +170,7 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
           house += cost.fee;
         } else {
           if (me.inventory[req.good] < req.qty) return fail("INSUFFICIENT_STOCK", "You do not have that much.");
-          if (m.stock[req.good] + req.qty > GOODS[req.good].cap) return fail("BAD_REQUEST", "انبار پر است");
+          if (m.stock[req.good] + req.qty > GOODS[req.good].cap) return fail("BAD_REQUEST", "warehouse full");
           if (BigInt(m.treasury) < cost.total) return fail("MERCHANT_BROKE", "The merchant cannot afford it.");
           const gain = cost.total - cost.fee;
           if (gain < limit) return fail("SLIPPAGE", "The price moved.");
@@ -208,7 +209,7 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
         const units = cargoUnits(cargo);
         if (units === 0) return fail("BAD_REQUEST", "Cargo is empty.");
         if (units > PARAMS.CARGO_CAP) return fail("CARGO_LIMIT", "Caravan is full.");
-        // ASSUMPTION(A9): the 0.65 multiplier applies per guard (compounding); cost = guards * 2% of base value.
+        // Spec 2.4: risk = base_risk_bp x 6500^g / 10000^g (truncated step by step); cost = guards x 2% of cargo base value.
         let risk = BigInt(route.riskBp);
         for (let i = 0; i < req.guards; i++) risk = (risk * BigInt(PARAMS.GUARD_RISK_FACTOR_BP)) / BP;
         const guardCost = (baseValue * BigInt(PARAMS.GUARD_COST_BP) * BigInt(req.guards)) / BP;
@@ -230,7 +231,7 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
         const j = me.journey;
         if (!j) return fail("BAD_REQUEST", "You have no journey.");
         if (world.now < j.arrives_at) return fail("NOT_ARRIVED", "The caravan has not arrived yet.");
-        // ASSUMPTION(A10): ambush roll from the mock PRNG; each good loses trunc(qty * 30%).
+        // OPEN_QUESTIONS #6: ambush roll from the mock PRNG; each good loses trunc(qty x 30%) per spec 2.4 text.
         const ambushed = Math.floor(rand() * 10000) < j.risk_bp;
         const lost: Partial<Record<GoodId, number>> = {};
         for (const [g, n] of Object.entries(j.cargo) as Array<[GoodId, number]>) {
@@ -276,13 +277,14 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
         if (stall.qty < req.qty) return fail("INSUFFICIENT_STOCK", "The stall does not have that much.");
         if (cargoUnits(me.inventory) + req.qty > PARAMS.CARGO_CAP) return fail("CARGO_LIMIT", "Caravan is full.");
         const price = BigInt(req.qty) * BigInt(stall.unit_price);
-        const fee = (price * BigInt(PARAMS.STALL_FEE_BP)) / BP; // ASSUMPTION(A12): buyer pays the 2% on top.
+        const fee = (price * BigInt(PARAMS.STALL_FEE_BP)) / BP; // OPEN_QUESTIONS #8: buyer pays the 2% on top.
         if (price + fee > BigInt(req.limit_total)) return fail("SLIPPAGE", "The price moved.");
         if (price + fee > BigInt(me.fils)) return fail("INSUFFICIENT_FUNDS", "Not enough dinar.");
         me.fils = (BigInt(me.fils) - price - fee).toString();
         me.inventory[stall.good] += req.qty;
         stall.qty -= req.qty;
         if (stall.qty === 0) world.stalls.splice(world.stalls.indexOf(stall), 1);
+        sellerBalances.set(stall.seller, (sellerBalances.get(stall.seller) ?? 0n) + price);
         house += fee;
         emit("stall_buy", { stall_id: req.stall_id, buyer: me.account_id, qty: req.qty, total: price.toString(), fee: fee.toString() });
         return ok({ player: clone(me) });
