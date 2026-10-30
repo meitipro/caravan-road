@@ -10,7 +10,7 @@ Times are UTC.
 - Phase 1 done except the `spec-v1` tag. Independent review finished (12 findings: 8 fixed in `6cb0cc6`, 3 recorded as OPEN_QUESTIONS #11-13, 1 tag wording). Tag waits for Mahdi's answers on `spec/OPEN_QUESTIONS.md`.
 - Running in parallel (sub-agents, own folders only): Phase 6 art (`tools/art`, `apps/web/public/assets`, `docs/CREDITS.md`), Phase 4 UI against the mock (`apps/web/src/app/play`, `components`, `ui`).
 - Blocked on Mahdi (human checkpoints, section 0.4): Rust + wasm target + `cargo-near` and testnet accounts (Phase 2); `.env.local` values, Postgres, OAuth apps (Phase 3); `NEAR_AI_API_KEY` and credits (Phase 5); 1Click JWT (Phase 7).
-- Next action: collect the spec review, fix, tag `spec-v1`; then merge sub-agent results after checking their tests.
+- Usage limit reached on 2026-10-30. Next action: check the Phase 4 UI sub-agent result (`apps/web`, uncommitted changes may exist), get Mahdi's answers on OPEN_QUESTIONS, tag `spec-v1`, then Phase 2 once Rust + cargo-near are installed.
 
 ## Phases
 
@@ -37,7 +37,7 @@ Times are UTC.
 - [ ] Phase 3 — server, accounts, game endpoints (needs Postgres, OAuth, env values)
 - [ ] Phase 4 — user interface (sub-agent running, mock only)
 - [ ] Phase 5 — NPC brain (needs `NEAR_AI_API_KEY`)
-- [ ] Phase 6 — art pipeline (sub-agent running)
+- [x] Phase 6 — art pipeline done (`78f0972`, `930a3e6`): 18 slots with exact sizes, 25 tests pass (re-run by Claude 2026-10-30). CREDITS.md notes UI fonts are not yet recorded.
 - [ ] Phase 7 — real money with NEAR Intents (needs JWT, mainnet actions are Mahdi's)
 - [ ] Phase 8 — integration, tuning, review
 - [ ] Phase 9 — README, docs, judge rehearsal
