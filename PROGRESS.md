@@ -8,9 +8,9 @@ Times are UTC.
 - Last checked: 2026-10-30 (`date -u`). Build window opens 2026-11-01T00:00:00Z. Mahdi decided on 2026-10-30 to build before the gate (see D1).
 - Branch: `chore/scaffold` (local only, no remote).
 - Phase 1 done except the `spec-v1` tag. Independent review finished (12 findings: 8 fixed in `6cb0cc6`, 3 recorded as OPEN_QUESTIONS #11-13, 1 tag wording). Tag waits for Mahdi's answers on `spec/OPEN_QUESTIONS.md`.
-- Running in parallel (sub-agents, own folders only): Phase 6 art (`tools/art`, `apps/web/public/assets`, `docs/CREDITS.md`), Phase 4 UI against the mock (`apps/web/src/app/play`, `components`, `ui`).
+- Done by sub-agents and re-verified: Phase 6 art, Phase 4 UI on the mock. No agents running.
 - Blocked on Mahdi (human checkpoints, section 0.4): Rust + wasm target + `cargo-near` and testnet accounts (Phase 2); `.env.local` values, Postgres, OAuth apps (Phase 3); `NEAR_AI_API_KEY` and credits (Phase 5); 1Click JWT (Phase 7).
-- Usage limit reached on 2026-10-30. Next action: check the Phase 4 UI sub-agent result (`apps/web`, uncommitted changes may exist), get Mahdi's answers on OPEN_QUESTIONS, tag `spec-v1`, then Phase 2 once Rust + cargo-near are installed.
+- Next action: Mahdi answers OPEN_QUESTIONS (13 items) -> tag `spec-v1`; Mahdi installs Rust + wasm target + cargo-near and creates testnet accounts -> Phase 2.
 
 ## Phases
 
@@ -35,7 +35,7 @@ Times are UTC.
   - [ ] `git tag spec-v1` (after Mahdi resolves OPEN_QUESTIONS)
 - [ ] Phase 2 — smart contract (needs Rust toolchain from Mahdi)
 - [ ] Phase 3 — server, accounts, game endpoints (needs Postgres, OAuth, env values)
-- [ ] Phase 4 — user interface (sub-agent running, mock only)
+- [x] Phase 4 — UI on the mock done (`dae8c64`): tasks 1-8 except live connect (needs Phase 3) and optional stalls screen. Re-verified by Claude 2026-10-30: typecheck all packages, 56 web tests, 35 shared tests, tree clean, no secrets. 25 screens at 390/1280 px in `docs/screens/`. Issues: `apps/web/src/ui/SHARED_ISSUES.md`. UI fonts (Pixelify Sans, Inter, Vazirmatn, OFL 1.1) still to be added to `docs/CREDITS.md`.
 - [ ] Phase 5 — NPC brain (needs `NEAR_AI_API_KEY`)
 - [x] Phase 6 — art pipeline done (`78f0972`, `930a3e6`): 18 slots with exact sizes, 25 tests pass (re-run by Claude 2026-10-30). CREDITS.md notes UI fonts are not yet recorded.
 - [ ] Phase 7 — real money with NEAR Intents (needs JWT, mainnet actions are Mahdi's)
