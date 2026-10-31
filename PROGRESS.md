@@ -35,7 +35,7 @@ Times are UTC.
   - [x] Independent spec review (fresh Opus sub-agent), fixes applied (`6cb0cc6`)
   - [x] `git tag spec-v1` (2026-10-30; Mahdi delegated OPEN_QUESTIONS, provisional behaviours adopted; #6, #11, #12 to be finalised in Phase 2)
 - [ ] Phase 2 — smart contract (sub-agent running; testnet deploy needs Mahdi's accounts)
-- [ ] Phase 3 — server, accounts, game endpoints (sub-agent running offline with fakes; going live needs Postgres, OAuth, env values)
+- [ ] Phase 3 — server done offline (`497e91d`, `3a82c39` + lint fix): all spec 2.13 endpoints, Auth.js, relayer, custody, PGlite tests; 148 web tests, typecheck, lint, build pass (re-verified 2026-10-31). Independent security review running. Going live needs Postgres, OAuth apps, keys, deployed contract (Mahdi); testnet smoke script not run.
 - [x] Phase 4 — UI on the mock done (`dae8c64`): tasks 1-8 except live connect (needs Phase 3) and optional stalls screen. Re-verified by Claude 2026-10-30: typecheck all packages, 56 web tests, 35 shared tests, tree clean, no secrets. 25 screens at 390/1280 px in `docs/screens/`. Issues: `apps/web/src/ui/SHARED_ISSUES.md`. UI fonts (Pixelify Sans, Inter, Vazirmatn, OFL 1.1) still to be added to `docs/CREDITS.md`.
 - [ ] Phase 5 — NPC brain (needs `NEAR_AI_API_KEY`)
 - [x] Phase 6 — art pipeline done (`78f0972`, `930a3e6`): 18 slots with exact sizes, 25 tests pass (re-run by Claude 2026-10-30). CREDITS.md notes UI fonts are not yet recorded.
