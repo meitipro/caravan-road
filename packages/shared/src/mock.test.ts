@@ -112,7 +112,7 @@ describe("mock api client", () => {
 });
 
 describe("mock stalls", () => {
-  it("charges the buyer price plus a 2% fee and delivers the goods", async () => {
+  it("charges the buyer the price only (the seller pays the 2% fee) and delivers the goods", async () => {
     const { api, advance } = setup();
     await api.trade({ merchant: "bandar", good: "grain", side: "buy", qty: 10, limit_total: "99999999" });
     const j = await api.journeyStart({ to: "shahr", cargo: { grain: 10 }, guards: 0 });
@@ -124,7 +124,7 @@ describe("mock stalls", () => {
     // fixture stall 1: 12 salt at 1700 fils in shahr
     const buy = await api.stallBuy({ stall_id: 1, qty: 2, limit_total: "99999999" });
     if (!buy.ok) throw new Error(buy.error.message);
-    expect(BigInt(buy.data.player.fils)).toBe(before - 3400n - 68n);
+    expect(BigInt(buy.data.player.fils)).toBe(before - 3400n);
     expect(buy.data.player.inventory.salt).toBe(2);
   });
 });

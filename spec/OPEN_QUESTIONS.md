@@ -1,5 +1,7 @@
 # OPEN QUESTIONS
 
+**Update 2026-10-31:** items #4, #6, #8, #11 and #12 are resolved by `spec-v1.1` (see `spec/CHANGELOG.md`). The rest stay as provisional behaviours.
+
 **Status 2026-10-30:** Mahdi delegated these decisions ("do whichever you like, just go"). Every open item below is resolved by adopting its provisional behaviour; `spec-v1` is tagged on that basis. Items #6, #11 and #12 must be finalised in the contract (Phase 2); if the contract changes them, create `spec-v1.1`.
 
 Contradictions and gaps in `CARAVAN_ROAD_MASTER_PLAN.md` (spec-v1). Nothing here is resolved silently: each item names the provisional behaviour the code uses until Mahdi decides.

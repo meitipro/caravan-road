@@ -277,14 +277,16 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
         if (stall.qty < req.qty) return fail("INSUFFICIENT_STOCK", "The stall does not have that much.");
         if (cargoUnits(me.inventory) + req.qty > PARAMS.CARGO_CAP) return fail("CARGO_LIMIT", "Caravan is full.");
         const price = BigInt(req.qty) * BigInt(stall.unit_price);
-        const fee = (price * BigInt(PARAMS.STALL_FEE_BP)) / BP; // OPEN_QUESTIONS #8: buyer pays the 2% on top.
-        if (price + fee > BigInt(req.limit_total)) return fail("SLIPPAGE", "The price moved.");
-        if (price + fee > BigInt(me.fils)) return fail("INSUFFICIENT_FUNDS", "Not enough dinar.");
-        me.fils = (BigInt(me.fils) - price - fee).toString();
+        // Contract rule (contracts/caravan DECISIONS.md, plan 5.3): the SELLER pays the 2% fee, rounded up, min 1.
+        let fee = (price * BigInt(PARAMS.STALL_FEE_BP) + BP - 1n) / BP;
+        if (fee < 1n) fee = 1n;
+        if (price > BigInt(req.limit_total)) return fail("SLIPPAGE", "The price moved.");
+        if (price > BigInt(me.fils)) return fail("INSUFFICIENT_FUNDS", "Not enough dinar.");
+        me.fils = (BigInt(me.fils) - price).toString();
         me.inventory[stall.good] += req.qty;
         stall.qty -= req.qty;
         if (stall.qty === 0) world.stalls.splice(world.stalls.indexOf(stall), 1);
-        sellerBalances.set(stall.seller, (sellerBalances.get(stall.seller) ?? 0n) + price);
+        sellerBalances.set(stall.seller, (sellerBalances.get(stall.seller) ?? 0n) + price - fee);
         house += fee;
         emit("stall_buy", { stall_id: req.stall_id, buyer: me.account_id, qty: req.qty, total: price.toString(), fee: fee.toString() });
         return ok({ player: clone(me) });
