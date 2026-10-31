@@ -109,6 +109,7 @@ function MenuSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
             Log out (demo)
           </button>
         ) : (
+          // eslint-disable-next-line @next/next/no-html-link-for-pages -- NextAuth sign-out is a server route, not a page
           <a className="btn btn-block" href="/api/auth/signout" onClick={onClose}>Log out</a>
         )}
       </div>
