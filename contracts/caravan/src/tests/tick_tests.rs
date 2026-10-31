@@ -142,7 +142,8 @@ fn simulation_240_ticks_conserves_money_every_tick() {
             let qty = ((r >> 8) % 20 + 1) as u32;
             if p.goods.iter().sum::<u32>() > 0 && (r >> 16) % 2 == 0 {
                 let to = CityId::ALL[((r >> 20) % 4) as usize];
-                let cargo = GoodId::ALL.iter().filter(|g| p.goods[g.idx()] > 0).map(|g| (*g, p.goods[g.idx()])).collect();
+                let cargo =
+                    GoodId::ALL.iter().filter(|g| p.goods[g.idx()] > 0).map(|g| (*g, p.goods[g.idx()])).collect();
                 let _ = c.try_start_journey(a.clone(), to, cargo, ((r >> 24) % 4) as u8);
             } else {
                 let side = if (r >> 30) % 2 == 0 { Side::Buy } else { Side::Sell };

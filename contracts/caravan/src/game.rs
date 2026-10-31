@@ -29,7 +29,12 @@ impl Contract {
         self.try_trade(env::predecessor_account_id(), merchant, good, side, qty, limit_total.0).or_panic()
     }
 
-    pub fn start_journey(&mut self, to: CityId, cargo: std::collections::BTreeMap<GoodId, u32>, guards: u8) -> JourneyView {
+    pub fn start_journey(
+        &mut self,
+        to: CityId,
+        cargo: std::collections::BTreeMap<GoodId, u32>,
+        guards: u8,
+    ) -> JourneyView {
         self.try_start_journey(env::predecessor_account_id(), to, cargo, guards).or_panic()
     }
 
@@ -66,10 +71,8 @@ impl Contract {
             return fail(ErrorCode::Unauthenticated, "this account cannot play");
         }
         if let Some(suffix) = &self.player_suffix {
-            let ok = who
-                .as_str()
-                .strip_suffix(suffix.as_str())
-                .is_some_and(|head| head.len() > 1 && head.ends_with('.'));
+            let ok =
+                who.as_str().strip_suffix(suffix.as_str()).is_some_and(|head| head.len() > 1 && head.ends_with('.'));
             if !ok {
                 return fail(ErrorCode::Unauthenticated, "account was not created by the game server");
             }
@@ -318,7 +321,13 @@ impl Contract {
         Ok(ClaimResult { journey: Self::journey_view(&j), player: Self::player_view(&who, &p)? })
     }
 
-    pub(crate) fn try_stall_create(&mut self, who: AccountId, g: GoodId, qty: u32, unit_price: u128) -> CResult<StallView> {
+    pub(crate) fn try_stall_create(
+        &mut self,
+        who: AccountId,
+        g: GoodId,
+        qty: u32,
+        unit_price: u128,
+    ) -> CResult<StallView> {
         self.require_not_paused()?;
         let mut p = self.load_player(&who)?;
         if p.in_transit() {
@@ -355,7 +364,13 @@ impl Contract {
 
     /// Buyer pays `qty x unit_price` to the seller plus a 2% fee to `house` (OPEN_QUESTIONS #8).
     /// Buyer and seller must both be in the stall's city and not travelling.
-    pub(crate) fn try_stall_buy(&mut self, who: AccountId, stall_id: u64, qty: u32, limit_total: u128) -> CResult<PlayerView> {
+    pub(crate) fn try_stall_buy(
+        &mut self,
+        who: AccountId,
+        stall_id: u64,
+        qty: u32,
+        limit_total: u128,
+    ) -> CResult<PlayerView> {
         self.require_not_paused()?;
         let mut buyer = self.load_player(&who)?;
         if buyer.in_transit() {
@@ -457,7 +472,11 @@ impl Contract {
         if fils == 0 {
             return fail(ErrorCode::BadRequest, "fils must be positive");
         }
-        if dest_asset.is_empty() || dest_asset.len() > MAX_ASSET_LEN || dest_address.is_empty() || dest_address.len() > MAX_ADDRESS_LEN {
+        if dest_asset.is_empty()
+            || dest_asset.len() > MAX_ASSET_LEN
+            || dest_address.is_empty()
+            || dest_address.len() > MAX_ADDRESS_LEN
+        {
             return fail(ErrorCode::BadRequest, "bad destination");
         }
         let now = Self::now_ns();

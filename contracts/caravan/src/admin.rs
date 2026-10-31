@@ -78,7 +78,10 @@ impl Contract {
         m.spread_bp = spread_bp;
         m.bias_bp = bias_bp;
         m.last_policy_ns = Some(now);
-        emit("policy", json!({ "merchant": CityId::ALL[i], "account": who, "spread_bp": spread_bp, "bias_bp": bias_bp }));
+        emit(
+            "policy",
+            json!({ "merchant": CityId::ALL[i], "account": who, "spread_bp": spread_bp, "bias_bp": bias_bp }),
+        );
         Ok(())
     }
 
@@ -224,7 +227,13 @@ impl Contract {
         Ok(())
     }
 
-    pub(crate) fn try_credit_deposit(&mut self, who: AccountId, player: AccountId, fils: u128, reference: String) -> CResult<bool> {
+    pub(crate) fn try_credit_deposit(
+        &mut self,
+        who: AccountId,
+        player: AccountId,
+        fils: u128,
+        reference: String,
+    ) -> CResult<bool> {
         self.require_not_paused()?;
         self.require_operator(&who)?;
         if self.mode != Mode::Live {
@@ -262,7 +271,13 @@ impl Contract {
         Ok(true)
     }
 
-    pub(crate) fn try_mark_withdraw(&mut self, who: AccountId, id: u64, status: WithdrawStatus, reference: Option<String>) -> CResult<()> {
+    pub(crate) fn try_mark_withdraw(
+        &mut self,
+        who: AccountId,
+        id: u64,
+        status: WithdrawStatus,
+        reference: Option<String>,
+    ) -> CResult<()> {
         self.require_not_paused()?;
         self.require_operator(&who)?;
         if reference.as_ref().is_some_and(|r| r.len() > MAX_REFERENCE_LEN) {
@@ -311,7 +326,10 @@ impl Contract {
         w.status = WithdrawStatus::Refunded;
         w.updated_ns = Self::now_ns();
         self.withdrawals.insert(id, w.clone());
-        emit("withdraw_marked", json!({ "account": w.account, "id": id, "status": w.status, "fils": w.fils.to_string() }));
+        emit(
+            "withdraw_marked",
+            json!({ "account": w.account, "id": id, "status": w.status, "fils": w.fils.to_string() }),
+        );
         Ok(())
     }
 

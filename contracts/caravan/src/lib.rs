@@ -94,8 +94,17 @@ impl Contract {
         operator_daily_cap: Option<U128>,
         auto_ship: Option<bool>,
     ) -> Self {
-        Self::try_new(owner, operator, mode, merchant_accounts, max_players, player_suffix, operator_daily_cap, auto_ship)
-            .or_panic()
+        Self::try_new(
+            owner,
+            operator,
+            mode,
+            merchant_accounts,
+            max_players,
+            player_suffix,
+            operator_daily_cap,
+            auto_ship,
+        )
+        .or_panic()
     }
 }
 
@@ -111,7 +120,8 @@ impl Contract {
         operator_daily_cap: Option<U128>,
         auto_ship: Option<bool>,
     ) -> CResult<Self> {
-        let accounts = [merchant_accounts.dasht, merchant_accounts.madan, merchant_accounts.bandar, merchant_accounts.shahr];
+        let accounts =
+            [merchant_accounts.dasht, merchant_accounts.madan, merchant_accounts.bandar, merchant_accounts.shahr];
         for (i, a) in accounts.iter().enumerate() {
             if *a == owner || *a == operator {
                 return fail(ErrorCode::BadRequest, "merchant account must differ from owner and operator");

@@ -112,10 +112,8 @@ pub fn assert_goods_consistent(c: &Contract) {
         let mut held: u64 = 0;
         for (_, p) in c.players.iter() {
             held += u64::from(p.goods[i]);
-            if let Some(j) = &p.journey {
-                if j.status == JourneyStatus::InTransit {
-                    held += u64::from(j.cargo[i]);
-                }
+            if let Some(j) = p.journey.as_ref().filter(|j| j.status == JourneyStatus::InTransit) {
+                held += u64::from(j.cargo[i]);
             }
         }
         for (_, s) in c.stalls.iter() {

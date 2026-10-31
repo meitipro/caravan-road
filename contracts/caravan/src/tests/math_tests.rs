@@ -1,6 +1,9 @@
 //! Golden vectors (spec/ECONOMY.md 2.7) and price math parity with packages/shared/src/quote.ts.
 
 use crate::math::*;
+
+/// good, side, qty, merchant stock, spread, bias, unit, total, fee
+type TradeVector = (GoodId, Side, u32, u32, u32, i32, u128, u128, u128);
 use crate::types::*;
 
 #[test]
@@ -34,7 +37,7 @@ fn mult_bp_truncates_toward_zero() {
 fn trade_cost_matches_reference_vectors() {
     // Generated from scripts/ref/world.py quote() (same math as packages/shared tradeCost()):
     // good, side, qty, merchant stock, spread, bias, unit, total, fee
-    let rows: [(GoodId, Side, u32, u32, u32, i32, u128, u128, u128); 24] = [
+    let rows: [TradeVector; 24] = [
         (GoodId::Grain, Side::Buy, 18, 89, 901, -586, 1219, 21942, 219),
         (GoodId::Grain, Side::Buy, 38, 53, 1264, -1370, 1221, 46398, 463),
         (GoodId::Grain, Side::Buy, 15, 28, 1434, 965, 1586, 23790, 237),

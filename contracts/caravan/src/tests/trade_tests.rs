@@ -34,7 +34,16 @@ fn register_rejects_reserved_accounts() {
 #[test]
 fn register_enforces_suffix_and_player_cap() {
     ctx(&contract_id(), T0);
-    let mut c = crate::Contract::init(owner(), operator(), Mode::Play, merchant_accounts(), 2, Some("players.test".into()), None, None);
+    let mut c = crate::Contract::init(
+        owner(),
+        operator(),
+        Mode::Play,
+        merchant_accounts(),
+        2,
+        Some("players.test".into()),
+        None,
+        None,
+    );
     assert_eq!(code(c.try_register(acc("evil.test"))), ErrorCode::Unauthenticated);
     assert_eq!(code(c.try_register(acc("players.test"))), ErrorCode::Unauthenticated);
     assert_eq!(code(c.try_register(acc("xplayers.test"))), ErrorCode::Unauthenticated);
@@ -167,7 +176,10 @@ fn merchant_stock_and_broke_and_warehouse() {
     ctx(&a, T0);
     // insufficient merchant stock
     c.merchants[2].stock[GoodId::Silk.idx()] = 3;
-    assert_eq!(code(c.try_trade(a.clone(), CityId::Bandar, GoodId::Silk, Side::Buy, 4, u128::MAX)), ErrorCode::InsufficientStock);
+    assert_eq!(
+        code(c.try_trade(a.clone(), CityId::Bandar, GoodId::Silk, Side::Buy, 4, u128::MAX)),
+        ErrorCode::InsufficientStock
+    );
     // warehouse full: merchant at cap - 2, player sells 3
     let mut p = c.players.get(&a).unwrap().clone();
     p.goods[GoodId::Spice.idx()] = 30;
@@ -190,7 +202,10 @@ fn trade_blocked_in_transit() {
     c.try_trade(a.clone(), CityId::Bandar, GoodId::Spice, Side::Buy, 2, u128::MAX).unwrap();
     let cargo = [(GoodId::Spice, 2)].into_iter().collect();
     c.try_start_journey(a.clone(), CityId::Shahr, cargo, 0).unwrap();
-    assert_eq!(code(c.try_trade(a.clone(), CityId::Bandar, GoodId::Grain, Side::Buy, 1, u128::MAX)), ErrorCode::InTransit);
+    assert_eq!(
+        code(c.try_trade(a.clone(), CityId::Bandar, GoodId::Grain, Side::Buy, 1, u128::MAX)),
+        ErrorCode::InTransit
+    );
 }
 
 #[test]

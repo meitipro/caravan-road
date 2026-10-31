@@ -89,7 +89,14 @@ impl Contract {
     }
 
     pub(crate) fn stall_view(s: &Stall) -> StallView {
-        StallView { id: s.id, seller: s.seller.clone(), city: s.city, good: s.good, qty: s.qty, unit_price: U128(s.unit_price) }
+        StallView {
+            id: s.id,
+            seller: s.seller.clone(),
+            city: s.city,
+            good: s.good,
+            qty: s.qty,
+            unit_price: U128(s.unit_price),
+        }
     }
 
     fn page(from_index: Option<u32>, limit: Option<u32>) -> (usize, usize) {
@@ -260,10 +267,7 @@ impl Contract {
         if token_ids.len() > GoodId::ALL.len() {
             fail::<()>(ErrorCode::BadRequest, "too many token_ids").or_panic();
         }
-        token_ids
-            .iter()
-            .map(|t| U128(u128::from(self.balance_of(&account_id, Self::token(t).or_panic()))))
-            .collect()
+        token_ids.iter().map(|t| U128(u128::from(self.balance_of(&account_id, Self::token(t).or_panic())))).collect()
     }
 
     pub fn mt_supply(&self, token_id: String) -> Option<U128> {
@@ -277,7 +281,12 @@ impl Contract {
         token_ids.iter().map(|t| GoodId::parse(t).map(|g| U128(self.supply(g).or_panic()))).collect()
     }
 
-    pub fn mt_tokens_for_owner(&self, account_id: AccountId, from_index: Option<String>, limit: Option<u32>) -> Vec<MtToken> {
+    pub fn mt_tokens_for_owner(
+        &self,
+        account_id: AccountId,
+        from_index: Option<String>,
+        limit: Option<u32>,
+    ) -> Vec<MtToken> {
         let from = from_index.and_then(|s| s.parse::<usize>().ok()).unwrap_or(0);
         let lim = usize::try_from(limit.unwrap_or(5)).unwrap_or(5);
         GoodId::ALL

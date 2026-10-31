@@ -165,7 +165,14 @@ pub struct TradeCost {
 
 /// Same as `tradeCost()` in packages/shared/src/quote.ts: buy at `ask(stock - qty/2)`,
 /// sell at `bid(stock + qty/2)`, fee 1% of the total.
-pub fn trade_cost(g: GoodId, side: Side, qty: u32, merchant_stock: u32, spread_bp: u32, bias_bp: i32) -> CResult<TradeCost> {
+pub fn trade_cost(
+    g: GoodId,
+    side: Side,
+    qty: u32,
+    merchant_stock: u32,
+    spread_bp: u32,
+    bias_bp: i32,
+) -> CResult<TradeCost> {
     if qty == 0 {
         return fail(ErrorCode::BadRequest, "qty must be positive");
     }

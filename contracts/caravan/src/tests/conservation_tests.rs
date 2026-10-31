@@ -21,7 +21,7 @@ impl Rng {
 
 fn run(seed: u64, mode: Mode, steps: u32) -> [u32; 14] {
     let mut ok = [0u32; 14];
-    let mut c = if seed % 2 == 0 { new_contract(mode) } else { new_contract_auto_ship(mode) };
+    let mut c = if seed.is_multiple_of(2) { new_contract(mode) } else { new_contract_auto_ship(mode) };
     let mut rng = Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1);
     let n_players = 4u32;
     let mut now = T0;
@@ -49,8 +49,15 @@ fn run(seed: u64, mode: Mode, steps: u32) -> [u32; 14] {
             1 | 2 => {
                 let loc = c.players.get(&a).unwrap().location;
                 let m = if rng.below(5) == 0 { city } else { loc };
-                c.try_trade(a.clone(), m, g, Side::Buy, qty, if rng.below(4) == 0 { rng.below(100_000).into() } else { u128::MAX })
-                    .map(|_| ())
+                c.try_trade(
+                    a.clone(),
+                    m,
+                    g,
+                    Side::Buy,
+                    qty,
+                    if rng.below(4) == 0 { rng.below(100_000).into() } else { u128::MAX },
+                )
+                .map(|_| ())
             }
             3 | 4 => {
                 let loc = c.players.get(&a).unwrap().location;
@@ -58,7 +65,11 @@ fn run(seed: u64, mode: Mode, steps: u32) -> [u32; 14] {
             }
             5 => {
                 let p = c.players.get(&a).unwrap().clone();
-                let cargo = GoodId::ALL.iter().filter(|g| p.goods[g.idx()] > 0).map(|g| (*g, p.goods[g.idx()].min(20))).collect();
+                let cargo = GoodId::ALL
+                    .iter()
+                    .filter(|g| p.goods[g.idx()] > 0)
+                    .map(|g| (*g, p.goods[g.idx()].min(20)))
+                    .collect();
                 c.try_start_journey(a.clone(), city, cargo, rng.below(5) as u8).map(|_| ())
             }
             6 => c.try_claim_journey(a.clone(), &seed_bytes).map(|_| ()),

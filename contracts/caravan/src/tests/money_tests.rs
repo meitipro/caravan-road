@@ -43,7 +43,16 @@ fn credit_deposit_is_idempotent_and_capped() {
 #[test]
 fn credit_deposit_operator_daily_cap() {
     ctx(&contract_id(), T0);
-    let mut c = crate::Contract::init(owner(), operator(), Mode::Live, merchant_accounts(), 100, None, Some(U128(150_000)), None);
+    let mut c = crate::Contract::init(
+        owner(),
+        operator(),
+        Mode::Live,
+        merchant_accounts(),
+        100,
+        None,
+        Some(U128(150_000)),
+        None,
+    );
     let op = operator();
     for i in 1..=2 {
         ctx(&player(i), T0);
@@ -65,7 +74,10 @@ fn play_mode_closes_money_routes() {
     let a = with_player(&mut c, 1, 50_000);
     ctx(&operator(), T0);
     assert_eq!(code(c.try_credit_deposit(operator(), a.clone(), 1, "r".into())), ErrorCode::ModeNotAllowed);
-    assert_eq!(code(c.try_request_withdraw(a.clone(), 1, "nep141:usdc".into(), "x.near".into())), ErrorCode::ModeNotAllowed);
+    assert_eq!(
+        code(c.try_request_withdraw(a.clone(), 1, "nep141:usdc".into(), "x.near".into())),
+        ErrorCode::ModeNotAllowed
+    );
 }
 
 #[test]
@@ -252,8 +264,11 @@ fn init_validation() {
     let mut ma = merchant_accounts();
     ma.shahr = operator();
     assert!(crate::Contract::try_new(owner(), operator(), Mode::Play, ma, 10, None, None, None).is_err());
-    assert!(crate::Contract::try_new(owner(), operator(), Mode::Play, merchant_accounts(), 0, None, None, None).is_err());
-    let c = crate::Contract::try_new(owner(), operator(), Mode::Play, merchant_accounts(), 10, None, None, None).unwrap();
+    assert!(
+        crate::Contract::try_new(owner(), operator(), Mode::Play, merchant_accounts(), 0, None, None, None).is_err()
+    );
+    let c =
+        crate::Contract::try_new(owner(), operator(), Mode::Play, merchant_accounts(), 10, None, None, None).unwrap();
     for m in &c.merchants {
         assert_eq!(m.treasury, MERCHANT_TREASURY_FILS);
         for g in GoodId::ALL {
@@ -331,9 +346,20 @@ fn every_error_code_string_matches_spec() {
     assert_eq!(
         names,
         [
-            "UNAUTHENTICATED", "BAD_REQUEST", "RATE_LIMIT", "MODE_NOT_ALLOWED", "NOT_IN_CITY", "IN_TRANSIT",
-            "NOT_ARRIVED", "INSUFFICIENT_FUNDS", "INSUFFICIENT_STOCK", "MERCHANT_BROKE", "SLIPPAGE",
-            "CARGO_LIMIT", "PAUSED", "INTERNAL"
+            "UNAUTHENTICATED",
+            "BAD_REQUEST",
+            "RATE_LIMIT",
+            "MODE_NOT_ALLOWED",
+            "NOT_IN_CITY",
+            "IN_TRANSIT",
+            "NOT_ARRIVED",
+            "INSUFFICIENT_FUNDS",
+            "INSUFFICIENT_STOCK",
+            "MERCHANT_BROKE",
+            "SLIPPAGE",
+            "CARGO_LIMIT",
+            "PAUSED",
+            "INTERNAL"
         ]
     );
 }

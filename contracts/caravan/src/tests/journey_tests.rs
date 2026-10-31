@@ -61,7 +61,8 @@ fn journey_guards() {
     let mut c = new_contract(Mode::Play);
     let a = trader(&mut c, 1, GoodId::Grain, 40);
     ctx(&a, T0);
-    let s = |c: &mut crate::Contract, to, cg: &[(GoodId, u32)], g| code(c.try_start_journey(a.clone(), to, cargo(cg), g));
+    let s =
+        |c: &mut crate::Contract, to, cg: &[(GoodId, u32)], g| code(c.try_start_journey(a.clone(), to, cargo(cg), g));
     assert_eq!(s(&mut c, CityId::Bandar, &[(GoodId::Grain, 1)], 0), ErrorCode::BadRequest); // same city
     assert_eq!(s(&mut c, CityId::Shahr, &[(GoodId::Grain, 1)], 4), ErrorCode::BadRequest); // > 3 guards
     assert_eq!(s(&mut c, CityId::Shahr, &[], 0), ErrorCode::BadRequest); // empty
@@ -123,7 +124,12 @@ fn ambush_destroys_floor_30_percent_of_each_good() {
     c.try_trade(a.clone(), CityId::Bandar, GoodId::Iron, Side::Buy, 20, u128::MAX).unwrap();
     ctx(&a, T0);
     let j = c
-        .try_start_journey(a.clone(), CityId::Madan, cargo(&[(GoodId::Grain, 11), (GoodId::Spice, 3), (GoodId::Iron, 20)]), 0)
+        .try_start_journey(
+            a.clone(),
+            CityId::Madan,
+            cargo(&[(GoodId::Grain, 11), (GoodId::Spice, 3), (GoodId::Iron, 20)]),
+            0,
+        )
         .unwrap();
     let supply_before = c.supply(GoodId::Grain).unwrap();
     ctx(&a, T0 + secs(360));
