@@ -49,8 +49,8 @@ fn credit_deposit_operator_daily_cap() {
         Mode::Live,
         merchant_accounts(),
         100,
-        None,
-        Some(U128(150_000)),
+        SUFFIX.into(),
+        U128(150_000),
         None,
     );
     let op = operator();
@@ -87,23 +87,85 @@ fn withdraw_daily_cap_rollover_and_debit_first() {
     c.try_credit_deposit(operator(), a.clone(), 200_000, "d".into()).unwrap();
     ctx(&a, T0);
     let w = |c: &mut crate::Contract, f| c.try_request_withdraw(a.clone(), f, "nep141:usdc".into(), "dest.near".into());
+    let done = |c: &mut crate::Contract, id| c.try_mark_withdraw(operator(), id, WithdrawStatus::Done, None).unwrap();
     assert_eq!(code(w(&mut c, 0)), ErrorCode::BadRequest);
-    assert_eq!(code(c.try_request_withdraw(a.clone(), 1, "".into(), "d".into())), ErrorCode::BadRequest);
-    assert_eq!(code(c.try_request_withdraw(a.clone(), 1, "x".into(), "d".repeat(257))), ErrorCode::BadRequest);
+    assert_eq!(code(w(&mut c, MIN_WITHDRAW_FILS - 1)), ErrorCode::BadRequest);
+    assert_eq!(code(c.try_request_withdraw(a.clone(), 1000, "".into(), "d".into())), ErrorCode::BadRequest);
+    assert_eq!(code(c.try_request_withdraw(a.clone(), 1000, "x".into(), "d".repeat(257))), ErrorCode::BadRequest);
     let id = w(&mut c, 60_000).unwrap();
     assert_eq!(fils_of(&c, &a), 140_000); // debited immediately
     assert_eq!(c.pending_withdrawals, 60_000);
     assert_eq!(c.get_withdraw(id).unwrap().status, WithdrawStatus::Pending);
+    done(&mut c, id);
     assert_eq!(code(w(&mut c, 40_001)), ErrorCode::RateLimit);
-    w(&mut c, 40_000).unwrap();
-    assert_eq!(code(w(&mut c, 1)), ErrorCode::RateLimit);
+    let id = w(&mut c, 40_000).unwrap();
+    done(&mut c, id);
+    assert_eq!(code(w(&mut c, 1000)), ErrorCode::RateLimit);
     // next UTC day
     ctx(&a, T0 + secs(SECONDS_PER_DAY));
-    w(&mut c, 100_000).unwrap();
+    let id = w(&mut c, 100_000).unwrap();
+    done(&mut c, id);
     assert_eq!(fils_of(&c, &a), 0);
     ctx(&a, T0 + secs(2 * SECONDS_PER_DAY));
-    assert_eq!(code(w(&mut c, 1)), ErrorCode::InsufficientFunds);
+    assert_eq!(code(w(&mut c, 1000)), ErrorCode::InsufficientFunds);
+    assert_eq!(c.total_withdrawn, 200_000);
     assert_money_conserved(&c);
+}
+
+#[test]
+fn withdraw_spam_is_bounded() {
+    // audit finding 1: minimum amount, one open withdrawal per player, finished records compacted
+    let (mut c, a) = live_with_player();
+    ctx(&operator(), T0);
+    c.try_credit_deposit(operator(), a.clone(), 100_000, "d".into()).unwrap();
+    ctx(&a, T0);
+    let long = "x".repeat(MAX_ADDRESS_LEN);
+    assert_eq!(code(c.try_request_withdraw(a.clone(), 1, "usdc".into(), long.clone())), ErrorCode::BadRequest);
+    let id = c.try_request_withdraw(a.clone(), 1000, "usdc".into(), long.clone()).unwrap();
+    assert_eq!(code(c.try_request_withdraw(a.clone(), 1000, "usdc".into(), long.clone())), ErrorCode::RateLimit);
+    assert_eq!(c.players.get(&a).unwrap().open_withdraw, Some(id));
+    // refund closes it and compacts the record
+    c.try_refund_withdraw(operator(), id).unwrap();
+    let v = c.get_withdraw(id).unwrap();
+    assert_eq!((v.status, v.dest_asset.as_str(), v.dest_address.as_str()), (WithdrawStatus::Refunded, "", ""));
+    assert_eq!(v.fils.0, 1000);
+    assert_eq!(c.players.get(&a).unwrap().open_withdraw, None);
+    // the next one is allowed again; DONE also closes and compacts
+    let id2 = c.try_request_withdraw(a.clone(), 2000, "usdc".into(), long).unwrap();
+    c.try_mark_withdraw(operator(), id2, WithdrawStatus::Sent, Some("tx".into())).unwrap();
+    assert_eq!(c.get_withdraw(id2).unwrap().dest_address.len(), MAX_ADDRESS_LEN); // kept while open
+    c.try_mark_withdraw(operator(), id2, WithdrawStatus::Done, None).unwrap();
+    let v = c.get_withdraw(id2).unwrap();
+    assert_eq!((v.dest_address.as_str(), v.reference.as_deref()), ("", Some("tx")));
+    c.try_request_withdraw(a.clone(), 1000, "usdc".into(), "d".into()).unwrap();
+    assert_money_conserved(&c);
+}
+
+#[test]
+fn get_withdrawals_lists_ascending_and_bounded() {
+    let mut c = new_contract(Mode::Live);
+    ctx(&operator(), T0);
+    for i in 0..3 {
+        c.try_register(player(i)).unwrap();
+        c.try_credit_deposit(operator(), player(i), 10_000, format!("d{i}")).unwrap();
+        c.try_request_withdraw(player(i), 1000 + u128::from(i), "usdc".into(), format!("addr{i}")).unwrap();
+    }
+    let all = c.get_withdrawals(Some(0), Some(200));
+    assert_eq!(all.iter().map(|w| w.id).collect::<Vec<_>>(), vec![0, 1, 2]);
+    assert_eq!(all[1].account_id, player(1));
+    assert_eq!(all[1].fils.0, 1001);
+    assert_eq!(all[1].dest_address, "addr1");
+    assert_eq!(all[1].status, WithdrawStatus::Pending);
+    assert_eq!(c.get_withdrawals(Some(1), Some(1)).len(), 1);
+    assert_eq!(c.get_withdrawals(Some(5), None).len(), 0);
+    assert_eq!(c.get_withdrawals(None, Some(10_000)).len(), 3);
+    // JSON: request_withdraw returns a bare number; the view rows carry the fields the server reads
+    let j = near_sdk::serde_json::to_value(&all[0]).unwrap();
+    for k in ["id", "account_id", "fils", "dest_asset", "dest_address", "status"] {
+        assert!(!j[k].is_null(), "missing {k}");
+    }
+    assert_eq!(j["status"], "PENDING");
+    assert_eq!(near_sdk::serde_json::to_string(&7u64).unwrap(), "7");
 }
 
 #[test]
@@ -114,11 +176,8 @@ fn withdraw_status_machine_and_refunds() {
     c.try_credit_deposit(op.clone(), a.clone(), 100_000, "d".into()).unwrap();
     ctx(&a, T0);
     let w0 = c.try_request_withdraw(a.clone(), 30_000, "usdc".into(), "x".into()).unwrap();
-    let w1 = c.try_request_withdraw(a.clone(), 20_000, "usdc".into(), "x".into()).unwrap();
-    let w2 = c.try_request_withdraw(a.clone(), 10_000, "usdc".into(), "x".into()).unwrap();
     ctx(&op, T0);
     // invalid transitions
-    assert_eq!(code(c.try_mark_withdraw(op.clone(), w0, WithdrawStatus::Done, None)), ErrorCode::BadRequest);
     assert_eq!(code(c.try_mark_withdraw(op.clone(), w0, WithdrawStatus::Pending, None)), ErrorCode::BadRequest);
     assert_eq!(code(c.try_mark_withdraw(op.clone(), w0, WithdrawStatus::Refunded, None)), ErrorCode::BadRequest);
     assert_eq!(code(c.try_mark_withdraw(op.clone(), 99, WithdrawStatus::Sent, None)), ErrorCode::BadRequest);
@@ -129,16 +188,25 @@ fn withdraw_status_machine_and_refunds() {
     assert_eq!(c.get_withdraw(w0).unwrap().reference.as_deref(), Some("tx1"));
     assert_eq!(c.total_withdrawn, 30_000);
     assert_eq!(code(c.try_refund_withdraw(op.clone(), w0)), ErrorCode::BadRequest); // DONE: no refund
+    assert_eq!(code(c.try_mark_withdraw(op.clone(), w0, WithdrawStatus::Done, None)), ErrorCode::BadRequest);
     // w1: SENT -> REFUNDED restores the balance exactly; never twice
+    let w1 = c.try_request_withdraw(a.clone(), 20_000, "usdc".into(), "x".into()).unwrap();
     c.try_mark_withdraw(op.clone(), w1, WithdrawStatus::Sent, None).unwrap();
     let before = fils_of(&c, &a);
     c.try_refund_withdraw(op.clone(), w1).unwrap();
     assert_eq!(fils_of(&c, &a), before + 20_000);
     assert_eq!(code(c.try_refund_withdraw(op.clone(), w1)), ErrorCode::BadRequest);
     assert_eq!(code(c.try_mark_withdraw(op.clone(), w1, WithdrawStatus::Done, None)), ErrorCode::BadRequest);
-    // w2: PENDING -> REFUNDED
-    c.try_refund_withdraw(op.clone(), w2).unwrap();
-    assert_eq!(fils_of(&c, &a), 100_000 - 30_000);
+    // w2: PENDING -> DONE directly (the server marks after a confirmed send; status defaults to DONE)
+    let w2 = c.try_request_withdraw(a.clone(), 10_000, "usdc".into(), "x".into()).unwrap();
+    ctx(&op, T0);
+    c.mark_withdraw(w2, None, Some("tx2".into()));
+    assert_eq!(c.get_withdraw(w2).unwrap().status, WithdrawStatus::Done);
+    // w3: PENDING -> REFUNDED
+    let w3 = c.try_request_withdraw(a.clone(), 5_000, "usdc".into(), "x".into()).unwrap();
+    c.try_refund_withdraw(op.clone(), w3).unwrap();
+    assert_eq!(fils_of(&c, &a), 100_000 - 30_000 - 10_000);
+    assert_eq!(c.total_withdrawn, 40_000);
     assert_eq!(c.pending_withdrawals, 0);
     assert_money_conserved(&c);
 }
@@ -177,8 +245,10 @@ fn pause_blocks_every_write_except_refund() {
     let before = fils_of(&c, &a);
     c.try_refund_withdraw(operator(), wid).unwrap();
     assert_eq!(fils_of(&c, &a), before + 1000);
-    // operator can unpause
-    ctx(&operator(), T0);
+    // audit finding 7: the operator can pause but only the owner can unpause
+    assert_eq!(code(c.try_set_paused(operator(), false)), ErrorCode::Unauthenticated);
+    c.try_set_paused(operator(), true).unwrap();
+    ctx(&owner(), T0);
     c.set_paused(false);
     c.try_trade(a.clone(), CityId::Bandar, GoodId::Grain, Side::Buy, 1, u128::MAX).unwrap();
     assert_money_conserved(&c);
@@ -210,8 +280,12 @@ fn access_control_rejects_wrong_accounts() {
     }
     // owner or operator
     for s in [a.clone(), m.clone(), acc("random.test")] {
-        assert_eq!(code(c.try_set_paused(s, true)), u);
+        assert_eq!(code(c.try_set_paused(s.clone(), true)), u);
+        assert_eq!(code(c.try_set_paused(s.clone(), false)), u);
+        assert_eq!(code(c.try_set_max_players(s, 5000)), u);
     }
+    assert_eq!(code(c.try_set_paused(operator(), false)), u);
+    assert_eq!(code(c.try_set_max_players(operator(), 5000)), u);
     // owner only
     for s in [a.clone(), m.clone(), operator()] {
         assert_eq!(code(c.try_set_operator(s, acc("new-op.test"))), u);
@@ -244,6 +318,22 @@ fn credit_deposit_by_player_panics() {
 }
 
 #[test]
+fn server_facing_return_shapes() {
+    // credit_deposit -> {credited}, world_tick -> {ticks, tick}, claim_journey -> journey
+    let (mut c, a) = live_with_player();
+    ctx(&operator(), T0);
+    assert!(c.credit_deposit(a.clone(), U128(1000), "q1".into()).credited);
+    assert!(!c.credit_deposit(a.clone(), U128(1000), "q1".into()).credited);
+    let j = near_sdk::serde_json::to_value(c.credit_deposit(a.clone(), U128(1000), "q1".into())).unwrap();
+    assert_eq!(j, near_sdk::serde_json::json!({ "credited": false }));
+    ctx(&player(9), T0 + secs(60));
+    let t = near_sdk::serde_json::to_value(c.world_tick()).unwrap();
+    assert_eq!(t, near_sdk::serde_json::json!({ "ticks": 1, "tick": 1 }));
+    // operator daily cap is part of the config (required init argument, audit finding 8)
+    assert_eq!(c.get_config().operator_daily_cap.0, OP_CAP);
+}
+
+#[test]
 #[should_panic(expected = "UNAUTHENTICATED")]
 fn set_policy_by_player_panics() {
     let mut c = new_contract(Mode::Play);
@@ -260,15 +350,38 @@ fn init_validation() {
     ctx(&contract_id(), T0);
     let mut ma = merchant_accounts();
     ma.madan = ma.dasht.clone();
-    assert!(crate::Contract::try_new(owner(), operator(), Mode::Play, ma, 10, None, None, None).is_err());
+    assert!(
+        crate::Contract::try_new(owner(), operator(), Mode::Play, ma, 10, SUFFIX.into(), U128(OP_CAP), None).is_err()
+    );
     let mut ma = merchant_accounts();
     ma.shahr = operator();
-    assert!(crate::Contract::try_new(owner(), operator(), Mode::Play, ma, 10, None, None, None).is_err());
     assert!(
-        crate::Contract::try_new(owner(), operator(), Mode::Play, merchant_accounts(), 0, None, None, None).is_err()
+        crate::Contract::try_new(owner(), operator(), Mode::Play, ma, 10, SUFFIX.into(), U128(OP_CAP), None).is_err()
     );
-    let c =
-        crate::Contract::try_new(owner(), operator(), Mode::Play, merchant_accounts(), 10, None, None, None).unwrap();
+    assert!(
+        crate::Contract::try_new(
+            owner(),
+            operator(),
+            Mode::Play,
+            merchant_accounts(),
+            0,
+            SUFFIX.into(),
+            U128(OP_CAP),
+            None
+        )
+        .is_err()
+    );
+    let c = crate::Contract::try_new(
+        owner(),
+        operator(),
+        Mode::Play,
+        merchant_accounts(),
+        10,
+        SUFFIX.into(),
+        U128(OP_CAP),
+        None,
+    )
+    .unwrap();
     for m in &c.merchants {
         assert_eq!(m.treasury, MERCHANT_TREASURY_FILS);
         for g in GoodId::ALL {

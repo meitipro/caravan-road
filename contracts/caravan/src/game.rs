@@ -18,7 +18,8 @@ impl Contract {
         self.try_register(env::predecessor_account_id()).or_panic()
     }
 
-    /// PLAY only: +500 dinars when the balance is under 50 dinars, once per hour.
+    /// PLAY only: +500 dinars when the player's net worth (fils + base value of inventory, stall
+    /// escrow and cargo in transit) is under 50 dinars, once per hour.
     pub fn faucet(&mut self) -> PlayerView {
         self.try_faucet(env::predecessor_account_id()).or_panic()
     }
@@ -38,7 +39,9 @@ impl Contract {
         self.try_start_journey(env::predecessor_account_id(), to, cargo, guards).or_panic()
     }
 
-    pub fn claim_journey(&mut self) -> ClaimResult {
+    /// Returns the claimed journey (`status` CLAIMED, `ambushed`, `lost`); read the player with
+    /// `get_player`.
+    pub fn claim_journey(&mut self) -> JourneyView {
         let seed = env::random_seed();
         self.try_claim_journey(env::predecessor_account_id(), &seed).or_panic()
     }
@@ -62,6 +65,17 @@ impl Contract {
 }
 
 impl Contract {
+    /// Net worth for the faucet rule: fils + base value of inventory, stall escrow and cargo in
+    /// transit (audit finding 5).
+    pub(crate) fn faucet_worth(p: &Player) -> CResult<u128> {
+        let mut w = ovf(p.fils.checked_add(base_value(&p.goods)?))?;
+        w = ovf(w.checked_add(base_value(&p.escrow)?))?;
+        if let Some(j) = p.journey.as_ref().filter(|j| j.status == JourneyStatus::InTransit) {
+            w = ovf(w.checked_add(base_value(&j.cargo)?))?;
+        }
+        Ok(w)
+    }
+
     pub(crate) fn try_register(&mut self, who: AccountId) -> CResult<PlayerView> {
         self.require_not_paused()?;
         if let Some(p) = self.players.get(&who) {
@@ -70,12 +84,12 @@ impl Contract {
         if self.is_reserved(&who) {
             return fail(ErrorCode::Unauthenticated, "this account cannot play");
         }
-        if let Some(suffix) = &self.player_suffix {
-            let ok =
-                who.as_str().strip_suffix(suffix.as_str()).is_some_and(|head| head.len() > 1 && head.ends_with('.'));
-            if !ok {
-                return fail(ErrorCode::Unauthenticated, "account was not created by the game server");
-            }
+        let ok = who
+            .as_str()
+            .strip_suffix(self.player_suffix.as_str())
+            .is_some_and(|head| head.len() > 1 && head.ends_with('.'));
+        if !ok {
+            return fail(ErrorCode::Unauthenticated, "account was not created by the game server");
         }
         if self.players.len() >= self.max_players {
             return fail(ErrorCode::BadRequest, "player limit reached");
@@ -95,7 +109,7 @@ impl Contract {
             return fail(ErrorCode::ModeNotAllowed, "the faucet only works in PLAY mode");
         }
         let mut p = self.load_player(&who)?;
-        if p.fils >= FAUCET_MAX_BALANCE_FILS {
+        if Self::faucet_worth(&p)? >= FAUCET_MAX_BALANCE_FILS {
             return fail(ErrorCode::BadRequest, "the faucet is for players with less than 50 dinars");
         }
         let now = Self::now_ns();
@@ -272,6 +286,7 @@ impl Contract {
         self.add_house(cost)?;
         self.next_journey_id = next_id;
         self.players.insert(who.clone(), p);
+        self.check_storage()?;
         emit(
             "journey_started",
             json!({
@@ -283,7 +298,7 @@ impl Contract {
         Ok(Self::journey_view(&j))
     }
 
-    pub(crate) fn try_claim_journey(&mut self, who: AccountId, seed: &[u8]) -> CResult<ClaimResult> {
+    pub(crate) fn try_claim_journey(&mut self, who: AccountId, seed: &[u8]) -> CResult<JourneyView> {
         self.require_not_paused()?;
         let mut p = self.load_player(&who)?;
         let Some(mut j) = p.journey.clone().filter(|j| j.status == JourneyStatus::InTransit) else {
@@ -318,7 +333,7 @@ impl Contract {
                 "risk_bp": j.risk_bp, "lost": GoodsView::from_array(&lost),
             }),
         );
-        Ok(ClaimResult { journey: Self::journey_view(&j), player: Self::player_view(&who, &p)? })
+        Ok(Self::journey_view(&j))
     }
 
     pub(crate) fn try_stall_create(
@@ -350,6 +365,7 @@ impl Contract {
         let next = ovf(id.checked_add(1))?;
         p.goods[gi] = ovf(p.goods[gi].checked_sub(qty))?;
         p.stall_count = ovf(p.stall_count.checked_add(1))?;
+        p.escrow[gi] = ovf(p.escrow[gi].checked_add(qty))?;
         let s = Stall { id, seller: who.clone(), city: p.location, good: g, qty, unit_price };
         self.next_stall_id = next;
         self.players.insert(who.clone(), p);
@@ -362,7 +378,9 @@ impl Contract {
         Ok(Self::stall_view(&s))
     }
 
-    /// Buyer pays `qty x unit_price` to the seller plus a 2% fee to `house` (OPEN_QUESTIONS #8).
+    /// Buyer pays `price = qty x unit_price` (`limit_total` bounds it). The 2% stall fee is taken
+    /// from the seller's proceeds (plan 5.3 "fee on the seller side"), rounded up so every sale
+    /// pays at least 1 fils: seller gets `price - ceil(price x 2%)`, house gets the fee.
     /// Buyer and seller must both be in the stall's city and not travelling.
     pub(crate) fn try_stall_buy(
         &mut self,
@@ -399,18 +417,19 @@ impl Contract {
             return fail(ErrorCode::CargoLimit, "caravan is full");
         }
         let price = ovf(s.unit_price.checked_mul(u128::from(qty)))?;
-        let fee = bp_of(price, STALL_FEE_BP)?;
-        let pay = ovf(price.checked_add(fee))?;
-        if pay > limit_total {
+        let fee = bp_of_ceil(price, STALL_FEE_BP)?;
+        let proceeds = ovf(price.checked_sub(fee))?;
+        if price > limit_total {
             return fail(ErrorCode::Slippage, "the price moved");
         }
-        if pay > buyer.fils {
+        if price > buyer.fils {
             return fail(ErrorCode::InsufficientFunds, "not enough dinar");
         }
         let gi = s.good.idx();
-        buyer.fils = ovf(buyer.fils.checked_sub(pay))?;
+        buyer.fils = ovf(buyer.fils.checked_sub(price))?;
         buyer.goods[gi] = ovf(buyer.goods[gi].checked_add(qty))?;
-        seller.fils = ovf(seller.fils.checked_add(price))?;
+        seller.fils = ovf(seller.fils.checked_add(proceeds))?;
+        seller.escrow[gi] = ovf(seller.escrow[gi].checked_sub(qty))?;
         s.qty = ovf(s.qty.checked_sub(qty))?;
         if s.qty == 0 {
             seller.stall_count = ovf(seller.stall_count.checked_sub(1))?;
@@ -451,6 +470,7 @@ impl Contract {
         let gi = s.good.idx();
         p.goods[gi] = ovf(p.goods[gi].checked_add(s.qty))?;
         p.stall_count = ovf(p.stall_count.checked_sub(1))?;
+        p.escrow[gi] = ovf(p.escrow[gi].checked_sub(s.qty))?;
         self.stalls.remove(&stall_id);
         self.players.insert(who.clone(), p.clone());
         emit("stall_cancel", json!({ "account": who, "id": stall_id, "city": s.city, "good": s.good, "qty": s.qty }));
@@ -469,8 +489,11 @@ impl Contract {
             return fail(ErrorCode::ModeNotAllowed, "withdrawals are only available in LIVE mode");
         }
         let mut p = self.load_player(&who)?;
-        if fils == 0 {
-            return fail(ErrorCode::BadRequest, "fils must be positive");
+        if fils < MIN_WITHDRAW_FILS {
+            return fail(ErrorCode::BadRequest, "minimum withdrawal is 10 dinars");
+        }
+        if p.open_withdraw.is_some() {
+            return fail(ErrorCode::RateLimit, "a withdrawal is already in progress");
         }
         if dest_asset.is_empty()
             || dest_asset.len() > MAX_ASSET_LEN
@@ -496,6 +519,7 @@ impl Contract {
         p.fils = ovf(p.fils.checked_sub(fils))?;
         p.withdraw_day = day;
         p.withdrawn_today = after;
+        p.open_withdraw = Some(id);
         self.players.insert(who.clone(), p);
         self.pending_withdrawals = pending;
         self.next_withdraw_id = next;

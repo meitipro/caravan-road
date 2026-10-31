@@ -40,8 +40,8 @@ fn register_enforces_suffix_and_player_cap() {
         Mode::Play,
         merchant_accounts(),
         2,
-        Some("players.test".into()),
-        None,
+        SUFFIX.into(),
+        near_sdk::json_types::U128(OP_CAP),
         None,
     );
     assert_eq!(code(c.try_register(acc("evil.test"))), ErrorCode::Unauthenticated);
@@ -51,6 +51,59 @@ fn register_enforces_suffix_and_player_cap() {
     c.try_register(player(2)).unwrap();
     assert_eq!(code(c.try_register(player(3))), ErrorCode::BadRequest); // player limit
     c.try_register(player(1)).unwrap(); // existing player still idempotent
+    // audit finding 2: the owner (only) can raise the cap; never below the current count
+    for s in [operator(), player(1), merchant(CityId::Dasht)] {
+        assert_eq!(code(c.try_set_max_players(s, 10)), ErrorCode::Unauthenticated);
+    }
+    assert_eq!(code(c.try_set_max_players(owner(), 1)), ErrorCode::BadRequest);
+    c.try_set_max_players(owner(), 3).unwrap();
+    c.try_register(player(3)).unwrap();
+    assert_eq!(c.get_config().max_players, 3);
+}
+
+#[test]
+fn player_suffix_accepts_a_leading_dot() {
+    // audit finding 3: the server documents the suffix as `.<RELAYER_ACCOUNT_ID>`
+    ctx(&contract_id(), T0);
+    let mut c = crate::Contract::init(
+        owner(),
+        operator(),
+        Mode::Play,
+        merchant_accounts(),
+        10,
+        ".players.test".into(),
+        near_sdk::json_types::U128(OP_CAP),
+        None,
+    );
+    assert_eq!(c.get_config().player_suffix, "players.test");
+    c.try_register(player(1)).unwrap();
+    assert_eq!(code(c.try_register(acc("p1.other.test"))), ErrorCode::Unauthenticated);
+    for bad in ["", ".", "..x", "a", "Players.test", "x.", &"a".repeat(65)] {
+        assert!(crate::Contract::normalize_suffix(bad).is_err(), "{bad:?}");
+    }
+}
+
+#[test]
+fn faucet_uses_net_worth_including_escrow_and_cargo() {
+    // audit finding 5: goods (inventory, stall escrow, caravan) count toward the 50-dinar limit
+    let mut c = new_contract(Mode::Play);
+    let a = with_player(&mut c, 1, 6_000);
+    ctx(&a, T0);
+    c.try_trade(a.clone(), CityId::Bandar, GoodId::Iron, Side::Buy, 1, u128::MAX).unwrap(); // ~4,200
+    assert!(fils_of(&c, &a) < FAUCET_MAX_BALANCE_FILS);
+    assert_eq!(code(c.try_faucet(a.clone())), ErrorCode::BadRequest); // fils + 4,000 base value
+    // the iron in a stall (escrow) still counts
+    c.try_stall_create(a.clone(), GoodId::Iron, 1, 9_999).unwrap();
+    assert_eq!(code(c.try_faucet(a.clone())), ErrorCode::BadRequest);
+    c.try_stall_cancel(a.clone(), 0).unwrap();
+    // the iron on a caravan still counts
+    c.try_start_journey(a.clone(), CityId::Shahr, [(GoodId::Iron, 1)].into_iter().collect(), 0).unwrap();
+    assert_eq!(code(c.try_faucet(a.clone())), ErrorCode::BadRequest);
+    // a player with only a little salt gets the faucet
+    let b = with_player(&mut c, 2, 2_000);
+    c.try_trade(b.clone(), CityId::Bandar, GoodId::Salt, Side::Buy, 1, u128::MAX).unwrap();
+    c.try_faucet(b.clone()).unwrap();
+    assert_money_conserved(&c);
 }
 
 #[test]

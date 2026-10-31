@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use near_sdk::json_types::U128;
 use near_sdk::test_utils::VMContextBuilder;
 use near_sdk::{AccountId, NearToken, testing_env};
 
@@ -8,6 +9,9 @@ use crate::math::NS_PER_SEC;
 use crate::types::*;
 
 pub const T0: u64 = 1_800_000_000 * NS_PER_SEC;
+/// Players are `p<i>.players.test`.
+pub const SUFFIX: &str = "players.test";
+pub const OP_CAP: u128 = 1_000_000;
 
 pub fn acc(s: &str) -> AccountId {
     s.parse().unwrap()
@@ -60,12 +64,12 @@ pub fn merchant_accounts() -> MerchantAccounts {
 
 pub fn new_contract(mode: Mode) -> Contract {
     ctx(&contract_id(), T0);
-    Contract::init(owner(), operator(), mode, merchant_accounts(), 1000, None, None, None)
+    Contract::init(owner(), operator(), mode, merchant_accounts(), 1000, SUFFIX.into(), U128(OP_CAP), None)
 }
 
 pub fn new_contract_auto_ship(mode: Mode) -> Contract {
     ctx(&contract_id(), T0);
-    Contract::init(owner(), operator(), mode, merchant_accounts(), 1000, None, None, Some(true))
+    Contract::init(owner(), operator(), mode, merchant_accounts(), 1000, SUFFIX.into(), U128(OP_CAP), Some(true))
 }
 
 /// Registers player `i` and gives it `fils` directly (test setup only).

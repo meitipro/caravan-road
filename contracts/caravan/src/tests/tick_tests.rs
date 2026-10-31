@@ -13,12 +13,12 @@ fn code<T: std::fmt::Debug>(r: crate::errors::CResult<T>) -> ErrorCode {
 fn tick_is_a_noop_within_55_seconds() {
     let mut c = new_contract(Mode::Play);
     ctx(&player(9), T0 + secs(54));
-    assert_eq!(c.world_tick(), 0);
+    assert_eq!(c.world_tick().ticks, 0);
     assert_eq!(c.tick_count, 0);
     ctx(&player(9), T0 + secs(55));
-    assert_eq!(c.world_tick(), 1);
+    assert_eq!(c.world_tick().ticks, 1);
     ctx(&player(9), T0 + secs(100));
-    assert_eq!(c.world_tick(), 0); // 45 s after the last tick
+    assert_eq!(c.world_tick().ticks, 0); // 45 s after the last tick
     assert_eq!(c.tick_count, 1);
 }
 
@@ -26,11 +26,34 @@ fn tick_is_a_noop_within_55_seconds() {
 fn tick_applies_at_most_10_missed_ticks() {
     let mut c = new_contract(Mode::Play);
     ctx(&player(9), T0 + secs(60 * 3));
-    assert_eq!(c.world_tick(), 3);
+    assert_eq!(c.world_tick().ticks, 3);
     ctx(&player(9), T0 + secs(60 * 3 + 3600));
-    assert_eq!(c.world_tick(), 10);
+    assert_eq!(c.world_tick().ticks, 10);
     assert_eq!(c.tick_count, 13);
+    // more than 10 ticks were due: the excess is dropped, the 60 s phase is kept
     assert_eq!(c.last_tick_ns, T0 + secs(60 * 3 + 3600));
+}
+
+#[test]
+fn tick_schedule_advances_by_whole_ticks() {
+    // audit finding 10: last_tick_ns advances by n x 60 s, not to `now`
+    let mut c = new_contract(Mode::Play);
+    ctx(&player(9), T0 + secs(150));
+    assert_eq!(c.world_tick().ticks, 2);
+    assert_eq!(c.last_tick_ns, T0 + secs(120));
+    ctx(&player(9), T0 + secs(175)); // 55 s after the schedule point
+    assert_eq!(c.world_tick().ticks, 1);
+    assert_eq!(c.last_tick_ns, T0 + secs(180));
+    ctx(&player(9), T0 + secs(234)); // 54 s: too early
+    assert_eq!(c.world_tick().ticks, 0);
+    ctx(&player(9), T0 + secs(240));
+    let r = c.world_tick();
+    assert_eq!((r.ticks, r.tick), (1, 4));
+    assert_eq!(c.last_tick_ns, T0 + secs(240));
+    // 25 ticks late: 10 run, the schedule keeps its phase
+    ctx(&player(9), T0 + secs(240 + 25 * 60 + 7));
+    assert_eq!(c.world_tick().ticks, 10);
+    assert_eq!(c.last_tick_ns, T0 + secs(240 + 25 * 60));
 }
 
 #[test]
@@ -107,7 +130,7 @@ fn auto_ship_skips_when_destination_cannot_pay() {
     c.merchants[CityId::Dasht.idx()].stock[s] = 7;
     assert!(ship_payment(GoodId::Silk, 21, 6, 4).unwrap() > MERCHANT_TREASURY_FILS);
     ctx(&player(9), T0 + secs(60));
-    assert_eq!(c.world_tick(), 1);
+    assert_eq!(c.world_tick().ticks, 1);
     assert_eq!(c.merchants[CityId::Bandar.idx()].stock[s], 21);
     assert_eq!(c.merchants[CityId::Dasht.idx()].stock[s], 6);
     assert_money_conserved(&c);
@@ -130,7 +153,7 @@ fn simulation_240_ticks_conserves_money_every_tick() {
     for t in 1..=240u64 {
         let now = T0 + secs(60 * t);
         ctx(&player(99), now);
-        assert_eq!(c.try_world_tick().unwrap(), 1);
+        assert_eq!(c.try_world_tick().unwrap().ticks, 1);
         for a in &players {
             let r = next();
             let p = c.players.get(a).unwrap().clone();
@@ -167,17 +190,35 @@ fn set_policy_bounds_and_rate_limit() {
     assert_eq!(code(c.try_set_policy(m.clone(), 2001, 0)), ErrorCode::BadRequest);
     assert_eq!(code(c.try_set_policy(m.clone(), 800, -1501)), ErrorCode::BadRequest);
     assert_eq!(code(c.try_set_policy(m.clone(), 800, 1501)), ErrorCode::BadRequest);
-    c.try_set_policy(m.clone(), 2000, -1500).unwrap();
-    assert_eq!(c.merchants[1].spread_bp, 2000);
-    assert_eq!(c.merchants[1].bias_bp, -1500);
+    // audit finding 4: at most 300 bp per change for spread and for bias
+    assert_eq!(code(c.try_set_policy(m.clone(), 1101, 0)), ErrorCode::BadRequest);
+    assert_eq!(code(c.try_set_policy(m.clone(), 800, -301)), ErrorCode::BadRequest);
+    c.try_set_policy(m.clone(), 1100, -300).unwrap();
+    assert_eq!(c.merchants[1].spread_bp, 1100);
+    assert_eq!(c.merchants[1].bias_bp, -300);
+    // once per 60 s ...
     ctx(&m, T0 + secs(59));
-    assert_eq!(code(c.try_set_policy(m.clone(), 400, 1500)), ErrorCode::RateLimit);
-    ctx(&m, T0 + secs(60));
-    c.try_set_policy(m.clone(), 400, 1500).unwrap();
+    assert_eq!(code(c.try_set_policy(m.clone(), 1000, -200)), ErrorCode::RateLimit);
+    // ... and once per tick (no tick happened yet)
+    ctx(&m, T0 + secs(61));
+    assert_eq!(code(c.try_set_policy(m.clone(), 1000, -200)), ErrorCode::RateLimit);
+    c.try_world_tick().unwrap();
+    c.try_set_policy(m.clone(), 1000, 0).unwrap();
     // quotes follow the policy
     let q = c.get_quotes(CityId::Madan);
-    let expect = quote(GoodId::Iron, 100, 400, 1500).unwrap();
+    let expect = quote(GoodId::Iron, i128::from(c.merchants[1].stock[GoodId::Iron.idx()]), 1000, 0).unwrap();
     assert_eq!(q.iron.ask.0, expect.ask);
+    // bias can climb only 300 bp per tick: 0 -> 1500 takes 5 ticks
+    let mut bias = 0;
+    let mut t = 61;
+    while bias < 1500 {
+        t += 60;
+        ctx(&m, T0 + secs(t));
+        c.try_world_tick().unwrap();
+        bias += 300;
+        c.try_set_policy(m.clone(), 1000, bias).unwrap();
+    }
+    assert_eq!(c.merchants[1].bias_bp, 1500);
 }
 
 // ---------- ship ----------
@@ -206,6 +247,35 @@ fn ship_rules() {
     c.try_world_tick().unwrap();
     c.merchants[1].treasury = 100;
     c.seed_total -= 45_900;
-    assert_eq!(code(c.try_ship(dasht.clone(), CityId::Madan, GoodId::Grain, 4)), ErrorCode::MerchantBroke);
+    // 4,000 > 25% of 100: blocked by the per-tick budget before the treasury check
+    assert_eq!(code(c.try_ship(dasht.clone(), CityId::Madan, GoodId::Grain, 4)), ErrorCode::RateLimit);
+    assert_money_conserved(&c);
+}
+
+#[test]
+fn ship_needs_destination_deficit_and_respects_budget() {
+    // audit finding 6
+    let mut c = new_contract(Mode::Play);
+    let g = GoodId::Grain.idx();
+    // gap >= 50% but the destination is at target: not short, rejected
+    c.merchants[0].stock[g] = 320;
+    c.merchants[1].stock[g] = 200;
+    ctx(&merchant(CityId::Dasht), T0);
+    assert_eq!(code(c.try_ship(merchant(CityId::Dasht), CityId::Madan, GoodId::Grain, 4)), ErrorCode::BadRequest);
+    // madan short of grain; three merchants ship to it in one tick: budget 25% of 12,000 = 3,000
+    c.merchants[1].stock[g] = 20;
+    c.merchants[2].stock[g] = 300;
+    c.merchants[3].stock[g] = 300;
+    c.merchants[1].treasury = 12_000;
+    c.seed_total -= 38_000;
+    let p1 = c.try_ship(merchant(CityId::Dasht), CityId::Madan, GoodId::Grain, 2).unwrap();
+    assert!(p1 <= 3_000);
+    let r = c.try_ship(merchant(CityId::Bandar), CityId::Madan, GoodId::Grain, 2);
+    assert!(p1 + ship_payment(GoodId::Grain, 300, 22, 2).unwrap() > 3_000);
+    assert_eq!(code(r), ErrorCode::RateLimit);
+    // next tick the budget resets
+    ctx(&merchant(CityId::Bandar), T0 + secs(60));
+    c.try_world_tick().unwrap();
+    c.try_ship(merchant(CityId::Bandar), CityId::Madan, GoodId::Grain, 1).unwrap();
     assert_money_conserved(&c);
 }

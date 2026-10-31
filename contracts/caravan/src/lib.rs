@@ -49,7 +49,8 @@ pub struct Contract {
     pub(crate) mode: Mode,
     pub(crate) paused: bool,
     pub(crate) max_players: u32,
-    pub(crate) player_suffix: Option<String>,
+    /// Players must be `<name>.<player_suffix>` (accounts the game server creates).
+    pub(crate) player_suffix: String,
     pub(crate) operator_daily_cap: u128,
     pub(crate) operator_day: u64,
     pub(crate) operator_credited_today: u128,
@@ -77,10 +78,11 @@ pub struct Contract {
 
 #[near]
 impl Contract {
-    /// `init(owner, operator, mode, merchant_accounts, max_players)` (plan 5.3) plus optional
-    /// `player_suffix` (register only `*.suffix` accounts), `operator_daily_cap` (fils) and
-    /// `auto_ship` (run house caravans inside `world_tick`). `#[private]`: only the contract
-    /// account itself can initialize (deploy + init in one batch transaction).
+    /// `init(owner, operator, mode, merchant_accounts, max_players)` (plan 5.3) plus the required
+    /// `player_suffix` (register only `<name>.<suffix>` accounts; a leading '.' is ignored) and
+    /// `operator_daily_cap` (fils per UTC day for `credit_deposit`), and optional `auto_ship` (run
+    /// house caravans inside `world_tick`). `#[private]`: only the contract account itself can
+    /// initialize (deploy + init in one batch transaction).
     #[init]
     #[private]
     #[allow(clippy::too_many_arguments)]
@@ -90,8 +92,8 @@ impl Contract {
         mode: Mode,
         merchant_accounts: MerchantAccounts,
         max_players: u32,
-        player_suffix: Option<String>,
-        operator_daily_cap: Option<U128>,
+        player_suffix: String,
+        operator_daily_cap: U128,
         auto_ship: Option<bool>,
     ) -> Self {
         Self::try_new(
@@ -116,8 +118,8 @@ impl Contract {
         mode: Mode,
         merchant_accounts: MerchantAccounts,
         max_players: u32,
-        player_suffix: Option<String>,
-        operator_daily_cap: Option<U128>,
+        player_suffix: String,
+        operator_daily_cap: U128,
         auto_ship: Option<bool>,
     ) -> CResult<Self> {
         let accounts =
@@ -133,9 +135,7 @@ impl Contract {
         if max_players == 0 {
             return fail(ErrorCode::BadRequest, "max_players must be positive");
         }
-        if player_suffix.as_ref().is_some_and(|s| s.is_empty() || s.len() > 64) {
-            return fail(ErrorCode::BadRequest, "bad player_suffix");
-        }
+        let player_suffix = Self::normalize_suffix(&player_suffix)?;
         let merchants = accounts.map(|account| Merchant {
             account,
             treasury: MERCHANT_TREASURY_FILS,
@@ -143,7 +143,10 @@ impl Contract {
             spread_bp: SPREAD_DEFAULT_BP,
             bias_bp: 0,
             last_policy_ns: None,
+            last_policy_tick: None,
             last_ship_tick: [None; 5],
+            ship_in_tick: None,
+            ship_in_paid: 0,
         });
         let seed_total = ovf(MERCHANT_TREASURY_FILS.checked_mul(4))?;
         Ok(Self {
@@ -153,7 +156,7 @@ impl Contract {
             paused: false,
             max_players,
             player_suffix,
-            operator_daily_cap: operator_daily_cap.map(|c| c.0).unwrap_or(DEFAULT_OPERATOR_DAILY_CAP_FILS),
+            operator_daily_cap: operator_daily_cap.0,
             operator_day: 0,
             operator_credited_today: 0,
             auto_ship: auto_ship.unwrap_or(false),
@@ -175,6 +178,17 @@ impl Contract {
             pending_withdrawals: 0,
             player_goods: [0; 5],
         })
+    }
+
+    /// Strips one leading '.', then requires 2..=64 chars of a NEAR account id
+    /// (lowercase letters, digits, '-', '_', '.').
+    pub(crate) fn normalize_suffix(raw: &str) -> CResult<String> {
+        let s = raw.strip_prefix('.').unwrap_or(raw);
+        let ok_chars = s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "-_.".contains(c));
+        if s.len() < 2 || s.len() > 64 || !ok_chars || s.starts_with('.') || s.ends_with('.') {
+            return fail(ErrorCode::BadRequest, "bad player_suffix");
+        }
+        Ok(s.to_string())
     }
 
     // ---------- shared guards and helpers ----------

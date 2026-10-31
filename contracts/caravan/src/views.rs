@@ -171,6 +171,9 @@ impl Contract {
             npc_ship_units_per_tick: NPC_SHIP_UNITS_PER_TICK,
             npc_min_ratio_gap_bp: 5000,
             policy_min_interval_seconds: POLICY_MIN_INTERVAL_SECONDS,
+            policy_max_step_bp: POLICY_MAX_STEP_BP,
+            ship_max_pay_pct: 25,
+            min_withdraw_fils: U128(MIN_WITHDRAW_FILS),
         }
     }
 
@@ -225,7 +228,21 @@ impl Contract {
     }
 
     pub fn get_withdraw(&self, id: u64) -> Option<WithdrawalView> {
-        self.withdrawals.get(&id).map(|w| WithdrawalView {
+        self.withdrawals.get(&id).map(Self::withdrawal_view)
+    }
+
+    /// Withdrawals with `id >= from_id` in ascending id order; at most `limit` (<= 200) ids scanned.
+    pub fn get_withdrawals(&self, from_id: Option<u64>, limit: Option<u64>) -> Vec<WithdrawalView> {
+        let from = from_id.unwrap_or(0);
+        let lim = limit.unwrap_or(MAX_WITHDRAW_PAGE).min(MAX_WITHDRAW_PAGE);
+        let end = from.saturating_add(lim).min(self.next_withdraw_id);
+        (from..end).filter_map(|id| self.withdrawals.get(&id).map(Self::withdrawal_view)).collect()
+    }
+}
+
+impl Contract {
+    fn withdrawal_view(w: &Withdrawal) -> WithdrawalView {
+        WithdrawalView {
             id: w.id,
             account_id: w.account.clone(),
             fils: U128(w.fils),
@@ -235,9 +252,12 @@ impl Contract {
             created_ns: U64(w.created_ns),
             updated_ns: U64(w.updated_ns),
             reference: w.reference.clone(),
-        })
+        }
     }
+}
 
+#[near]
+impl Contract {
     /// Money bookkeeping for the solvency invariant (player balances are summed off-chain
     /// from `get_players`).
     pub fn get_solvency(&self) -> SolvencyView {

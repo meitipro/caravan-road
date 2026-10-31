@@ -51,8 +51,14 @@ pub const POLICY_MIN_INTERVAL_SECONDS: u64 = 60;
 pub const MAX_STALLS_PER_PLAYER: u32 = 5;
 /// Sanity bound for stall prices (10,000,000 dinars).
 pub const MAX_STALL_UNIT_PRICE: u128 = 1_000_000_000;
-/// Default operator daily deposit cap if init does not set one (100 USDC).
-pub const DEFAULT_OPERATOR_DAILY_CAP_FILS: u128 = 1_000_000;
+/// `set_policy`: largest change of spread_bp and of bias_bp per call (audit finding 4).
+pub const POLICY_MAX_STEP_BP: u32 = 300;
+/// `ship` by a merchant: the destination pays at most this % of its treasury per tick (finding 6).
+pub const SHIP_MAX_PAY_PCT: u128 = 25;
+/// Smallest withdrawal (finding 1): 10 dinars.
+pub const MIN_WITHDRAW_FILS: u128 = 1000;
+/// `get_withdrawals` page size cap (the server reconciles a window of 200 ids).
+pub const MAX_WITHDRAW_PAGE: u64 = 200;
 pub const MAX_REFERENCE_LEN: usize = 128;
 pub const MAX_ASSET_LEN: usize = 128;
 pub const MAX_ADDRESS_LEN: usize = 256;
@@ -269,4 +275,10 @@ pub fn pct(x: u128, pct: u128) -> CResult<u128> {
 /// `x * bp / 10000`, checked.
 pub fn bp_of(x: u128, bp: u128) -> CResult<u128> {
     ovf(ovf(x.checked_mul(bp))?.checked_div(BP_U))
+}
+
+/// `ceil(x * bp / 10000)`, checked.
+pub fn bp_of_ceil(x: u128, bp: u128) -> CResult<u128> {
+    let n = ovf(x.checked_mul(bp))?;
+    ovf(ovf(n.checked_add(ovf(BP_U.checked_sub(1))?))?.checked_div(BP_U))
 }

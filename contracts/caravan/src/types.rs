@@ -143,6 +143,10 @@ pub struct Player {
     pub withdraw_day: u64,
     pub total_deposited: u128,
     pub stall_count: u32,
+    /// Goods in this player's open stalls (escrow), per good.
+    pub escrow: [u32; 5],
+    /// The player's open (PENDING or SENT) withdrawal, if any. At most one at a time.
+    pub open_withdraw: Option<u64>,
     /// Current journey (IN_TRANSIT) or the last claimed one (kept so the UI can show the result).
     pub journey: Option<Journey>,
 }
@@ -158,6 +162,8 @@ impl Player {
             withdraw_day: 0,
             total_deposited: 0,
             stall_count: 0,
+            escrow: [0; 5],
+            open_withdraw: None,
             journey: None,
         }
     }
@@ -182,8 +188,14 @@ pub struct Merchant {
     pub spread_bp: u32,
     pub bias_bp: i32,
     pub last_policy_ns: Option<u64>,
+    /// Tick number of the last `set_policy` (at most one change per tick).
+    pub last_policy_tick: Option<u64>,
     /// Tick number of the last `ship` per good (one shipment per good per tick).
     pub last_ship_tick: [Option<u64>; 5],
+    /// Tick in which `ship_in_paid` was accumulated (payments this merchant made for incoming
+    /// merchant-initiated shipments).
+    pub ship_in_tick: Option<u64>,
+    pub ship_in_paid: u128,
 }
 
 #[near(serializers = [borsh])]
@@ -363,9 +375,18 @@ pub struct TradeResult {
 
 #[near(serializers = [json])]
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ClaimResult {
-    pub journey: JourneyView,
-    pub player: PlayerView,
+pub struct TickResult {
+    /// Ticks applied by this call (0 = too early, no-op).
+    pub ticks: u64,
+    /// World tick counter after the call.
+    pub tick: u64,
+}
+
+#[near(serializers = [json])]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CreditResult {
+    /// false: this `reference` was already credited, nothing changed.
+    pub credited: bool,
 }
 
 #[near(serializers = [json])]
@@ -397,7 +418,7 @@ pub struct ConfigView {
     pub mode: Mode,
     pub paused: bool,
     pub max_players: u32,
-    pub player_suffix: Option<String>,
+    pub player_suffix: String,
     pub operator_daily_cap: U128,
     pub auto_ship: bool,
     pub merchant_accounts: Vec<AccountId>,
@@ -427,4 +448,7 @@ pub struct ConfigView {
     pub npc_ship_units_per_tick: u32,
     pub npc_min_ratio_gap_bp: u32,
     pub policy_min_interval_seconds: u64,
+    pub policy_max_step_bp: u32,
+    pub ship_max_pay_pct: u32,
+    pub min_withdraw_fils: U128,
 }

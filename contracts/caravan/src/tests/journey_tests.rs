@@ -103,9 +103,9 @@ fn claim_before_arrival_fails_and_after_moves_player() {
     assert_eq!(c.get_journey(a.clone()).unwrap().status, "ARRIVED");
     let seed = seed_for(j.id, a.as_str(), j.risk_bp, false);
     let r = c.try_claim_journey(a.clone(), &seed).unwrap();
-    assert_eq!(r.journey.status, "CLAIMED");
-    assert_eq!(r.journey.ambushed, Some(false));
-    assert_eq!(r.player.location, CityId::Dasht);
+    assert_eq!(r.status, "CLAIMED");
+    assert_eq!(r.ambushed, Some(false));
+    assert_eq!(c.players.get(&a).unwrap().location, CityId::Dasht);
     assert_eq!(goods_of(&c, &a, GoodId::Grain), 20);
     // second claim fails
     assert_eq!(code(c.try_claim_journey(a.clone(), &seed)), ErrorCode::BadRequest);
@@ -135,8 +135,8 @@ fn ambush_destroys_floor_30_percent_of_each_good() {
     ctx(&a, T0 + secs(360));
     let seed = seed_for(j.id, a.as_str(), j.risk_bp, true);
     let r = c.try_claim_journey(a.clone(), &seed).unwrap();
-    assert_eq!(r.journey.ambushed, Some(true));
-    let lost = r.journey.lost.unwrap();
+    assert_eq!(r.ambushed, Some(true));
+    let lost = r.lost.unwrap();
     assert_eq!(lost.get(&GoodId::Grain), Some(&3)); // floor(3.3)
     assert_eq!(lost.get(&GoodId::Spice), None); // floor(0.9) = 0
     assert_eq!(lost.get(&GoodId::Iron), Some(&6));
@@ -157,7 +157,7 @@ fn claim_uses_env_random_seed() {
     let seed = seed_for(j.id, a.as_str(), j.risk_bp, true);
     ctx_full(&a, T0 + secs(400), near_sdk::NearToken::from_near(1000), seed);
     let r = c.claim_journey();
-    assert_eq!(r.journey.ambushed, Some(true));
+    assert_eq!(r.ambushed, Some(true));
     assert_eq!(goods_of(&c, &a, GoodId::Grain), 7);
 }
 
@@ -176,11 +176,11 @@ fn stall_create_buy_fee_and_cancel() {
     let seller_fils = fils_of(&c, &s);
     let buyer_fils = fils_of(&c, &b);
     let house = c.house;
-    // slippage: limit below price + 2% fee
-    assert_eq!(code(c.try_stall_buy(b.clone(), st.id, 2, 24_000 + 479)), ErrorCode::Slippage);
-    c.try_stall_buy(b.clone(), st.id, 2, 24_000 + 480).unwrap();
-    assert_eq!(fils_of(&c, &b), buyer_fils - 24_480);
-    assert_eq!(fils_of(&c, &s), seller_fils + 24_000);
+    // audit finding 12: the buyer pays the price; the 2% fee comes out of the seller's proceeds
+    assert_eq!(code(c.try_stall_buy(b.clone(), st.id, 2, 23_999)), ErrorCode::Slippage);
+    c.try_stall_buy(b.clone(), st.id, 2, 24_000).unwrap();
+    assert_eq!(fils_of(&c, &b), buyer_fils - 24_000);
+    assert_eq!(fils_of(&c, &s), seller_fils + 24_000 - 480);
     assert_eq!(c.house, house + 480); // 200 bp of 24,000
     assert_eq!(goods_of(&c, &b, GoodId::Spice), 2);
     assert_eq!(c.stalls.get(&st.id).unwrap().qty, 4);
@@ -244,4 +244,47 @@ fn stall_rejections() {
     assert_eq!(c.players.get(&s).unwrap().stall_count, MAX_STALLS_PER_PLAYER - 1);
     assert_money_conserved(&c);
     assert_goods_consistent(&c);
+}
+
+#[test]
+fn stall_fee_rounds_up_to_at_least_one_fils() {
+    // audit finding 11: 2% of 10 fils is 0.2; the fee is rounded up to 1
+    let mut c = new_contract(Mode::Play);
+    let s = trader(&mut c, 1, GoodId::Grain, 5);
+    let b = with_player(&mut c, 2, 1000);
+    ctx(&s, T0);
+    let st = c.try_stall_create(s.clone(), GoodId::Grain, 3, 10).unwrap();
+    let (seller, house) = (fils_of(&c, &s), c.house);
+    c.try_stall_buy(b.clone(), st.id, 1, 10).unwrap();
+    assert_eq!(c.house, house + 1);
+    assert_eq!(fils_of(&c, &s), seller + 9);
+    // 3 units at 1,234: price 3,702, 2% = 74.04 -> 75
+    let st2 = c.try_stall_create(s.clone(), GoodId::Grain, 2, 1234).unwrap();
+    let house = c.house;
+    let mut p = c.players.get(&b).unwrap().clone();
+    p.fils += 10_000;
+    c.players.insert(b.clone(), p);
+    c.total_faucet += 10_000;
+    c.try_stall_buy(b.clone(), st2.id, 2, u128::MAX).unwrap();
+    assert_eq!(c.house, house + 50); // 2,468 x 2% = 49.36 -> 50
+    assert_money_conserved(&c);
+    assert_goods_consistent(&c);
+}
+
+#[test]
+fn start_journey_checks_storage() {
+    // audit finding 9: the player record grows when a journey is stored
+    let mut c = new_contract(Mode::Play);
+    let a = trader(&mut c, 1, GoodId::Grain, 5);
+    near_sdk::testing_env!(
+        near_sdk::test_utils::VMContextBuilder::new()
+            .current_account_id(contract_id())
+            .predecessor_account_id(a.clone())
+            .block_timestamp(T0)
+            .account_balance(near_sdk::NearToken::from_yoctonear(1))
+            .build()
+    );
+    let e = c.try_start_journey(a.clone(), CityId::Shahr, cargo(&[(GoodId::Grain, 5)]), 0).unwrap_err();
+    assert_eq!(e.code, ErrorCode::Internal);
+    assert!(e.msg.contains("storage full"));
 }

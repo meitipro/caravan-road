@@ -4,7 +4,10 @@
 [env]
 AWS_LC_SYS_PREBUILT_NASM = "1"
 
-# Strip symbols from the contract wasm, as recommended by
-# https://docs.near.org/smart-contracts/anatomy/reduce-size (`RUSTFLAGS='-C link-arg=-s'`).
+# Same flags cargo-near passes to the wasm build (cargo-near-build/src/near/build/mod.rs:
+# "-C link-arg=-s" plus an always-appended "--cfg near"). Without `--cfg near`, near-sdk 5.30
+# compiles pure-Rust fallbacks instead of the on-chain host functions (its own build error says
+# so), so a plain `cargo build --target wasm32-unknown-unknown --release` would not be deployable.
+# Stripping: https://docs.near.org/smart-contracts/anatomy/reduce-size
 [target.wasm32-unknown-unknown]
-rustflags = ["-C", "link-arg=-s"]
+rustflags = ["-C", "link-arg=-s", "--cfg", "near"]

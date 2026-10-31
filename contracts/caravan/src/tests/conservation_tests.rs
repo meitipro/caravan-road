@@ -75,8 +75,16 @@ fn run(seed: u64, mode: Mode, steps: u32) -> [u32; 14] {
             6 => c.try_claim_journey(a.clone(), &seed_bytes).map(|_| ()),
             7 => c.try_stall_create(a.clone(), g, qty, rng.below(30_000).into()).map(|_| ()),
             8 => {
-                let id = rng.below(c.next_stall_id.max(1));
-                c.try_stall_buy(a.clone(), id, qty, u128::MAX).map(|_| ())
+                // usually a stall in the buyer's city (test-only scan), sometimes a random id
+                let loc = c.players.get(&a).unwrap().location;
+                let local: Vec<u64> = c.stalls.iter().filter(|(_, s)| s.city == loc).map(|(id, _)| *id).collect();
+                let id = if local.is_empty() || rng.below(4) == 0 {
+                    rng.below(c.next_stall_id.max(1))
+                } else {
+                    local[rng.below(local.len() as u64) as usize]
+                };
+                let q = if rng.below(2) == 0 { qty } else { 1 + rng.below(3) as u32 };
+                c.try_stall_buy(a.clone(), id, q, u128::MAX).map(|_| ())
             }
             9 => {
                 let id = rng.below(c.next_stall_id.max(1));
