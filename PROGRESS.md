@@ -10,7 +10,8 @@ Times are UTC.
 - Phase 1 done except the `spec-v1` tag. Independent review finished (12 findings: 8 fixed in `6cb0cc6`, 3 recorded as OPEN_QUESTIONS #11-13, 1 tag wording). Tag waits for Mahdi's answers on `spec/OPEN_QUESTIONS.md`.
 - Done by sub-agents and re-verified: Phase 6 art, Phase 4 UI on the mock. No agents running.
 - Blocked on Mahdi (human checkpoints, section 0.4): Rust + wasm target + `cargo-near` and testnet accounts (Phase 2); `.env.local` values, Postgres, OAuth apps (Phase 3); `NEAR_AI_API_KEY` and credits (Phase 5); 1Click JWT (Phase 7).
-- Next action: Mahdi answers OPEN_QUESTIONS (13 items) -> tag `spec-v1`; Mahdi installs Rust + wasm target + cargo-near and creates testnet accounts -> Phase 2.
+- Toolchain (2026-10-31): Rust 1.99.1 msvc, wasm32-unknown-unknown, VS Build Tools C++ installed. `cargo-near` NOT installed: its build needs NASM (aws-lc-sys); plain `cargo build --target wasm32-unknown-unknown --release` is used instead. Note: Windows Application Control blocked a build artifact under %TEMP% once; builds on D: work.
+- Running (sub-agents, own folders): Phase 2 contract (`contracts/caravan`, Opus), Phase 3 server (`apps/web/src/app/api`, `src/server`). Next action: verify and commit their results; testnet accounts are Mahdi's.
 
 ## Phases
 
@@ -33,8 +34,8 @@ Times are UTC.
   - [x] TS economy sim (`pnpm sim --bots 5 --ticks 240 --seed 7`): reproduces the Python reference exactly (64/5944/23, 177/1088/43, 342/1099/86) and asserts money conservation every tick; 34 tests pass
   - [x] Independent spec review (fresh Opus sub-agent), fixes applied (`6cb0cc6`)
   - [x] `git tag spec-v1` (2026-10-30; Mahdi delegated OPEN_QUESTIONS, provisional behaviours adopted; #6, #11, #12 to be finalised in Phase 2)
-- [ ] Phase 2 — smart contract (needs Rust toolchain from Mahdi)
-- [ ] Phase 3 — server, accounts, game endpoints (needs Postgres, OAuth, env values)
+- [ ] Phase 2 — smart contract (sub-agent running; testnet deploy needs Mahdi's accounts)
+- [ ] Phase 3 — server, accounts, game endpoints (sub-agent running offline with fakes; going live needs Postgres, OAuth, env values)
 - [x] Phase 4 — UI on the mock done (`dae8c64`): tasks 1-8 except live connect (needs Phase 3) and optional stalls screen. Re-verified by Claude 2026-10-30: typecheck all packages, 56 web tests, 35 shared tests, tree clean, no secrets. 25 screens at 390/1280 px in `docs/screens/`. Issues: `apps/web/src/ui/SHARED_ISSUES.md`. UI fonts (Pixelify Sans, Inter, Vazirmatn, OFL 1.1) still to be added to `docs/CREDITS.md`.
 - [ ] Phase 5 — NPC brain (needs `NEAR_AI_API_KEY`)
 - [x] Phase 6 — art pipeline done (`78f0972`, `930a3e6`): 18 slots with exact sizes, 25 tests pass (re-run by Claude 2026-10-30). CREDITS.md notes UI fonts are not yet recorded.
