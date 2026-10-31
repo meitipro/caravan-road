@@ -79,9 +79,9 @@ describe("error mapping", () => {
 describe("log redaction", () => {
   it("removes keys, bearer tokens, e-mails and account ids", () => {
     const out = redact(
-      "key ed25519:3tysLvy7KGoE8pznUgXvSHa4vYyGvrDZFcT8jgb8PEQ6 Bearer abc.def.ghi mail me@example.org acct p1a2b3c4d.relayer.testnet bob.near",
+      `key ed25519:${"A".repeat(44)} Bearer abc.def.ghi mail me@example.org acct p1a2b3c4d.relayer.testnet bob.near`,
     );
-    expect(out).not.toMatch(/ed25519:3ty|abc\.def|example\.org|p1a2b3c4d|bob\.near/);
+    expect(out).not.toMatch(/AAAAAAAA|ed25519:3ty|abc\.def|example\.org|p1a2b3c4d|bob\.near/);
     expect(out).toContain("[key]");
     expect(out).toContain("[account]");
   });

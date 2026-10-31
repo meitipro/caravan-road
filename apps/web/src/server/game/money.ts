@@ -23,7 +23,6 @@ export function validateQuote(q: IntentQuote, amountIn: string, now: number): vo
   if (typeof q.depositAddress !== "string" || q.depositAddress.length === 0 || q.depositAddress.length > 200) bad("address");
   if (q.amountIn !== amountIn) bad("amount mismatch");
   if (typeof q.expectedFils !== "string" || !POS_INT.test(q.expectedFils)) bad("expected value");
-  if (BigInt(q.expectedFils) > BigInt(PARAMS.MAX_DEPOSIT_FILS)) bad("expected value above cap");
   if (!Number.isInteger(q.deadline) || q.deadline <= now || q.deadline > now + QUOTE_MAX_VALIDITY_SECONDS) bad("deadline");
 }
 

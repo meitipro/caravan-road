@@ -76,6 +76,7 @@ export async function call(handler: Handler, method: "GET" | "POST", path: strin
     method, headers, body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body),
   });
   const res = await handler(req);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const json = (await res.json()) as { ok: boolean; data?: any; error?: { code: string; message: string } };
   return { status: res.status, json, headers: res.headers };
 }
