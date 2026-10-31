@@ -1,7 +1,34 @@
 [package]
 name = "caravan"
-version = "0.0.0"
-edition = "2021"
+version = "0.1.0"
+edition = "2024"
+# near-sdk 5.30.0 declares rust-version 1.95 (https://crates.io/api/v1/crates/near-sdk, checked 2026-10-31).
+rust-version = "1.95"
+description = "Caravan Road game contract: dinars, goods, merchants, journeys, stalls (one contract, atomic trades)"
+license = "MIT"
+publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# near-sdk 5.30.0 is the newest stable release on crates.io (max_stable_version, published 2026-10-27).
+# Source: https://crates.io/api/v1/crates/near-sdk and https://docs.rs/near-sdk/5.30.0/near_sdk/
+near-sdk = "5.30.0"
+
+[dev-dependencies]
+# Unit testing feature as documented in https://docs.near.org/smart-contracts/testing/unit-test
+near-sdk = { version = "5.30.0", features = ["unit-testing"] }
+
+# Release profile follows the cargo-near project template
+# (https://github.com/near/cargo-near, cargo-near/src/commands/new/new-project-template/Cargo.template.toml).
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(near)"] }

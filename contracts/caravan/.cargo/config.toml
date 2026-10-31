@@ -1,0 +1,10 @@
+# near-sdk's `unit-testing` feature pulls near-crypto -> aws-lc-rs -> aws-lc-sys, whose Windows
+# build needs NASM. aws-lc-sys ships pre-assembled objects for this case; use them so
+# `cargo test` works without installing NASM. Only affects host test builds, not the wasm.
+[env]
+AWS_LC_SYS_PREBUILT_NASM = "1"
+
+# Strip symbols from the contract wasm, as recommended by
+# https://docs.near.org/smart-contracts/anatomy/reduce-size (`RUSTFLAGS='-C link-arg=-s'`).
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=-s"]
