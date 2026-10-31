@@ -30,6 +30,11 @@ Nothing in `packages/shared` or `spec/` was edited. Items for the owners of thos
    a real network. The UI needs a loading state for the first `getState()` of a new user.
 8. **`.env.example`.** The scaffold's `GOOGLE_CLIENT_ID` / `DISCORD_CLIENT_ID` names were replaced by the Auth.js
    inferred names `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_DISCORD_ID`, `AUTH_DISCORD_SECRET`.
+10. **Withdrawal listing view (review fix 6).** `NearContract.getWithdrawals` assumes
+   `get_withdrawals({from_id, limit})` returning ascending ids, each with `id`, `account_id`, `fils`, `dest_asset`,
+   `dest_address`, `status`, so the server can find debits that have no database row. Please add it (or tell us the
+   real name). Also: a relayed call's return value is read from the receipt executed by the contract account, so
+   `request_withdraw` must return its id as JSON (a bare number).
 9. **`Idempotency-Key` per call.** `api-client` generates a new key for every call, so a client-side retry after a
    network error is a new action. That is safe (contract rules decide), but server-side replay protection only helps
    callers that reuse a key. Optional: let the UI reuse the key for retries of the same click.

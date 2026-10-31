@@ -12,6 +12,14 @@ export interface RateLimiter {
 export const LIMITS = {
   USER_ACTIONS_PER_MINUTE: 30,
   RELAYER_ACTIONS_PER_DAY: 1000,
+  /** One user may use at most this share of the relayer budget (well below the global 1000). */
+  RELAYER_ACTIONS_PER_USER_PER_DAY: 200,
+  /** Custodial accounts created per day, all users. */
+  ACCOUNTS_PER_DAY: 500,
+  /** Provisioning attempts per user per minute (back-off for a user stuck half way). */
+  PROVISION_ATTEMPTS_PER_MINUTE: 3,
+  /** Unauthenticated reads per minute over all clients, so rotating IPs cannot flood the table. */
+  ANON_READS_PER_MINUTE_GLOBAL: 6000,
   READS_PER_MINUTE: 180,
 } as const;
 

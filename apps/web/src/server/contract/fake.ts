@@ -43,7 +43,7 @@ interface FMerchant {
   bias_bp: number;
 }
 
-interface FWithdraw { id: number; account_id: string; fils: bigint; status: "PENDING" | "SENT" | "DONE" | "REFUNDED"; day: number }
+interface FWithdraw { id: number; account_id: string; fils: bigint; dest_asset: string; dest_address: string; status: "PENDING" | "SENT" | "DONE" | "REFUNDED"; day: number }
 
 const zeroGoods = (): Record<GoodId, number> => ({ grain: 0, salt: 0, iron: 0, spice: 0, silk: 0 });
 const DAY = 86400;
@@ -80,6 +80,9 @@ export class FakeContract implements ContractClient {
   private nextStallId = 1;
   private nextWithdrawId = 1;
   private nextTx = 1;
+
+  /** Mimics a relayed delegate call whose top-level outcome carries no return value (NearContract before the fix). */
+  testNullReturns = false;
 
   /** Every playerCall/operatorCall made, for assertions (never contains keys). */
   readonly calls: Array<{ kind: "player" | "operator" | "tick"; account?: string; method: string; args: unknown }> = [];
@@ -170,9 +173,15 @@ export class FakeContract implements ContractClient {
     const j = this.players.get(accountId)?.journey;
     return j ? structuredClone(j) : null;
   }
+  private viewWithdraw(w: FWithdraw): ContractWithdraw {
+    return { id: w.id, account_id: w.account_id, fils: w.fils.toString(), dest_asset: w.dest_asset, dest_address: w.dest_address, status: w.status };
+  }
   async getWithdraw(id: number): Promise<ContractWithdraw | null> {
     const w = this.withdraws.get(id);
-    return w ? { id: w.id, account_id: w.account_id, fils: w.fils.toString(), status: w.status } : null;
+    return w ? this.viewWithdraw(w) : null;
+  }
+  async getWithdrawals(fromId: number, limit: number): Promise<ContractWithdraw[]> {
+    return [...this.withdraws.values()].filter((w) => w.id >= fromId).sort((a, b) => a.id - b.id).slice(0, limit).map((w) => this.viewWithdraw(w));
   }
   async getConfig(): Promise<ContractConfig> { return { mode: this.mode, paused: this.paused, operator: "operator.fake" }; }
   async recentEvents(limit: number): Promise<ContractEvent[]> { return structuredClone(this.events.slice(-limit)); }
@@ -252,7 +261,7 @@ export class FakeContract implements ContractClient {
   private newTx(): string { return `faketx${(this.nextTx++).toString().padStart(6, "0")}`; }
 
   private outcome(returnValue: unknown, eventsBefore: number): TxOutcome {
-    return { txHash: this.newTx(), returnValue: structuredClone(returnValue), events: structuredClone(this.events.slice(eventsBefore)) };
+    return { txHash: this.newTx(), returnValue: this.testNullReturns ? null : structuredClone(returnValue), events: structuredClone(this.events.slice(eventsBefore)) };
   }
 
   private emit(event: string, data: Record<string, unknown>): void {
@@ -451,7 +460,7 @@ export class FakeContract implements ContractClient {
     if (today + fils > BigInt(PARAMS.DAILY_WITHDRAW_CAP_FILS)) panic("BAD_REQUEST", "daily withdraw cap reached");
     p.fils -= fils;
     const id = this.nextWithdrawId++;
-    this.withdraws.set(id, { id, account_id: p.account_id, fils, status: "PENDING", day });
+    this.withdraws.set(id, { id, account_id: p.account_id, fils, dest_asset: a.dest_asset, dest_address: a.dest_address, status: "PENDING", day });
     this.emit("withdraw_requested", { id, account_id: p.account_id, fils: fils.toString() });
     return id;
   }

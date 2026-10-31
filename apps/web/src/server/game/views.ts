@@ -80,8 +80,33 @@ export function toApiWorld(w: ContractWorld, latest: NpcDecisionRow[], proofs: M
 
 const KNOWN = new Set<string>(EVENT_TYPES);
 
+/**
+ * Public event fields per type. Events go to unauthenticated callers, so account ids, destinations,
+ * references and deposit/withdrawal details are dropped; `tx_hash` stays (the Advanced drawer links it).
+ */
+export const PUBLIC_EVENT_FIELDS: Record<EventType, readonly string[]> = {
+  trade: ["merchant", "good", "side", "qty", "total", "fee"],
+  policy: ["merchant", "spread_bp", "bias_bp"],
+  journey_started: ["from", "to", "guards"],
+  journey_claimed: ["ambushed", "lost"],
+  stall_create: ["city", "good", "qty", "unit_price"],
+  stall_buy: ["stall_id", "qty", "total", "fee"],
+  stall_cancel: ["stall_id"],
+  tick: ["tick"],
+  ship: ["from", "to", "good", "qty", "total"],
+  deposit: [],
+  withdraw_requested: [],
+  withdraw_marked: [],
+  faucet: [],
+};
+
 export function toApiEvents(events: ContractEvent[]): Event[] {
   return events
     .filter((e) => KNOWN.has(e.event))
-    .map((e) => ({ id: e.id, type: e.event as EventType, at: nsToSec(e.at_ns), data: e.data }));
+    .map((e) => {
+      const type = e.event as EventType;
+      const data: Record<string, unknown> = {};
+      for (const k of [...PUBLIC_EVENT_FIELDS[type], "tx_hash"]) if (e.data[k] !== undefined) data[k] = e.data[k];
+      return { id: e.id, type, at: nsToSec(e.at_ns), data };
+    });
 }

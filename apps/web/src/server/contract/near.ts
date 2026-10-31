@@ -59,8 +59,8 @@ class PlayerKeySigner extends Signer {
   }
 }
 
-interface RawReceipt { outcome?: { logs?: string[]; status?: unknown } }
-interface RawOutcome {
+interface RawReceipt { outcome?: { executor_id?: string; logs?: string[]; status?: unknown } }
+export interface RawOutcome {
   status?: { SuccessValue?: string; Failure?: unknown } | string;
   transaction?: { hash?: string };
   transaction_outcome?: { id?: string };
@@ -138,7 +138,11 @@ export class NearContract implements ContractClient {
   }
   async getWithdraw(id: number): Promise<ContractWithdraw | null> {
     const w = await this.view<Raw | null>("get_withdraw", { id });
-    return w ? { id: Number(w.id), account_id: String(w.account_id), fils: String(w.fils), status: w.status as ContractWithdraw["status"] } : null;
+    return w ? normWithdraw(w) : null;
+  }
+  /** Assumed view `get_withdrawals({from_id, limit})`, ascending ids (SHARED_ISSUES.md). */
+  async getWithdrawals(fromId: number, limit: number): Promise<ContractWithdraw[]> {
+    return (await this.view<Raw[]>("get_withdrawals", { from_id: fromId, limit })).map(normWithdraw);
   }
   async getConfig(): Promise<ContractConfig> {
     const c = await this.view<Raw>("get_config");
@@ -202,37 +206,63 @@ export class NearContract implements ContractClient {
   // ------------------------------------------------------------------ outcome parsing
 
   private extract(res: RawOutcome): TxOutcome {
-    const failure = findFailure(res);
-    if (failure) throw new ContractPanic(panicText(failure));
-    const txHash = res.transaction?.hash ?? res.transaction_outcome?.id ?? "";
-    let returnValue: unknown = null;
-    const top = res.status;
-    if (top && typeof top === "object" && top.SuccessValue) {
-      try {
-        returnValue = JSON.parse(Buffer.from(top.SuccessValue, "base64").toString("utf8"));
-      } catch {
-        returnValue = null;
-      }
-    }
-    const events: ContractEvent[] = [];
-    for (const r of res.receipts_outcome ?? []) {
-      for (const line of r.outcome?.logs ?? []) {
-        if (!line.startsWith(EVENT_PREFIX)) continue;
-        try {
-          const j = JSON.parse(line.slice(EVENT_PREFIX.length)) as { event?: string; data?: unknown };
-          const d = (Array.isArray(j.data) ? j.data[0] : j.data) as Record<string, unknown> | undefined;
-          if (typeof j.event !== "string" || !d) continue;
-          const ts = typeof d.ts === "number" ? d.ts : Math.floor(Date.now() / 1000);
-          events.push({ id: this.nextEventId++, event: j.event, data: d, at_ns: secToNs(ts) });
-        } catch {
-          /* ignore a malformed log line */
+    const out = parseOutcome(res, this.cfg.contractId, () => this.nextEventId++);
+    this.events.push(...out.events);
+    if (this.events.length > MAX_EVENTS) this.events.splice(0, this.events.length - MAX_EVENTS);
+    return out;
+  }
+}
+
+function decodeJson(b64: string | undefined): unknown {
+  if (!b64) return undefined;
+  try {
+    return JSON.parse(Buffer.from(b64, "base64").toString("utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Turns a transaction response into a TxOutcome. A relayed NEP-366 call has an EMPTY top-level
+ * SuccessValue (it belongs to the delegate receipt at the player account), so the contract's return
+ * value is read from the function-call receipt executed by the contract account. A missing value stays
+ * `null`: callers must treat null as "unknown", never as 0.
+ */
+export function parseOutcome(res: RawOutcome, contractId: string, nextId: () => number): TxOutcome {
+  const failure = findFailure(res);
+  if (failure) throw new ContractPanic(panicText(failure));
+  const txHash = res.transaction?.hash ?? res.transaction_outcome?.id ?? "";
+  let returnValue: unknown = null;
+  const top = res.status;
+  if (top && typeof top === "object" && top.SuccessValue) returnValue = decodeJson(top.SuccessValue) ?? null;
+  if (returnValue === null) {
+    for (const r of [...(res.receipts_outcome ?? [])].reverse()) {
+      const st = r.outcome?.status as { SuccessValue?: string } | undefined;
+      if (r.outcome?.executor_id === contractId && st && typeof st === "object" && st.SuccessValue) {
+        const v = decodeJson(st.SuccessValue);
+        if (v !== undefined) {
+          returnValue = v;
+          break;
         }
       }
     }
-    this.events.push(...events);
-    if (this.events.length > MAX_EVENTS) this.events.splice(0, this.events.length - MAX_EVENTS);
-    return { txHash, returnValue, events };
   }
+  const events: ContractEvent[] = [];
+  for (const r of res.receipts_outcome ?? []) {
+    for (const line of r.outcome?.logs ?? []) {
+      if (!line.startsWith(EVENT_PREFIX)) continue;
+      try {
+        const j = JSON.parse(line.slice(EVENT_PREFIX.length)) as { event?: string; data?: unknown };
+        const d = (Array.isArray(j.data) ? j.data[0] : j.data) as Record<string, unknown> | undefined;
+        if (typeof j.event !== "string" || !d) continue;
+        const ts = typeof d.ts === "number" ? d.ts : Math.floor(Date.now() / 1000);
+        events.push({ id: nextId(), event: j.event, data: { ...d, tx_hash: txHash || undefined }, at_ns: secToNs(ts) });
+      } catch {
+        /* ignore a malformed log line */
+      }
+    }
+  }
+  return { txHash, returnValue, events };
 }
 
 // ---------------------------------------------------------------------- JSON normalisers
@@ -260,5 +290,12 @@ function normPlayer(p: Raw): ContractPlayer {
   return {
     account_id: String(p.account_id), fils: String(p.fils), location: p.location as CityId, inventory: p.inventory as Record<GoodId, number>,
     journey: p.journey ? normJourney(p.journey as Raw) : null, total_deposited: String(p.total_deposited ?? "0"),
+  };
+}
+
+function normWithdraw(w: Raw): ContractWithdraw {
+  return {
+    id: Number(w.id), account_id: String(w.account_id), fils: String(w.fils), dest_asset: String(w.dest_asset ?? ""),
+    dest_address: String(w.dest_address ?? ""), status: w.status as ContractWithdraw["status"],
   };
 }

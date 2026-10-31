@@ -26,8 +26,12 @@ export type IntentState = "PENDING" | "SUCCESS" | "REFUNDED" | "FAILED";
 
 export interface IntentStatus {
   state: IntentState;
-  /** What the provider says arrived, in fils (never trusted above the quoted amount). */
+  /** What the provider says arrived, in fils. Required for SUCCESS; credited as min(received, expected). */
   receivedFils?: string;
+  /** Account that received the funds; must equal TREASURY_ACCOUNT_ID before anything is credited. */
+  recipient?: string;
+  /** Asset that arrived; must equal the asset of the quote. */
+  asset?: string;
 }
 
 export interface IntentWithdrawRequest {
@@ -43,6 +47,10 @@ export type IntentWithdrawResult =
   | { ok: false; reason: string };
 
 export interface IntentsClient {
+  /** False until the real provider is wired: money routes then fail closed before touching the chain. */
+  readonly configured: boolean;
+  /** Funds available to pay withdrawals, in fils (the treasury hot wallet). */
+  treasuryBalanceFils(): Promise<string>;
   quote(req: IntentQuoteRequest): Promise<IntentQuote>;
   status(quoteId: string): Promise<IntentStatus>;
   withdraw(req: IntentWithdrawRequest): Promise<IntentWithdrawResult>;

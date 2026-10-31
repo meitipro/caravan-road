@@ -37,7 +37,12 @@ export const tradeSpec: PostSpec<Body<typeof TradeRequestSchema>, TradeData> = {
     const out = await relay(ctx, "trade", {
       merchant: ctx.body.merchant, good: ctx.body.good, side: ctx.body.side, qty: ctx.body.qty, limit_total: ctx.body.limit_total,
     });
-    const r = out.returnValue as { total: string; fee: string };
+    const r = out.returnValue as { total?: unknown; fee?: unknown } | null;
+    if (!r || typeof r.total !== "string" || typeof r.fee !== "string") {
+      // The trade executed but its result could not be read (see parseOutcome): never invent numbers.
+      ctx.svc.log.error("trade result missing from the transaction outcome");
+      throw new ApiError("INTERNAL", "Your trade went through, but the receipt is missing. Check your balance.");
+    }
     return { player: await readPlayer(ctx), total: r.total, fee: r.fee };
   },
   onSuccess: invalidate,

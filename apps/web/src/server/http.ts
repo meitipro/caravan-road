@@ -12,7 +12,8 @@ import type { UserRow } from "./db/repo";
 import { ApiError, fail, HTTP_STATUS, ok } from "./errors";
 import { resolveUser } from "./guards/auth";
 import { LIMITS } from "./guards/rateLimit";
-import { checkMode, checkNotPaused, type ModeRule } from "./guards/mode";
+import { assertContractMode, checkMode, checkNotPaused, type ModeRule } from "./guards/mode";
+import { log } from "./log";
 import { isSameOrigin } from "./guards/origin";
 import { cronAuthorized } from "./guards/cron";
 import { getServices, type Services } from "./services";
@@ -29,7 +30,7 @@ export function respond<T>(result: ApiResult<T>, extra: Record<string, string> =
 
 function toResult(e: unknown, svc?: Services): ApiResult<never> {
   if (e instanceof ApiError) return fail(e.code, e.message);
-  (svc?.log ?? console).error("unhandled route error:", e instanceof Error ? e.message : "unknown");
+  (svc?.log ?? log).error("unhandled route error:", e instanceof Error ? e : "unknown"); // redacted by the logger
   return fail("INTERNAL", "Something went wrong. Please try again.");
 }
 
@@ -98,8 +99,9 @@ export function postRoute<B, T>(spec: PostSpec<B, T>): (req: Request) => Promise
 
       const now = svc.now();
       let user = await resolveUser(svc.repo, session, now);
-      await checkNotPaused(svc.repo);
+      await checkNotPaused(svc.repo, svc.mode);
       checkMode(svc.mode, spec.mode ?? "ANY");
+      if (spec.mode && spec.mode !== "ANY") await assertContractMode(svc); // GAME_MODE must match the contract
 
       const rate = await svc.limiter.hit(`user:${user.id}:actions`, LIMITS.USER_ACTIONS_PER_MINUTE, 60);
       if (!rate.allowed) throw new ApiError("RATE_LIMIT", "Too many actions. Slow down a little.");
@@ -162,9 +164,20 @@ export interface GetSpec<T> {
   run(ctx: GetCtx): Promise<T>;
 }
 
+/**
+ * Client identity for unauthenticated rate limiting. Never the left-most X-Forwarded-For entry (the client
+ * controls it): use the platform-set header when present, else the right-most hop, which the nearest trusted
+ * proxy appended. Deploy behind exactly one trusted proxy (Vercel sets x-vercel-forwarded-for).
+ */
+export function trustedClientIp(req: Request): string {
+  const platform = req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim();
+  if (platform) return platform;
+  const hops = req.headers.get("x-forwarded-for")?.split(",").map((h) => h.trim()).filter(Boolean) ?? [];
+  return hops[hops.length - 1] ?? "unknown";
+}
+
 function clientKey(req: Request): string {
-  const fwd = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  return `ip:${sha(fwd).slice(0, 16)}`;
+  return `ip:${sha(trustedClientIp(req)).slice(0, 16)}`;
 }
 
 export function getRoute<T>(spec: GetSpec<T>): (req: Request) => Promise<Response> {
@@ -178,9 +191,21 @@ export function getRoute<T>(spec: GetSpec<T>): (req: Request) => Promise<Respons
         if (!session && spec.auth === "required") throw new ApiError("UNAUTHENTICATED", "Please sign in.");
         if (session) user = await resolveUser(svc.repo, session, svc.now());
       }
+      if (!user) {
+        // One shared bucket for all anonymous clients bounds the number of rate_limits rows an attacker can create.
+        const all = await svc.limiter.hit("anon:reads", LIMITS.ANON_READS_PER_MINUTE_GLOBAL, 60);
+        if (!all.allowed) throw new ApiError("RATE_LIMIT", "Too many requests.");
+      }
       const rate = await svc.limiter.hit(user ? `user:${user.id}:reads` : `${clientKey(req)}:reads`, LIMITS.READS_PER_MINUTE, 60);
       if (!rate.allowed) throw new ApiError("RATE_LIMIT", "Too many requests.");
-      if (user && spec.provision) user = await svc.accounts.ensure(user);
+      if (user && spec.provision) {
+        try {
+          user = await svc.accounts.ensure(user);
+        } catch (e) {
+          // Paused, busy or backing off: still serve the world, just without a player view yet.
+          if (!(e instanceof ApiError && (e.code === "PAUSED" || e.code === "RATE_LIMIT"))) throw e;
+        }
+      }
       return respond(ok(await spec.run({ svc, req, user })));
     } catch (e) {
       return respond(toResult(e, svc));

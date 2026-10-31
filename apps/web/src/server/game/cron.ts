@@ -2,20 +2,37 @@
 // Every state change is a compare-and-set on the row, so two overlapping runs never double-credit or
 // double-send; the contract also ignores a repeated deposit reference.
 
-import { ContractPanic, mapPanic } from "../errors";
+import { PARAMS } from "@caravan/shared";
+import { ApiError, ContractPanic, mapPanic } from "../errors";
+import { assertContractMode, isPaused } from "../guards/mode";
 import type { Services } from "../services";
 
 export const HEARTBEAT_STALE_SECONDS = 120;
 export const DEPOSIT_EXPIRY_GRACE_SECONDS = 3600;
+export const RESERVATION_STALE_SECONDS = 900;
 export const RELAYER_LOW_YOCTO = 2n * 10n ** 24n; // 2 NEAR
 const BATCH = 50;
+/** Contract refusals that will never succeed on retry; everything else (RATE_LIMIT, PAUSED, INTERNAL...) is retried. */
+const PERMANENT_CODES = new Set(["BAD_REQUEST", "MODE_NOT_ALLOWED"]);
+
+/** True when the money crons may run (LIVE, not paused, contract mode matches). */
+async function moneyEnabled(svc: Services): Promise<boolean> {
+  if (svc.mode !== "LIVE" || (await isPaused(svc.repo, svc.mode))) return false;
+  try {
+    await assertContractMode(svc);
+    return true;
+  } catch (e) {
+    if (e instanceof ApiError) return false;
+    throw e;
+  }
+}
 
 /** /api/cron/tick: fallback world_tick() when the worker heartbeat is stale or missing. */
 export async function cronTick(svc: Services): Promise<{ called: boolean; reason: string; ticks?: number }> {
   const hb = await svc.repo.latestHeartbeat();
   const age = hb === null ? null : svc.now() - hb;
   if (age !== null && age <= HEARTBEAT_STALE_SECONDS) return { called: false, reason: "worker alive" };
-  if ((await svc.repo.getFlag("PAUSE_ALL")) === "true") return { called: false, reason: "paused" };
+  if (await isPaused(svc.repo, svc.mode)) return { called: false, reason: "paused" };
   try {
     const out = await svc.contract.worldTick();
     svc.worldCache.invalidate();
@@ -37,17 +54,21 @@ export interface HealthReport {
   worker_heartbeat_age: number | null;
   worker_stale: boolean;
   stuck_withdrawals: number;
+  stale_reservations: number;
+  failed_deposits: number;
   mode_mismatch: boolean;
 }
 
 /** /api/cron/health: balances, heartbeat, flags. Reports booleans and ages, never balances or keys. */
 export async function cronHealth(svc: Services): Promise<HealthReport> {
-  const [relayerBal, config, hb, sending, paused] = await Promise.all([
+  const [relayerBal, config, hb, sending, reserved, failedDeposits, paused] = await Promise.all([
     svc.contract.accountBalance(svc.relayerAccountId),
     svc.contract.getConfig(),
     svc.repo.latestHeartbeat(),
     svc.repo.listWithdrawalsByStatus("SENDING", BATCH),
-    svc.repo.getFlag("PAUSE_ALL"),
+    svc.repo.listWithdrawalsByStatus("RESERVED", BATCH),
+    svc.repo.countDepositsByStatus("FAILED"),
+    isPaused(svc.repo, svc.mode),
   ]);
   const treasuryLow = svc.treasuryAccountId ? BigInt(await svc.contract.accountBalance(svc.treasuryAccountId)) < RELAYER_LOW_YOCTO : null;
   const relayerLow = BigInt(relayerBal) < RELAYER_LOW_YOCTO;
@@ -55,40 +76,48 @@ export async function cronHealth(svc: Services): Promise<HealthReport> {
   const age = hb === null ? null : svc.now() - hb;
   const stale = age === null || age > HEARTBEAT_STALE_SECONDS;
   const stuck = sending.filter((w) => svc.now() - w.updated_at > 600).length;
+  const staleReserved = reserved.filter((w) => svc.now() - w.created_at > RESERVATION_STALE_SECONDS).length;
   const mismatch = config.mode !== svc.mode;
   return {
-    ok: !relayerLow && treasuryLow !== true && !stale && stuck === 0 && !mismatch,
-    mode: svc.mode, paused: paused === "true", contract_paused: config.paused, relayer_low: relayerLow,
-    treasury_low: treasuryLow, worker_heartbeat_age: age, worker_stale: stale, stuck_withdrawals: stuck, mode_mismatch: mismatch,
+    ok: !relayerLow && treasuryLow !== true && !stale && stuck === 0 && staleReserved === 0 && !mismatch,
+    mode: svc.mode, paused, contract_paused: config.paused, relayer_low: relayerLow,
+    treasury_low: treasuryLow, worker_heartbeat_age: age, worker_stale: stale, stuck_withdrawals: stuck,
+    stale_reservations: staleReserved, failed_deposits: failedDeposits, mode_mismatch: mismatch,
   };
 }
 
 /** /api/cron/deposits: check provider status, credit through the operator key, expire. */
 export async function cronDeposits(svc: Services): Promise<{ credited: number; expired: number; failed: number }> {
   const res = { credited: 0, expired: 0, failed: 0 };
-  if (svc.mode !== "LIVE" || (await svc.repo.getFlag("PAUSE_ALL")) === "true") return res;
+  if (!(await moneyEnabled(svc))) return res;
   const now = svc.now();
+  const cap = BigInt(PARAMS.MAX_DEPOSIT_FILS);
+
+  const fail = async (id: number, from: "PENDING" | "CREDITING", why: string): Promise<void> => {
+    // FAILED deposits are an alert/refund queue for a human: the user's funds sit at the provider.
+    svc.log.error(`ALERT: deposit ${id} failed (${why}); needs manual refund review`);
+    if (await svc.repo.transitionDeposit(id, from, "FAILED", svc.now())) res.failed++;
+  };
 
   const credit = async (id: number, userId: string, quoteId: string, fils: string): Promise<void> => {
     const user = await svc.repo.getUser(userId);
     if (!user?.near_account_id) return;
+    // Re-check the cap at credit time (the quote-time check cannot see deposits credited since).
+    if ((await svc.repo.creditedFilsTotal(userId)) + BigInt(fils) > cap) return fail(id, "CREDITING", "deposit cap");
     try {
       await svc.contract.operatorCall("credit_deposit", { account_id: user.near_account_id, fils, reference: quoteId });
-      if (await svc.repo.transitionDeposit(id, "CREDITING", "CREDITED", svc.now(), quoteId)) res.credited++;
+      if (await svc.repo.transitionDeposit(id, "CREDITING", "CREDITED", svc.now(), { creditRef: quoteId, creditedFils: fils })) res.credited++;
     } catch (e) {
       const m = e instanceof ContractPanic ? mapPanic(e.message) : null;
-      if (m && m.code !== "INTERNAL" && m.code !== "PAUSED") {
-        // The contract refused for good (e.g. deposit cap): do not retry forever, needs manual review.
-        svc.log.error(`deposit ${id} rejected by contract: ${m.code}`);
-        if (await svc.repo.transitionDeposit(id, "CREDITING", "FAILED", svc.now())) res.failed++;
-      } else {
-        svc.log.error(`deposit ${id} credit will be retried`);
-      }
+      if (m && PERMANENT_CODES.has(m.code)) await fail(id, "CREDITING", `contract ${m.code}`);
+      else svc.log.error(`deposit ${id} credit failed and will be retried`); // transient: RATE_LIMIT, PAUSED, INTERNAL, network
     }
   };
 
   // Retry rows left in CREDITING by an earlier run (safe: the contract ignores a repeated reference).
-  for (const d of await svc.repo.listDepositsByStatus("CREDITING", BATCH)) await credit(d.id, d.user_id, d.quote_id, d.expected_fils);
+  for (const d of await svc.repo.listDepositsByStatus("CREDITING", BATCH)) {
+    await credit(d.id, d.user_id, d.quote_id, d.credited_fils ?? d.expected_fils);
+  }
 
   for (const d of await svc.repo.listDepositsByStatus("PENDING", BATCH)) {
     let st;
@@ -99,12 +128,18 @@ export async function cronDeposits(svc: Services): Promise<{ credited: number; e
       continue;
     }
     if (st.state === "SUCCESS") {
-      if (st.receivedFils !== undefined && (!/^[0-9]+$/.test(st.receivedFils) || BigInt(st.receivedFils) < BigInt(d.expected_fils))) {
-        svc.log.error(`deposit ${d.id} received less than quoted: manual review`);
-        if (await svc.repo.transitionDeposit(d.id, "PENDING", "FAILED", now)) res.failed++;
+      // Provider data is untrusted: the money must be a positive amount that arrived at OUR treasury in the quoted asset.
+      const received = st.receivedFils !== undefined && /^[1-9][0-9]*$/.test(st.receivedFils) ? BigInt(st.receivedFils) : null;
+      const recipientOk = svc.treasuryAccountId !== null && st.recipient === svc.treasuryAccountId;
+      if (received === null || !recipientOk || st.asset !== d.origin_asset) {
+        await fail(d.id, "PENDING", "unverified provider data");
         continue;
       }
-      if (await svc.repo.transitionDeposit(d.id, "PENDING", "CREDITING", now)) await credit(d.id, d.user_id, d.quote_id, d.expected_fils);
+      const expected = BigInt(d.expected_fils);
+      const amount = (received < expected ? received : expected).toString();
+      if (await svc.repo.transitionDeposit(d.id, "PENDING", "CREDITING", now, { creditedFils: amount })) {
+        await credit(d.id, d.user_id, d.quote_id, amount);
+      }
     } else if (st.state === "REFUNDED" || st.state === "FAILED") {
       if (await svc.repo.transitionDeposit(d.id, "PENDING", "FAILED", now)) res.failed++;
     } else if (now > d.deadline + DEPOSIT_EXPIRY_GRACE_SECONDS) {
@@ -114,12 +149,60 @@ export async function cronDeposits(svc: Services): Promise<{ credited: number; e
   return res;
 }
 
-/** /api/cron/withdrawals: send through Intents, then mark (or refund on a definite failure). */
+/**
+ * Links on-chain PENDING withdrawals to database rows. A RESERVED row whose chain call succeeded but whose
+ * id was lost is attached to the matching chain withdrawal (same account and amount); a chain withdrawal
+ * with no row at all gets one; a RESERVED row with no chain counterpart after the grace period is cancelled
+ * (the debit never happened).
+ */
+export async function reconcileWithdrawals(svc: Services): Promise<{ attached: number; adopted: number; cancelled: number }> {
+  const res = { attached: 0, adopted: 0, cancelled: 0 };
+  const reserved = await svc.repo.listWithdrawalsByStatus("RESERVED", BATCH);
+  const maxId = await svc.repo.maxContractWithdrawId();
+  const chain = await svc.contract.getWithdrawals(Math.max(0, (maxId ?? 0) - 50), 200);
+  const used = new Set<number>();
+  for (const w of chain) {
+    if (w.status !== "PENDING" || (await svc.repo.getWithdrawalByContractId(w.id))) continue;
+    const owner = await svc.repo.getUserByAccount(w.account_id);
+    if (!owner) {
+      svc.log.error(`ALERT: on-chain withdrawal ${w.id} belongs to an unknown account`);
+      continue;
+    }
+    const match = reserved.find((r) => !used.has(r.id) && r.user_id === owner.id && r.fils === w.fils);
+    if (match) {
+      used.add(match.id);
+      if (await svc.repo.attachWithdrawal(match.id, w.id, null, svc.now())) res.attached++;
+    } else if (w.dest_asset && w.dest_address) {
+      await svc.repo.insertWithdrawal({ userId: owner.id, contractWithdrawId: w.id, fils: w.fils, destAsset: w.dest_asset, destAddress: w.dest_address, txHash: null, now: svc.now() });
+      svc.log.error(`ALERT: adopted on-chain withdrawal ${w.id} that had no database row`);
+      res.adopted++;
+    }
+  }
+  for (const r of reserved) {
+    if (used.has(r.id) || svc.now() - r.created_at <= RESERVATION_STALE_SECONDS) continue;
+    if (await svc.repo.cancelWithdrawal(r.id, svc.now())) res.cancelled++;
+  }
+  return res;
+}
+
+/** /api/cron/withdrawals: reconcile, verify each row against the chain, send through Intents, then mark (or refund). */
 export async function cronWithdrawals(svc: Services): Promise<{ sent: number; refunded: number }> {
   const res = { sent: 0, refunded: 0 };
-  if (svc.mode !== "LIVE" || (await svc.repo.getFlag("PAUSE_ALL")) === "true") return res;
+  if (!(await moneyEnabled(svc))) return res;
+  await reconcileWithdrawals(svc); // links debits whose id was lost; independent of the provider
+  if (!svc.intents.configured) return res;
+
   for (const w of await svc.repo.listWithdrawalsByStatus("REQUESTED", BATCH)) {
     if (w.contract_withdraw_id === null) continue;
+    // The database row must describe exactly the pending on-chain withdrawal it points at (same account,
+    // amount and still PENDING) before anything is sent or refunded.
+    const user = await svc.repo.getUser(w.user_id);
+    const chain = await svc.contract.getWithdraw(w.contract_withdraw_id);
+    if (!user?.near_account_id || !chain || chain.account_id !== user.near_account_id || chain.fils !== w.fils || chain.status !== "PENDING") {
+      svc.log.error(`ALERT: withdrawal ${w.id} does not match the chain; not sending`);
+      await svc.repo.transitionWithdrawal(w.id, "REQUESTED", "FAILED", svc.now());
+      continue;
+    }
     // CAS first: a second overlapping run cannot send the same withdrawal again.
     if (!(await svc.repo.transitionWithdrawal(w.id, "REQUESTED", "SENDING", svc.now()))) continue;
     let result;

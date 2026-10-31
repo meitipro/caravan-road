@@ -50,6 +50,11 @@ export function createRelayer(deps: {
       if (!user.near_account_id) throw new ApiError("INTERNAL", "player has no account");
       const account = user.near_account_id;
 
+      // Per-user daily cap first, so a user over their share does not burn the global budget. Each submit()
+      // counts once; the nonce retry inside NearContract is the same action and is not counted again.
+      const mine = await deps.limiter.hit(`relayer:user:${user.id}:day`, LIMITS.RELAYER_ACTIONS_PER_USER_PER_DAY, 86400);
+      if (!mine.allowed) throw new ApiError("RATE_LIMIT", "You have reached today's action limit.");
+
       const budget = await deps.limiter.hit("relayer:day", LIMITS.RELAYER_ACTIONS_PER_DAY, 86400);
       if (!budget.allowed) {
         deps.log.error("relayer daily budget exhausted");
@@ -69,7 +74,7 @@ export function createRelayer(deps: {
         if (e instanceof ApiError) throw e;
         if (e instanceof ContractPanic) {
           const m = mapPanic(e.message);
-          if (m.code === "INTERNAL") deps.log.error("unmapped contract panic:", e.message);
+          deps.log.warn(`contract panic mapped to ${m.code}:`, m.raw); // raw text is redacted by the logger, never sent to clients
           throw new ApiError(m.code, m.message);
         }
         deps.log.error("relayer failure:", e);

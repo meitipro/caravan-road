@@ -2,6 +2,7 @@
 
 import { createPgDb } from "./pg";
 import { migrate } from "./migrate";
+import { redact } from "../log";
 
 async function main(): Promise<void> {
   const url = process.env.DATABASE_URL;
@@ -16,6 +17,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
-  console.error(e instanceof Error ? e.message : "migration failed");
+  console.error(redact(e instanceof Error ? e.message : "migration failed"));
   process.exit(1);
 });

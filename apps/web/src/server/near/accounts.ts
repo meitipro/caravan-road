@@ -7,7 +7,10 @@
 // create a sub-account, and the relayer key is the one this server holds (see docs/SERVER.md).
 
 import { randomBytes } from "node:crypto";
+import type { Mode } from "@caravan/shared";
 import { ApiError } from "../errors";
+import { LIMITS, type RateLimiter } from "../guards/rateLimit";
+import { isPaused } from "../guards/mode";
 import type { ContractClient } from "../contract/types";
 import type { Repo, UserRow } from "../db/repo";
 import type { Logger } from "../log";
@@ -30,12 +33,24 @@ export function createAccountService(deps: {
   relayer: Relayer;
   rootAccountId: string;
   log: Logger;
+  limiter: RateLimiter;
+  mode: Mode;
 }): AccountService {
   const lock = new KeyedMutex();
 
   async function run(user: UserRow): Promise<UserRow> {
     let u = (await deps.repo.getUser(user.id)) ?? user;
     if (u.account_status === "REGISTERED" && u.near_account_id) return u;
+
+    // Provisioning spends relayer funds, so it obeys the same switches as a game action.
+    if (await isPaused(deps.repo, deps.mode)) throw new ApiError("PAUSED", "The game is paused for maintenance.");
+    if (!u.near_account_id) {
+      const global = await deps.limiter.hit("accounts:day", LIMITS.ACCOUNTS_PER_DAY, 86400);
+      if (!global.allowed) throw new ApiError("RATE_LIMIT", "New accounts are busy right now. Please try again later.");
+    }
+    // Back-off: a user stuck half way (e.g. in CREATED) is retried a few times a minute, not on every poll.
+    const attempt = await deps.limiter.hit(`prov:${u.id}`, LIMITS.PROVISION_ATTEMPTS_PER_MINUTE, 60);
+    if (!attempt.allowed) throw new ApiError("RATE_LIMIT", "Your account is still being prepared. Please wait a moment.");
 
     if (!u.near_account_id) {
       const key = generateKey();

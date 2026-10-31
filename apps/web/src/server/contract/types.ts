@@ -67,6 +67,8 @@ export interface ContractWithdraw {
   id: number;
   account_id: string;
   fils: Fils;
+  dest_asset: string;
+  dest_address: string;
   status: "PENDING" | "SENT" | "DONE" | "REFUNDED";
 }
 
@@ -149,6 +151,8 @@ export interface ContractClient {
   getStalls(city?: CityId): Promise<ContractStall[]>;
   getJourney(accountId: string): Promise<ContractJourney | null>;
   getWithdraw(id: number): Promise<ContractWithdraw | null>;
+  /** Withdrawals with id >= fromId in ascending id order (used to reconcile debits that have no DB row). */
+  getWithdrawals(fromId: number, limit: number): Promise<ContractWithdraw[]>;
   getConfig(): Promise<ContractConfig>;
   /** Most recent events, oldest first. */
   recentEvents(limit: number): Promise<ContractEvent[]>;

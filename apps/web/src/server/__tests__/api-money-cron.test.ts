@@ -96,19 +96,41 @@ describe("LIVE deposits", () => {
     expect((await get(depositStatusGET, "/api/deposit/status", { user: "dan", query: `?quote_id=${b.quote_id}` })).json.data.status).toBe("FAILED");
   });
 
-  it("does not trust a provider that reports less than quoted, or a malformed quote", async () => {
-    await signIn(kit, stateGET, "eve");
+  it("credits min(received, expected) when the provider reports less than quoted", async () => {
+    const acc = await signIn(kit, stateGET, "eve");
     const q = (await quote("eve", "5000")).json.data;
     kit.intents.setState(q.quote_id, "SUCCESS", "10");
     const r = (await runCron(cronDepositsGET, "/api/cron/deposits")).json.data;
-    expect(r.failed).toBe(1);
-    expect(r.credited).toBe(0);
+    expect(r.credited).toBe(1);
+    expect(BigInt((await kit.contract.getPlayer(acc))!.fils)).toBe(10n);
+    expect((await get(depositStatusGET, "/api/deposit/status", { user: "eve", query: `?quote_id=${q.quote_id}` })).json.data).toEqual({ status: "CREDITED", fils_credited: "10" });
+    // more than quoted never credits more than quoted
+    const q2 = (await quote("eve", "100")).json.data;
+    kit.intents.setState(q2.quote_id, "SUCCESS", "999999");
+    await runCron(cronDepositsGET, "/api/cron/deposits");
+    expect(BigInt((await kit.contract.getPlayer(acc))!.fils)).toBe(110n);
+  });
 
+  it("does not credit unverified provider data: missing amount, wrong recipient, wrong asset", async () => {
+    const acc = await signIn(kit, stateGET, "evan");
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) ids.push((await quote("evan", "100")).json.data.quote_id);
+    kit.intents.setState(ids[0]!, "SUCCESS", undefined, { omitReceived: true });
+    kit.intents.setState(ids[1]!, "SUCCESS", undefined, { recipient: "attacker.fake" });
+    kit.intents.setState(ids[2]!, "SUCCESS", undefined, { asset: "nep141:other.fake" });
+    const r = (await runCron(cronDepositsGET, "/api/cron/deposits")).json.data;
+    expect(r.credited).toBe(0);
+    expect(r.failed).toBe(3);
+    expect(BigInt((await kit.contract.getPlayer(acc))!.fils)).toBe(0n);
+  });
+
+  it("rejects malformed provider quotes (past deadline, wrong amount)", async () => {
+    await signIn(kit, stateGET, "ella");
     const orig = kit.intents.quote.bind(kit.intents);
     kit.intents.quote = async (req) => ({ ...(await orig(req)), deadline: kit.clock.now - 1 });
-    expectErr(await quote("eve", "100"), "INTERNAL");
+    expectErr(await quote("ella", "100"), "INTERNAL");
     kit.intents.quote = async (req) => ({ ...(await orig(req)), amountIn: "1" });
-    expectErr(await quote("eve", "100"), "INTERNAL");
+    expectErr(await quote("ella", "100"), "INTERNAL");
     kit.intents.quote = orig;
   });
 

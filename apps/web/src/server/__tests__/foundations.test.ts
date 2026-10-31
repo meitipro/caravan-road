@@ -2,7 +2,7 @@ import { createCipheriv, randomBytes, verify, createPublicKey } from "node:crypt
 import { describe, expect, it } from "vitest";
 import { baseDecode } from "near-api-js";
 import { EnvError, decodeEncSecret, loadEnv } from "../env";
-import { ERROR_CODES, mapPanic } from "../errors";
+import { ERROR_CODES, PUBLIC_MESSAGES, mapPanic } from "../errors";
 import { redact } from "../log";
 import { Custody, generateKey, playerKeyFromSeed } from "../near/custody";
 import { createPgliteDb } from "../db/pglite";
@@ -61,7 +61,8 @@ describe("error mapping", () => {
       if (code === "UNAUTHENTICATED") expect(m.code).toBe("INTERNAL");
       else {
         expect(m.code).toBe(code);
-        if (code !== "INTERNAL") expect(m.message).toBe("something happened");
+        expect(m.message).toBe(PUBLIC_MESSAGES[code]); // fixed text, never the raw panic
+        expect(m.raw).toContain(code === "INTERNAL" ? "INTERNAL" : "something happened");
       }
     }
   });
@@ -152,7 +153,7 @@ describe("custody (AES-256-GCM with a test-only key)", () => {
 describe("database and repository (PGlite)", () => {
   it("migrates once and creates every table of plan 6.4", async () => {
     const db = await createPgliteDb();
-    expect((await migrate(db)).length).toBe(1);
+    expect((await migrate(db)).length).toBe(2);
     expect(await migrate(db)).toEqual([]);
     const tables = (await db.query<{ table_name: string }>("select table_name from information_schema.tables where table_schema = 'public'")).map((r) => r.table_name);
     for (const t of ["users", "custody_keys", "actions", "deposits", "withdrawals", "npc_decisions", "worker_heartbeat", "rate_limits", "flags"]) {

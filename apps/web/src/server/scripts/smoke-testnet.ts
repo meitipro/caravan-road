@@ -6,6 +6,7 @@
 
 import { loadEnv } from "../env";
 import { createProductionServices } from "../services.prod";
+import { redact } from "../log";
 
 async function step(name: string, fn: () => Promise<void>): Promise<boolean> {
   try {
@@ -13,7 +14,7 @@ async function step(name: string, fn: () => Promise<void>): Promise<boolean> {
     console.warn(`PASS ${name}`);
     return true;
   } catch (e) {
-    console.warn(`FAIL ${name}: ${e instanceof Error ? e.message.slice(0, 120) : "error"}`);
+    console.warn(redact(`FAIL ${name}: ${e instanceof Error ? e.message.slice(0, 120) : "error"}`));
     return false;
   }
 }
@@ -40,6 +41,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((e: unknown) => {
-  console.error(e instanceof Error ? e.message : "smoke failed");
+  console.error(redact(e instanceof Error ? e.message : "smoke failed"));
   process.exit(1);
 });

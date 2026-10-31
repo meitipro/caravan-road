@@ -8,6 +8,8 @@ const unavailable = (): never => {
 };
 
 export const unconfiguredIntents: IntentsClient = {
+  configured: false,
+  treasuryBalanceFils: async () => unavailable(),
   quote: async () => unavailable(),
   status: async () => unavailable(),
   withdraw: async () => unavailable(),

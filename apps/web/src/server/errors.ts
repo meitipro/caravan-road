@@ -57,21 +57,32 @@ const ALIASES: Array<[RegExp, ErrorCode]> = [
   [/cargo (limit|full)|caravan is full/i, "CARGO_LIMIT"],
 ];
 
-const PUBLIC_MESSAGES: Partial<Record<ErrorCode, string>> = {
+/** Fixed, player-safe text per code. Raw panic text never reaches a client (it is logged redacted). */
+export const PUBLIC_MESSAGES: Record<ErrorCode, string> = {
+  UNAUTHENTICATED: "Please sign in.",
+  BAD_REQUEST: "That action is not allowed right now.",
+  RATE_LIMIT: "Too many requests. Please slow down.",
+  MODE_NOT_ALLOWED: "That is not available in this game mode.",
+  NOT_IN_CITY: "You are not in that city.",
+  IN_TRANSIT: "Your caravan is on the road.",
+  NOT_ARRIVED: "The caravan has not arrived yet.",
+  INSUFFICIENT_FUNDS: "Not enough dinar.",
+  INSUFFICIENT_STOCK: "Not enough goods.",
+  MERCHANT_BROKE: "The merchant cannot afford that.",
+  SLIPPAGE: "The price moved. Please try again.",
+  CARGO_LIMIT: "The caravan cannot carry that much.",
+  PAUSED: "The game is paused for maintenance.",
   INTERNAL: "Something went wrong. Please try again.",
 };
 
-export function mapPanic(panic: string): { code: ErrorCode; message: string } {
+/** Returns the code and the fixed public message; `raw` is the cleaned panic text for redacted logging. */
+export function mapPanic(panic: string): { code: ErrorCode; message: string; raw: string } {
   const text = panic.replace(/^.*?(Smart contract panicked|ExecutionError):\s*/i, "").trim();
   const token = /^([A-Z_]+)\b[:\s-]*(.*)$/s.exec(text);
   if (token && token[1] && (ERROR_CODES as string[]).includes(token[1]) && token[1] !== "UNAUTHENTICATED") {
     const code = token[1] as ErrorCode;
-    return { code, message: token[2]?.trim() || defaultMessage(code) };
+    return { code, message: PUBLIC_MESSAGES[code], raw: text };
   }
-  for (const [re, code] of ALIASES) if (re.test(text)) return { code, message: text.slice(0, 200) };
-  return { code: "INTERNAL", message: PUBLIC_MESSAGES.INTERNAL! };
-}
-
-function defaultMessage(code: ErrorCode): string {
-  return PUBLIC_MESSAGES[code] ?? code.toLowerCase().replace(/_/g, " ");
+  for (const [re, code] of ALIASES) if (re.test(text)) return { code, message: PUBLIC_MESSAGES[code], raw: text };
+  return { code: "INTERNAL", message: PUBLIC_MESSAGES.INTERNAL, raw: text };
 }

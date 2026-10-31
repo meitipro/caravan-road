@@ -72,6 +72,46 @@ Error mapping: contract panics start with the ErrorCode (`SLIPPAGE: price moved`
   send whose outcome is unknown stays `SENDING` for a human (never retried blindly), provider answers validated.
 * PLAY closes all money routes; `PAUSE_ALL` (flags table) closes every POST and the money crons.
 
+## Review hardening (independent security review, 17 findings)
+
+All 17 findings were verified in the code; none was wrong. Each has a test in
+`src/server/__tests__/review-fixes.test.ts` (and updated older tests).
+
+| # | Fix |
+|---|---|
+| 1 | The contract's return value of a relayed call is read from the receipt executed by the contract account (`parseOutcome`), never `Number(null)`. A withdrawal id must be a real integer (`parseContractId`); otherwise the DB row stays `RESERVED` and the cron links it by account and amount. A unique index forbids two rows for one chain withdrawal. Before sending or refunding, the cron calls `getWithdraw(id)` and requires the same account, amount and status `PENDING`. |
+| 2 | Daily cap check and a `RESERVED` row are one transaction under a per-user advisory lock; a definite chain rejection cancels the reservation (`CANCELLED`). |
+| 3 | Deposit cap: check and insert are atomic under a lock; every `PENDING`/`CREDITING` row counts (deadline or not); the cron re-checks the cap before crediting. |
+| 4 | Provisioning (also on `GET /api/state`) checks `PAUSE_ALL`, a global 500 accounts/day cap, and a 3 attempts/minute per-user back-off. When it is refused, `/api/state` still returns the world with `me: null`. |
+| 5 | Per-user relayer budget of 200 actions/day (checked first, so it does not consume the global 1000). An automatic nonce retry inside one `submit()` is not counted twice. |
+| 6 | The `RESERVED` row is written before the chain call; `reconcileWithdrawals` (cron) attaches lost ids, adopts on-chain withdrawals with no row (alert), and cancels reservations with no chain counterpart after 15 minutes. |
+| 7 | `/api/withdraw` and `/api/deposit/quote` fail closed (`PAUSED`) before anything is debited when `IntentsClient.configured` is false or the treasury (`treasuryBalanceFils()`) cannot cover the amount plus what is already owed. |
+| 8 | Documented below. |
+| 9 | Credits require `receivedFils`, recipient equal to `TREASURY_ACCOUNT_ID` and the quoted asset; the amount is `min(received, expected)`, stored in `credited_fils`. |
+| 10 | Only `BAD_REQUEST` and `MODE_NOT_ALLOWED` contract refusals fail a deposit for good; everything else is retried. `FAILED` deposits raise an alert and are counted in `/api/cron/health` (`failed_deposits`) as the manual refund queue. |
+| 11 | `PAUSE_ALL` is parsed case-insensitively; in LIVE a missing or unknown value counts as paused. |
+| 12 | `KEY_ENC_SECRET` must be exactly 64 hex characters or canonical 44-character base64; passphrases are rejected. |
+| 13 | Startup fails unless PLAY+testnet or LIVE+mainnet (and mainnet needs `NEAR_RPC_URL`); faucet and money routes and crons refuse to run when `getConfig().mode` differs from `GAME_MODE`. |
+| 14 | Anonymous rate limits use the platform header `x-vercel-forwarded-for`, else the right-most `X-Forwarded-For` hop (never the left-most), plus one shared bucket for all anonymous reads. Assumption: exactly one trusted proxy in front of the app. |
+| 15 | `/api/state` events are filtered per event type (`PUBLIC_EVENT_FIELDS`); account ids, sellers, buyers, references and money-event details are dropped, `tx_hash` is kept. |
+| 16 | Clients get a fixed message per ErrorCode; the raw panic text is logged through the redacting logger only. |
+| 17 | The route error path and the CLI scripts log through `redact()`. |
+
+## Known limitation: the relayer key is a full-access key on the parent account (finding 8)
+
+Only a parent account can create `p<8hex>.<parent>`, and the plan's `<ROOT>` is not specified, so the server uses
+`RELAYER_ACCOUNT_ID` as the parent and its key both creates accounts and relays meta-transactions. That key therefore
+must be a **full-access key on an account that parents every player account**. This conflicts with plan 5.4
+(least-privilege keys) and is accepted for the hackathon; the blast radius is the relayer account balance plus control
+of the player sub-accounts (which hold almost nothing: gameplay money lives in the contract).
+
+Recommended fix (not implemented, no new environment variables introduced): a separate low-balance root/factory
+account whose full-access key is used only for account creation (for example in a once-a-day batch or a minimal
+creation-only service), and a relayer account whose key can only relay (a function-call key cannot create accounts, but
+a plain funded account that is not the parent can relay delegate actions). Players would then live under the factory
+account (`p<8hex>.<factory>`), and the contract's `player_suffix` would be that account. Suggested variable names if
+introduced later: `ACCOUNT_FACTORY_ID`, `ACCOUNT_FACTORY_PRIVATE_KEY`.
+
 ## Going live checklist (needs real services)
 
 1. Postgres (Neon/Supabase) and `db:migrate`.

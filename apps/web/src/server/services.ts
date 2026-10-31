@@ -55,6 +55,7 @@ export interface Services {
   treasuryAccountId: string | null;
   worldCache: TtlCache<unknown>;
   leaderboardCache: TtlCache<unknown>;
+  configCache: TtlCache<unknown>;
 }
 
 export interface ServiceDeps {
@@ -80,13 +81,13 @@ export function buildServices(d: ServiceDeps): Services {
   const limiter = createRateLimiter(repo, now);
   const relayer = createRelayer({ repo, contract: d.contract, custody, limiter, log: lg });
   const accounts = createAccountService({
-    repo, contract: d.contract, custody, relayer, rootAccountId: d.relayerAccountId, log: lg,
+    repo, contract: d.contract, custody, relayer, rootAccountId: d.relayerAccountId, log: lg, limiter, mode: d.mode,
   });
   return {
     mode: d.mode, cronSecret: d.cronSecret, now, log: lg, repo, contract: d.contract, custody, relayer, accounts, limiter,
     intents: d.intents, session: d.session, relayerAccountId: d.relayerAccountId,
     treasuryAccountId: d.treasuryAccountId ?? null,
-    worldCache: new TtlCache(1, now), leaderboardCache: new TtlCache(5, now),
+    worldCache: new TtlCache(1, now), leaderboardCache: new TtlCache(5, now), configCache: new TtlCache(30, now),
   };
 }
 

@@ -6,13 +6,17 @@ import { z } from "zod";
 
 const nonEmpty = z.string().min(1);
 
-/** KEY_ENC_SECRET: 32 bytes encoded as 64 hex characters or base64 (44 chars with padding). */
+/**
+ * KEY_ENC_SECRET: 32 random bytes as exactly 64 hex characters, or as canonical base64 (44 chars with
+ * padding that round-trips). A passphrase is rejected: lenient base64 decoding would accept one.
+ */
 export function decodeEncSecret(raw: string): Uint8Array {
-  const hex = /^[0-9a-fA-F]{64}$/.test(raw) ? Buffer.from(raw, "hex") : null;
-  const b64 = hex ? null : Buffer.from(raw, "base64");
-  const bytes = hex ?? b64!;
-  if (bytes.length !== 32) throw new Error("KEY_ENC_SECRET must decode to exactly 32 bytes (64 hex chars or base64)");
-  return new Uint8Array(bytes);
+  if (/^[0-9a-fA-F]{64}$/.test(raw)) return new Uint8Array(Buffer.from(raw, "hex"));
+  if (raw.length === 44 && /^[A-Za-z0-9+/]{43}=$/.test(raw)) {
+    const bytes = Buffer.from(raw, "base64");
+    if (bytes.length === 32 && bytes.toString("base64") === raw) return new Uint8Array(bytes);
+  }
+  throw new Error("KEY_ENC_SECRET must be 32 random bytes as 64 hex characters or canonical base64");
 }
 
 const EnvSchema = z.object({
@@ -56,6 +60,15 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
     } catch {
       bad.add("KEY_ENC_SECRET");
     }
+  }
+  // PLAY runs on testnet and LIVE on mainnet; a mix would point real-money routes at the wrong chain.
+  if (parsed.success) {
+    const { GAME_MODE, NEAR_NETWORK } = parsed.data;
+    if ((GAME_MODE === "PLAY") !== (NEAR_NETWORK === "testnet")) {
+      bad.add("GAME_MODE");
+      bad.add("NEAR_NETWORK");
+    }
+    if (NEAR_NETWORK === "mainnet" && !parsed.data.NEAR_RPC_URL) bad.add("NEAR_RPC_URL");
   }
   if (bad.size > 0 || !parsed.success || !secret) throw new EnvError([...bad].sort());
   return { ...parsed.data, KEY_ENC_SECRET: secret };

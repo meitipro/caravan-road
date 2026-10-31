@@ -51,6 +51,7 @@ export interface DepositRow {
   origin_asset: string;
   amount_in: string;
   expected_fils: string;
+  credited_fils: string | null;
   refund_address: string | null;
   status: DepositStatus;
   credit_ref: string | null;
@@ -59,7 +60,7 @@ export interface DepositRow {
   updated_at: number;
 }
 
-export type WithdrawalStatus = "REQUESTED" | "SENDING" | "SENT" | "REFUNDED" | "FAILED";
+export type WithdrawalStatus = "RESERVED" | "REQUESTED" | "SENDING" | "SENT" | "REFUNDED" | "FAILED" | "CANCELLED";
 export interface WithdrawalRow {
   id: number;
   user_id: string;
@@ -101,6 +102,7 @@ const mapAction = (r: R): ActionRow => ({
 const mapDeposit = (r: R): DepositRow => ({
   id: num(r.id), user_id: str(r.user_id), quote_id: str(r.quote_id), deposit_address: str(r.deposit_address),
   origin_asset: str(r.origin_asset), amount_in: str(r.amount_in), expected_fils: str(r.expected_fils),
+  credited_fils: optStr(r.credited_fils),
   refund_address: optStr(r.refund_address), status: str(r.status) as DepositStatus, credit_ref: optStr(r.credit_ref),
   deadline: num(r.deadline), created_at: num(r.created_at), updated_at: num(r.updated_at),
 });
@@ -231,43 +233,112 @@ export function createRepo(db: Db) {
     },
 
     // ---- deposits ----
-    async insertDeposit(d: { userId: string; quoteId: string; depositAddress: string; originAsset: string; amountIn: string; expectedFils: string; refundAddress: string; deadline: number; now: number }): Promise<DepositRow> {
+    /**
+     * Inserts the deposit only if credited + every PENDING/CREDITING row (deadline or not: cron can still credit
+     * them) + this one stays within `cap`. Atomic per user (advisory lock inside one transaction).
+     */
+    async insertDepositWithinCap(d: { userId: string; quoteId: string; depositAddress: string; originAsset: string; amountIn: string; expectedFils: string; refundAddress: string; deadline: number; now: number }, cap: bigint): Promise<DepositRow | null> {
+      return db.transaction(async (tx) => {
+        await tx.query("select pg_advisory_xact_lock(hashtext($1))", [`deposit:${d.userId}`]);
+        const t = await tx.query<R>(
+          `select coalesce(sum(case when status = 'CREDITED' then coalesce(credited_fils, expected_fils) else 0 end), 0)::text as credited,
+                  coalesce(sum(case when status in ('PENDING', 'CREDITING') then expected_fils else 0 end), 0)::text as open
+           from deposits where user_id = $1`,
+          [d.userId],
+        );
+        if (BigInt(str(t[0]!.credited)) + BigInt(str(t[0]!.open)) + BigInt(d.expectedFils) > cap) return null;
+        const rows = await tx.query<R>(
+          `insert into deposits (user_id, quote_id, deposit_address, origin_asset, amount_in, expected_fils, refund_address, status, deadline, created_at, updated_at)
+           values ($1, $2, $3, $4, $5, $6, $7, 'PENDING', $8, $9, $9) returning *`,
+          [d.userId, d.quoteId, d.depositAddress, d.originAsset, d.amountIn, d.expectedFils, d.refundAddress, d.deadline, d.now],
+        );
+        return mapDeposit(rows[0]!);
+      });
+    },
+    /** Credited plus open deposits (cheap pre-check before asking the provider for a quote). */
+    async depositTotals(userId: string): Promise<{ credited: bigint; open: bigint }> {
       const rows = await db.query<R>(
-        `insert into deposits (user_id, quote_id, deposit_address, origin_asset, amount_in, expected_fils, refund_address, status, deadline, created_at, updated_at)
-         values ($1, $2, $3, $4, $5, $6, $7, 'PENDING', $8, $9, $9) returning *`,
-        [d.userId, d.quoteId, d.depositAddress, d.originAsset, d.amountIn, d.expectedFils, d.refundAddress, d.deadline, d.now],
+        `select coalesce(sum(case when status = 'CREDITED' then coalesce(credited_fils, expected_fils) else 0 end), 0)::text as credited,
+                coalesce(sum(case when status in ('PENDING', 'CREDITING') then expected_fils else 0 end), 0)::text as open
+         from deposits where user_id = $1`,
+        [userId],
       );
-      return mapDeposit(rows[0]!);
+      return { credited: BigInt(str(rows[0]!.credited)), open: BigInt(str(rows[0]!.open)) };
     },
     async getDepositByQuote(userId: string, quoteId: string): Promise<DepositRow | null> {
       const rows = await db.query<R>("select * from deposits where user_id = $1 and quote_id = $2", [userId, quoteId]);
       return rows[0] ? mapDeposit(rows[0]) : null;
     },
-    /** Sum of credited deposits plus open (pending or crediting) ones that could still be credited. */
-    async depositTotals(userId: string, now: number): Promise<{ credited: bigint; open: bigint }> {
-      const rows = await db.query<R>(
-        `select
-           coalesce(sum(case when status = 'CREDITED' then expected_fils else 0 end), 0)::text as credited,
-           coalesce(sum(case when status in ('PENDING', 'CREDITING') and deadline >= $2 then expected_fils else 0 end), 0)::text as open
-         from deposits where user_id = $1`,
-        [userId, now],
-      );
-      return { credited: BigInt(str(rows[0]!.credited)), open: BigInt(str(rows[0]!.open)) };
-    },
     async listDepositsByStatus(status: DepositStatus, limit: number): Promise<DepositRow[]> {
       return (await db.query<R>("select * from deposits where status = $1 order by id limit $2", [status, limit])).map(mapDeposit);
     },
+    async countDepositsByStatus(status: DepositStatus): Promise<number> {
+      return num((await db.query<R>("select count(*) as n from deposits where status = $1", [status]))[0]!.n);
+    },
     /** Compare-and-set; returns true if this caller moved the row. */
-    async transitionDeposit(id: number, from: DepositStatus, to: DepositStatus, now: number, creditRef?: string): Promise<boolean> {
+    async transitionDeposit(id: number, from: DepositStatus, to: DepositStatus, now: number, extra?: { creditRef?: string; creditedFils?: string }): Promise<boolean> {
       const rows = await db.query<R>(
-        `update deposits set status = $3, updated_at = $4, credit_ref = coalesce($5, credit_ref)
+        `update deposits set status = $3, updated_at = $4, credit_ref = coalesce($5, credit_ref), credited_fils = coalesce($6::bigint, credited_fils)
          where id = $1 and status = $2 returning id`,
-        [id, from, to, now, creditRef ?? null],
+        [id, from, to, now, extra?.creditRef ?? null, extra?.creditedFils ?? null],
       );
       return rows.length === 1;
     },
+    /** Sum credited so far (for the re-check at credit time). */
+    async creditedFilsTotal(userId: string): Promise<bigint> {
+      const rows = await db.query<R>(
+        "select coalesce(sum(coalesce(credited_fils, expected_fils)), 0)::text as t from deposits where user_id = $1 and status = 'CREDITED'",
+        [userId],
+      );
+      return BigInt(str(rows[0]!.t));
+    },
 
     // ---- withdrawals ----
+    /**
+     * Reserves a withdrawal inside the daily cap, atomically per user: advisory lock, sum of the last 24 h
+     * (everything except REFUNDED and CANCELLED), insert a RESERVED row. Returns null when over the cap.
+     * The row exists BEFORE the chain call, so a debit can never be left without a database record.
+     */
+    async reserveWithdrawal(w: { userId: string; fils: string; destAsset: string; destAddress: string; now: number }, cap: bigint): Promise<WithdrawalRow | null> {
+      return db.transaction(async (tx) => {
+        await tx.query("select pg_advisory_xact_lock(hashtext($1))", [`withdraw:${w.userId}`]);
+        const t = await tx.query<R>(
+          `select coalesce(sum(fils), 0)::text as total from withdrawals
+           where user_id = $1 and created_at >= $2 and status not in ('REFUNDED', 'CANCELLED')`,
+          [w.userId, w.now - 86400],
+        );
+        if (BigInt(str(t[0]!.total)) + BigInt(w.fils) > cap) return null;
+        const rows = await tx.query<R>(
+          `insert into withdrawals (user_id, contract_withdraw_id, fils, dest_asset, dest_address, status, tx_hashes, created_at, updated_at)
+           values ($1, null, $2, $3, $4, 'RESERVED', '[]', $5, $5) returning *`,
+          [w.userId, w.fils, w.destAsset, w.destAddress, w.now],
+        );
+        return mapWithdrawal(rows[0]!);
+      });
+    },
+    /** RESERVED -> REQUESTED once the chain id is known. False if already attached or the id is taken. */
+    async attachWithdrawal(id: number, contractId: number, txHash: string | null, now: number): Promise<boolean> {
+      try {
+        const rows = await db.query<R>(
+          `update withdrawals set contract_withdraw_id = $2, status = 'REQUESTED', updated_at = $3,
+             tx_hashes = case when $4::text is null then tx_hashes else (tx_hashes::jsonb || to_jsonb($4::text))::text end
+           where id = $1 and status = 'RESERVED' returning id`,
+          [id, contractId, now, txHash],
+        );
+        return rows.length === 1;
+      } catch {
+        return false; // unique index: the chain withdrawal belongs to another row
+      }
+    },
+    /** Records the relay transaction hash on a RESERVED row whose outcome could not be read. */
+    async noteWithdrawalTx(id: number, txHash: string): Promise<void> {
+      await db.query("update withdrawals set tx_hashes = (tx_hashes::jsonb || to_jsonb($2::text))::text where id = $1", [id, txHash]);
+    },
+    /** RESERVED -> CANCELLED: the chain call definitely failed, the reservation is released. */
+    async cancelWithdrawal(id: number, now: number): Promise<boolean> {
+      const rows = await db.query<R>("update withdrawals set status = 'CANCELLED', updated_at = $2 where id = $1 and status = 'RESERVED' returning id", [id, now]);
+      return rows.length === 1;
+    },
     async insertWithdrawal(w: { userId: string; contractWithdrawId: number | null; fils: string; destAsset: string; destAddress: string; txHash: string | null; now: number }): Promise<WithdrawalRow> {
       const rows = await db.query<R>(
         `insert into withdrawals (user_id, contract_withdraw_id, fils, dest_asset, dest_address, status, tx_hashes, created_at, updated_at)
@@ -279,6 +350,14 @@ export function createRepo(db: Db) {
     async getWithdrawal(id: number): Promise<WithdrawalRow | null> {
       const rows = await db.query<R>("select * from withdrawals where id = $1", [id]);
       return rows[0] ? mapWithdrawal(rows[0]) : null;
+    },
+    async getWithdrawalByContractId(contractId: number): Promise<WithdrawalRow | null> {
+      const rows = await db.query<R>("select * from withdrawals where contract_withdraw_id = $1", [contractId]);
+      return rows[0] ? mapWithdrawal(rows[0]) : null;
+    },
+    async maxContractWithdrawId(): Promise<number | null> {
+      const v = (await db.query<R>("select max(contract_withdraw_id) as m from withdrawals"))[0]?.m;
+      return v === null || v === undefined ? null : num(v);
     },
     async listWithdrawalsByStatus(status: WithdrawalStatus, limit: number): Promise<WithdrawalRow[]> {
       return (await db.query<R>("select * from withdrawals where status = $1 order by id limit $2", [status, limit])).map(mapWithdrawal);
@@ -292,14 +371,10 @@ export function createRepo(db: Db) {
       );
       return rows.length === 1;
     },
-    /** Fils requested by the user in the last `sinceSeconds` seconds, excluding refunded ones. */
-    async withdrawnSince(userId: string, since: number): Promise<bigint> {
-      const rows = await db.query<R>(
-        `select coalesce(sum(fils), 0)::text as total from withdrawals
-         where user_id = $1 and created_at >= $2 and status <> 'REFUNDED'`,
-        [userId, since],
-      );
-      return BigInt(str(rows[0]!.total));
+    /** Fils that still have to leave the treasury (not yet sent). */
+    async outstandingWithdrawalFils(): Promise<bigint> {
+      const rows = await db.query<R>("select coalesce(sum(fils), 0)::text as t from withdrawals where status in ('RESERVED', 'REQUESTED', 'SENDING')");
+      return BigInt(str(rows[0]!.t));
     },
 
     // ---- npc ----
