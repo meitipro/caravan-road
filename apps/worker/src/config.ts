@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { CityId } from "@caravan/shared";
 
 const nonEmpty = z.string().trim().min(1);
-const keyString = z.string().trim().regex(/^ed25519:\S+$/, "must be an ed25519:<...> key string");
+const keyString = z.string().trim().regex(/^ed25519[:]\S+$/, "must be a key string of the form ed25519, colon, key");
 const positiveInt = z.coerce.number().int().positive();
 
 const EnvSchema = z.object({
@@ -37,7 +37,7 @@ export interface WorkerConfig {
   rpcUrl: string;
   contractId: string;
   merchantAccounts: Record<CityId, string>;
-  /** SECRET. Never log. */
+  /** Secret. Never log. */
   merchantKeys: Record<CityId, string>;
   databaseUrl: string;
   nearAi: { apiKey: string; model: string; baseUrl: string | undefined; responseFormat: "json_object" | undefined };
