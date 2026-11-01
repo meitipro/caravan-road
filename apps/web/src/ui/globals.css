@@ -142,6 +142,7 @@ code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-siz
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--s-3); margin: 0; font-size: 14px; }
 .kv dt { color: var(--text-muted); }
 .kv dd { margin: 0; word-break: break-all; }
+.kv.cost dd { word-break: normal; overflow-wrap: break-word; } /* sentences in the summary must wrap at spaces, not mid-word */
 
 /* ---------- toasts ---------- */
 .toasts {

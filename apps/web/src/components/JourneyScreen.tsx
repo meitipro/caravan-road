@@ -230,7 +230,7 @@ function Planner({ world, me, basis }: { world: WorldState; me: Player; basis: B
             <dt>Ambush risk</dt><dd className="num strong">{formatBp(risk)}</dd>
             <dt>If ambushed</dt>
             <dd>
-              {lossUnits > 0 ? <span className="loss">lose {lossUnits} unit{lossUnits === 1 ? "" : "s"} (30% of each good), worth about {formatDinar(lossValue)} dinars</span> : "nothing to lose"}
+              {lossUnits > 0 ? <span className="loss">lose {lossUnits} unit{lossUnits === 1 ? "" : "s"} (30% of each good), worth about {formatDinar(lossValue)} dinars</span> : "Small cargo: an ambush takes nothing, but bigger loads can lose 30%"}
             </dd>
             <dt>Guards</dt><dd className="num">{guards} · <Money fils={guardCost} /></dd>
           </dl>

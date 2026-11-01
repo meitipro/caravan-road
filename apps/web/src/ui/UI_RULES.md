@@ -23,3 +23,19 @@ Copied from the master plan, section 7.2. Follow them in every UI task.
 - Fake login: a flag in localStorage (`caravan.mock.session`). No providers, no secrets.
 - `/play/cash?live=1` previews the LIVE deposit and withdraw screens against canned data (`src/ui/cash-canned.ts`).
 - The mock world lives in memory, so a page reload resets it (a journey in progress is lost in mock mode only).
+
+## Dev server notes
+
+- **Never run `next build` (or a second `next dev`) while `next dev` is running in the same app folder.** Both write
+  to `apps/web/.next`. The build deletes chunks the running dev server still points at, and the next uncached page
+  fails with `Cannot find module './vendor-chunks/zod@3.25.76.js'` (or `./223.js`), a 404/500, or an endless
+  "Loading the caravan". Reproduced on 2026-11-01: dev running, `next build`, then `/play/city/madan` returned 500.
+  A `.next` left over from an earlier build is fine for `dev` on its own; the problem is the overlap.
+- Fix: stop the dev server, delete the folder, start again:
+  `Remove-Item -Recurse -Force apps\web\.next` (PowerShell) or `rm -rf apps/web/.next` (Git Bash), then
+  `NEXT_PUBLIC_MOCK=1 pnpm --filter @caravan/web dev`. Run build and dev one after the other, never together.
+- The first visit to each page in `next dev` compiles it (several seconds). `src/app/play/loading.tsx` shows a skeleton
+  for client-side navigations; the very first document request still waits for the compile, which a production build
+  does not.
+- Mock mode: the world is rebuilt by every page load, so `caravan.claimed` and the cost basis are dropped with it
+  (`resetWorldBoundFlags()` in `src/ui/api.ts`). Login and onboarding flags are kept.

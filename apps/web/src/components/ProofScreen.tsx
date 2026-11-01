@@ -5,14 +5,14 @@
 import Link from "next/link";
 import useSWR from "swr";
 import type { CityId } from "@caravan/shared";
-import { getApi, unwrap } from "../ui/api";
+import { getApi, IS_MOCK, unwrap } from "../ui/api";
 import { CITY_META } from "../ui/game-meta";
 import { EmptyState, ErrorState, LoadingBlock, Page } from "./Bits";
 import { evidenceBadge } from "./Mind";
 
 export function ProofScreen({ merchant }: { merchant: CityId }) {
   const { data, error, isLoading, mutate } = useSWR(["proof", merchant], async () => unwrap(await getApi().proof(merchant)));
-  const badge = evidenceBadge(data ? data.attested : null);
+  const badge = evidenceBadge(data ? data.attested : null, IS_MOCK);
 
   return (
     <Page
@@ -27,6 +27,7 @@ export function ProofScreen({ merchant }: { merchant: CityId }) {
         <>
           <div className="panel stack-sm">
             <span className={`badge ${data.attested ? "badge-ok" : ""}`} title={badge.hint}>{badge.text}</span>
+            {IS_MOCK && <p className="muted small">Sample data from the demo world. No AI was called.</p>}
             <p className="muted small">
               {data.attested
                 ? "The attestation for this inference was checked."

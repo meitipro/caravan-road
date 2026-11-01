@@ -7,7 +7,7 @@ import Link from "next/link";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import useSWR from "swr";
 import { PARAMS, type CityId, type Decision, type Merchant } from "@caravan/shared";
-import { getApi, unwrap } from "../ui/api";
+import { getApi, IS_MOCK, unwrap } from "../ui/api";
 import { formatAgo, shortId } from "../ui/format";
 import { CITY_META } from "../ui/game-meta";
 import { EmptyState, ErrorState, LoadingBlock, MoodChip } from "./Bits";
@@ -36,9 +36,11 @@ export function MindProvider({ children }: { children: ReactNode }) {
 }
 
 /** The badge text. "verified" appears only when attested is true. */
-export function evidenceBadge(attested: boolean | null): { text: string; tone: "ok" | "plain"; hint: string } {
-  if (attested === true) return { text: "Private AI (TEE) verified", tone: "ok", hint: "The inference attestation was checked." };
-  return { text: "Private AI (TEE)", tone: "plain", hint: "evidence recorded" };
+export function evidenceBadge(attested: boolean | null, sample = false): { text: string; tone: "ok" | "plain"; hint: string } {
+  // `sample` marks fixture evidence from the demo world: the label says so and still never claims more than attested.
+  const tag = sample ? " (sample data)" : "";
+  if (attested === true) return { text: `Private AI (TEE) verified${tag}`, tone: "ok", hint: sample ? "Sample record from the demo world, not a real check." : "The inference attestation was checked." };
+  return { text: `Private AI (TEE)${tag}`, tone: "plain", hint: sample ? "Sample record from the demo world." : "evidence recorded" };
 }
 
 function SpreadBar({ spread }: { spread: number }) {
@@ -64,7 +66,7 @@ function BiasBar({ bias }: { bias: number }) {
 }
 
 function sourceLabel(d: Decision): string {
-  if (d.source === "llm") return "AI decision";
+  if (d.source === "llm") return IS_MOCK ? "AI decision (sample)" : "AI decision";
   if (d.source === "baseline") return "Rule-based";
   return "Kept as is";
 }
@@ -88,7 +90,7 @@ function MindBody({ city, onNavigate }: { city: CityId; onNavigate: () => void }
   const requestId = merchant?.verified?.request_id ?? lastLlm?.request_id ?? null;
   const attested = merchant?.verified ? merchant.verified.attested : lastLlm ? lastLlm.attested : null;
   const hasEvidence = model !== null;
-  const badge = evidenceBadge(attested);
+  const badge = evidenceBadge(attested, IS_MOCK);
 
   const copy = async (text: string) => {
     try {
@@ -114,6 +116,7 @@ function MindBody({ city, onNavigate }: { city: CityId; onNavigate: () => void }
           <span className={`badge ${badge.tone === "ok" ? "badge-ok" : ""}`} title={badge.hint}>
             {badge.text}
           </span>
+          {IS_MOCK && <p className="muted small">Sample data from the demo world. No AI was called.</p>}
           {attested !== true && <p className="muted small">Evidence recorded, not yet attested.</p>}
           <dl className="kv">
             <dt>Model</dt>

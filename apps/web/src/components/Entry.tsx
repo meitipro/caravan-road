@@ -114,7 +114,7 @@ const CARDS = [
   },
   {
     title: "Sell where it is scarce",
-    body: "Prices move after every trade, and four AI merchants watch the market. Ask a merchant why it set its price.",
+    body: "Prices move after every trade, and four merchants set their own prices. Ask a merchant why it set its price.",
     art: "ui/coin",
     color: "var(--gold)",
   },
