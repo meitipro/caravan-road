@@ -48,6 +48,8 @@ Times are UTC.
 
 ## Decisions
 
+- **D4 — official rules read 2026-11-01 (docs/SUBMISSION.md):** pre-window work counts as BASELINE; only NEAR-integration work built after 2026-11-01 is judged. Local tag `pre-hackathon-baseline` created at `260e0a6` (last commit before the window, 2026-10-31T22:09+03:30). Before submission: README must link the diff `pre-hackathon-baseline...HEAD` once the repo is public (TODO owner), add a LICENSE file, X post tags per the official file (@NEARProtocol, #NEARHackathon) with a video, docs/INTENTS.md fee should read 0.2% (not 0.25%).
+
 - **D1 — building before the date gate.** The master plan (section 0.3 rule 1) and the hackathon rule say code starts 2026-11-01T00:00:00Z. Commits were made on 2026-10-23 (scaffold, spec, shared package, mock) and continue on 2026-10-30. On 2026-10-30 Mahdi said to ignore the gate and finish early. History is not rewritten. README, X post and submission text must state the real dates and must not claim the whole project was built inside the window. Risk accepted by Mahdi: the organisers may treat pre-window work as a rule violation.
 - **D2 — `spec/` regenerated from the master plan** (verbatim extracts); the older part-1 PDF is superseded.
 - **D3 — TS sim follows Appendix B exactly** (including its ambush rounding); see OPEN_QUESTIONS #6 for the conflict with section 2.4 text.
