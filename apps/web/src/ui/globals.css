@@ -16,6 +16,8 @@ body {
 }
 
 h1, h2, h3, h4, .pixel-font { font-family: var(--font-pixel); font-weight: 600; margin: 0; line-height: 1.15; }
+/* any text that uses the pixel stack gets tabular figures (the digit face is Inter, see layout.tsx) */
+h1, h2, h3, h4, .pixel-font, .placeholder, .empty-title, .entry-line, .table th { font-variant-numeric: tabular-nums; }
 p { margin: 0; }
 a { color: inherit; }
 code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 0.9em; }
