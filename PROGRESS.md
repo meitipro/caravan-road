@@ -39,7 +39,7 @@ Times are UTC.
 - [x] Phase 4 — UI on the mock done (`dae8c64`): tasks 1-8 except live connect (needs Phase 3) and optional stalls screen. Re-verified by Claude 2026-10-30: typecheck all packages, 56 web tests, 35 shared tests, tree clean, no secrets. 25 screens at 390/1280 px in `docs/screens/`. Issues: `apps/web/src/ui/SHARED_ISSUES.md`. UI fonts (Pixelify Sans, Inter, Vazirmatn, OFL 1.1) still to be added to `docs/CREDITS.md`.
 - [ ] Phase 5 — NPC brain built offline (`f753098`, `c008cb6`): baseline + validated LLM proposals, fallback ladder, NEAR AI client from docs (never run live), attestation recorded honestly (`attested` always false in production), dry-run and FAKE-model eval in `docs/NPC_EVAL.md`; 177 worker tests pass (re-verified 2026-10-31). Needs `NEAR_AI_API_KEY`, model choice, host, real eval; haggling skipped.
 - [x] Phase 6 — art pipeline done (`78f0972`, `930a3e6`): 18 slots with exact sizes, 25 tests pass (re-run by Claude 2026-10-30). CREDITS.md notes UI fonts are not yet recorded.
-- [ ] Phase 7 — real money with NEAR Intents (needs JWT, mainnet actions are Mahdi's)
+- [ ] Phase 7 — 1Click client built offline (`c3fb765`): asset list, deposit/withdraw, status mapping, fail-closed, 254 web tests pass (re-verified 2026-11-01), doc-derived fixtures only, never called the real API. Gaps: no cron polling of SENT withdrawals (1Click refunds not returned to the player), auth header X-API-Key vs JWT unconfirmed, USDC asset id and treasury registration need the live test (`docs/INTENTS.md`). All mainnet actions are Mahdi's.
 - [ ] Phase 8 — integration, tuning, review
 - [ ] Phase 9 — README, docs, judge rehearsal
 - [ ] Phase 10 — demo, X post, submission
