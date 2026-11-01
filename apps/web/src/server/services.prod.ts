@@ -1,6 +1,7 @@
 // Production wiring from environment variables (names in .env.example). Loaded lazily by
 // getServices(), so importing routes never needs a database or keys.
 
+import { assertDevFlagsSafe } from "./dev/flags";
 import { loadEnv } from "./env";
 import { createPgDb } from "./db/pg";
 import { NearContract } from "./contract/near";
@@ -9,6 +10,7 @@ import { authSession } from "./auth/config";
 import { buildServices, type Services } from "./services";
 
 export async function createProductionServices(): Promise<Services> {
+  assertDevFlagsSafe(process.env);
   const env = loadEnv();
   const contract = new NearContract({
     network: env.NEAR_NETWORK, rpcUrl: env.NEAR_RPC_URL, contractId: env.CARAVAN_CONTRACT_ID,

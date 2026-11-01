@@ -3,6 +3,7 @@
 // (spec/OPEN_QUESTIONS.md) it takes the provisional behaviour used by packages/shared/src/mock.ts
 // (OPEN_QUESTIONS #6 floor ambush loss, #7 limit_total semantics, #8 stall fee on top).
 
+import { createHash } from "node:crypto";
 import {
   BP, CITIES, CITY_IDS, GOODS, GOOD_IDS, PARAMS, TICK_RULES, findRoute, quote, quoteBig, tradeCost,
   type CityId, type GoodId, type Mode,
@@ -22,6 +23,19 @@ export interface FakeContractOptions {
   /** Returns the ambush roll in 0..9999 for a claim; ambush happens when roll < risk_bp. */
   ambushRoll?: (journey: ContractJourney) => number;
   faucetCooldownSeconds?: number;
+  /**
+   * Follow contracts/caravan/DECISIONS.md instead of the provisional rules of packages/shared/src/mock.ts:
+   * faucet needs net worth < 5,000 fils with a 1 h cooldown (D4), the stall SELLER pays a ceil 2% fee and must be
+   * in the city (D5, D6), max 5 open stalls, withdrawals of at least 1,000 fils with one open per player (D14),
+   * tick order production -> rebalancing -> recycling without automatic shipping, merchants ship themselves (D2, D25),
+   * policy steps of at most 300 bp (D24), tick schedule that advances by whole ticks (D13), a hash-based ambush roll (D12).
+   * Off by default so the older tests keep their rules.
+   */
+  strict?: boolean;
+  /** World tick length in seconds (default 60). The minimum call spacing scales with it (55/60). */
+  tickSeconds?: number;
+  /** Called after every state change (the dev backend persists a snapshot). */
+  onChange?: () => void;
 }
 
 interface FPlayer {
@@ -58,6 +72,14 @@ export class FakeContract implements ContractClient {
   private readonly clock: () => number;
   private readonly roll: (j: ContractJourney) => number;
   private readonly faucetCooldown: number;
+  private readonly strict: boolean;
+  private readonly tickSeconds: number;
+  private readonly onChange: (() => void) | undefined;
+  /** Merchant policy / shipping bookkeeping (strict rules D24, D25). */
+  private lastPolicyAt = new Map<CityId, number>();
+  private lastPolicyTick = new Map<CityId, number>();
+  private shipBudget = new Map<CityId, bigint>();
+  private shippedThisTick = new Set<string>();
 
   tick = 0;
   lastTickAt: number;
@@ -90,8 +112,11 @@ export class FakeContract implements ContractClient {
   constructor(opts: FakeContractOptions = {}) {
     this.mode = opts.mode ?? "PLAY";
     this.clock = opts.now ?? (() => Math.floor(Date.now() / 1000));
-    this.roll = opts.ambushRoll ?? (() => 9999);
-    this.faucetCooldown = opts.faucetCooldownSeconds ?? 60;
+    this.strict = opts.strict ?? false;
+    this.tickSeconds = opts.tickSeconds ?? PARAMS.TICK_SECONDS;
+    this.onChange = opts.onChange;
+    this.roll = opts.ambushRoll ?? (this.strict ? hashRoll : () => 9999);
+    this.faucetCooldown = opts.faucetCooldownSeconds ?? (this.strict ? 3600 : 60);
     this.lastTickAt = this.clock();
     for (const id of CITY_IDS) {
       const stock = zeroGoods();
@@ -195,6 +220,7 @@ export class FakeContract implements ContractClient {
     const existing = this.accountKeys.get(accountId);
     if (existing && existing !== publicKey) throw new ContractPanic("INTERNAL: account exists with another key");
     this.accountKeys.set(accountId, publicKey);
+    this.changed();
     return { txHash: this.newTx() };
   }
 
@@ -203,11 +229,23 @@ export class FakeContract implements ContractClient {
     if (this.accountKeys.get(accountId) !== key.publicKey) throw new ContractPanic("INTERNAL: delegate signature rejected");
     this.requireNotPaused();
     const before = this.events.length;
-    const returnValue = this.dispatchPlayer(accountId, method, args as never);
-    return this.outcome(returnValue, before);
+    try {
+      const returnValue = this.dispatchPlayer(accountId, method, args as never);
+      return this.outcome(returnValue, before);
+    } finally {
+      this.changed();
+    }
   }
 
   async operatorCall<M extends OperatorMethod>(method: M, args: OperatorArgs[M]): Promise<TxOutcome> {
+    try {
+      return await this.operatorCallInner(method, args);
+    } finally {
+      this.changed();
+    }
+  }
+
+  private async operatorCallInner<M extends OperatorMethod>(method: M, args: OperatorArgs[M]): Promise<TxOutcome> {
     this.calls.push({ kind: "operator", method, args });
     if (method !== "refund_withdraw" && method !== "set_paused") this.requireNotPaused();
     const before = this.events.length;
@@ -250,16 +288,139 @@ export class FakeContract implements ContractClient {
     const before = this.events.length;
     const now = this.clock();
     const elapsed = now - this.lastTickAt;
+    const minGap = this.tickSeconds === PARAMS.TICK_SECONDS ? TICK_RULES.MIN_INTERVAL_SECONDS : Math.max(1, Math.floor((this.tickSeconds * TICK_RULES.MIN_INTERVAL_SECONDS) / PARAMS.TICK_SECONDS));
     let ticks = 0;
-    if (elapsed >= TICK_RULES.MIN_INTERVAL_SECONDS) {
-      ticks = Math.min(TICK_RULES.MAX_MISSED_TICKS, Math.max(1, Math.floor(elapsed / PARAMS.TICK_SECONDS)));
+    if (elapsed >= minGap) {
+      ticks = Math.min(TICK_RULES.MAX_MISSED_TICKS, Math.max(1, Math.floor(elapsed / this.tickSeconds)));
       for (let i = 0; i < ticks; i++) this.runTick();
-      this.lastTickAt = now;
+      if (this.strict) {
+        // D13: the schedule advances by whole ticks; excess missed ticks are dropped but the phase is kept.
+        this.lastTickAt += ticks * this.tickSeconds;
+        if (now - this.lastTickAt >= this.tickSeconds) this.lastTickAt = now - ((now - this.lastTickAt) % this.tickSeconds);
+      } else {
+        this.lastTickAt = now;
+      }
     }
-    return this.outcome({ ticks }, before);
+    this.changed();
+    return this.outcome({ ticks, tick: this.tick }, before);
+  }
+
+  // ---------------------------------------------------------------- merchants (set_policy / ship, caller = merchant account)
+
+  /** The NPC stand-in calls this the way a merchant's function-call key would (DECISIONS D24, D25). */
+  async merchantCall(city: CityId, method: "set_policy", args: { spread_bp: number; bias_bp: number }): Promise<TxOutcome>;
+  async merchantCall(city: CityId, method: "ship", args: { to: CityId; good: GoodId; qty: number }): Promise<TxOutcome>;
+  async merchantCall(city: CityId, method: "set_policy" | "ship", args: never): Promise<TxOutcome> {
+    this.calls.push({ kind: "operator", account: city, method, args });
+    this.requireNotPaused();
+    const before = this.events.length;
+    try {
+      const m = this.merchants.get(city)!;
+      const now = this.clock();
+      if (method === "set_policy") {
+        const a = args as { spread_bp: number; bias_bp: number };
+        if (!Number.isInteger(a.spread_bp) || a.spread_bp < PARAMS.SPREAD_MIN_BP || a.spread_bp > PARAMS.SPREAD_MAX_BP) panic("BAD_REQUEST", "spread out of range");
+        if (!Number.isInteger(a.bias_bp) || a.bias_bp < PARAMS.BIAS_MIN_BP || a.bias_bp > PARAMS.BIAS_MAX_BP) panic("BAD_REQUEST", "bias out of range");
+        if (Math.abs(a.spread_bp - m.spread_bp) > 300 || Math.abs(a.bias_bp - m.bias_bp) > 300) panic("BAD_REQUEST", "policy step too large");
+        const last = this.lastPolicyAt.get(city);
+        if ((last !== undefined && now - last < this.tickSeconds) || this.lastPolicyTick.get(city) === this.tick) panic("RATE_LIMIT", "one policy change per tick");
+        m.spread_bp = a.spread_bp;
+        m.bias_bp = a.bias_bp;
+        this.lastPolicyAt.set(city, now);
+        this.lastPolicyTick.set(city, this.tick);
+        this.emit("policy", { merchant: city, spread_bp: a.spread_bp, bias_bp: a.bias_bp });
+        return this.outcome(null, before);
+      }
+      const a = args as { to: CityId; good: GoodId; qty: number };
+      const to = this.merchants.get(a.to);
+      if (!to || a.to === city) panic("BAD_REQUEST", "bad destination");
+      if (!Number.isInteger(a.qty) || a.qty < 1 || a.qty > PARAMS.NPC_SHIP_UNITS_PER_TICK) panic("BAD_REQUEST", "bad quantity");
+      const key = `${city}:${a.good}`;
+      if (this.shippedThisTick.has(key)) panic("RATE_LIMIT", "already shipped this good this tick");
+      const target = GOODS[a.good].target;
+      if ((m.stock[a.good] - to!.stock[a.good]) * 10000 < PARAMS.NPC_MIN_RATIO_GAP_BP * target) panic("BAD_REQUEST", "stock gap too small");
+      if (m.stock[a.good] < a.qty) panic("INSUFFICIENT_STOCK", "not enough stock");
+      if (to!.stock[a.good] >= target || to!.stock[a.good] + a.qty > GOODS[a.good].cap) panic("BAD_REQUEST", "destination is not short of this good");
+      const midHi = quoteBig({ good: a.good, stock: m.stock[a.good], spreadBp: m.spread_bp, biasBp: 0 }).mid;
+      const midLo = quoteBig({ good: a.good, stock: to!.stock[a.good], spreadBp: to!.spread_bp, biasBp: 0 }).mid;
+      const total = BigInt(a.qty) * ((midHi + midLo) / 2n);
+      const budget = this.shipBudget.get(a.to) ?? 0n;
+      if (total > budget) panic("RATE_LIMIT", "destination budget for this tick is used up");
+      if (to!.treasury < total) panic("MERCHANT_BROKE", "destination cannot pay");
+      this.shipBudget.set(a.to, budget - total);
+      this.shippedThisTick.add(key);
+      m.stock[a.good] -= a.qty;
+      to!.stock[a.good] += a.qty;
+      to!.treasury -= total;
+      m.treasury += total;
+      this.emit("ship", { from: city, to: a.to, good: a.good, qty: a.qty, total: total.toString() });
+      return this.outcome(null, before);
+    } finally {
+      this.changed();
+    }
+  }
+
+  // ---------------------------------------------------------------- persistence (dev backend)
+
+  /** Serialises the whole state; bigint and -Infinity are tagged so JSON.parse can restore them. */
+  snapshot(): string {
+    const state = {
+      tick: this.tick, lastTickAt: this.lastTickAt, paused: this.paused, house: this.house, minted: this.minted, burned: this.burned,
+      merchants: [...this.merchants.entries()], players: [...this.players.entries()], stalls: this.stalls,
+      withdraws: [...this.withdraws.entries()], depositRefs: [...this.depositRefs], accountKeys: [...this.accountKeys.entries()],
+      balances: [...this.balances.entries()], events: this.events, ids: {
+        event: this.nextEventId, journey: this.nextJourneyId, stall: this.nextStallId, withdraw: this.nextWithdrawId, tx: this.nextTx,
+      },
+      lastPolicyAt: [...this.lastPolicyAt.entries()], lastPolicyTick: [...this.lastPolicyTick.entries()],
+    };
+    return JSON.stringify(state, (_k, v) => (typeof v === "bigint" ? { $big: v.toString() } : v === -Infinity ? { $neg: true } : v));
+  }
+
+  restore(json: string): void {
+    const st = JSON.parse(json, (_k, v) => {
+      if (v && typeof v === "object" && "$big" in v) return BigInt((v as { $big: string }).$big);
+      if (v && typeof v === "object" && "$neg" in v) return -Infinity;
+      return v;
+    }) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    this.tick = st.tick;
+    this.lastTickAt = st.lastTickAt;
+    this.paused = st.paused;
+    this.house = st.house;
+    this.minted = st.minted;
+    this.burned = st.burned;
+    this.merchants = new Map(st.merchants);
+    this.players = new Map(st.players);
+    this.stalls = st.stalls;
+    this.withdraws = new Map(st.withdraws);
+    this.depositRefs = new Set(st.depositRefs);
+    this.accountKeys = new Map(st.accountKeys);
+    this.balances = new Map(st.balances);
+    this.events = st.events;
+    this.nextEventId = st.ids.event;
+    this.nextJourneyId = st.ids.journey;
+    this.nextStallId = st.ids.stall;
+    this.nextWithdrawId = st.ids.withdraw;
+    this.nextTx = st.ids.tx;
+    this.lastPolicyAt = new Map(st.lastPolicyAt);
+    this.lastPolicyTick = new Map(st.lastPolicyTick);
   }
 
   // ---------------------------------------------------------------- internals
+
+  private changed(): void {
+    this.onChange?.();
+  }
+
+  /** D4: fils + base value of inventory, stall escrow and cargo in transit. */
+  private faucetNetWorth(p: FPlayer): bigint {
+    let w = p.fils;
+    for (const g of GOOD_IDS) {
+      let n = p.inventory[g] + (p.journey?.cargo[g] ?? 0);
+      for (const s of this.stalls) if (s.seller === p.account_id && s.good === g) n += s.qty;
+      w += GOODS[g].baseFils * BigInt(n);
+    }
+    return w;
+  }
 
   private newTx(): string { return `faketx${(this.nextTx++).toString().padStart(6, "0")}`; }
 
@@ -311,6 +472,7 @@ export class FakeContract implements ContractClient {
     if (this.mode !== "PLAY") panic("MODE_NOT_ALLOWED", "the faucet only works in PLAY mode");
     const now = this.clock();
     if (now - p.last_faucet < this.faucetCooldown) panic("RATE_LIMIT", "faucet cooldown");
+    if (this.strict && this.faucetNetWorth(p) >= 5000n) panic("BAD_REQUEST", "you are too rich for the faucet");
     p.last_faucet = now;
     p.fils += BigInt(PARAMS.FAUCET_FILS);
     this.minted += BigInt(PARAMS.FAUCET_FILS);
@@ -411,6 +573,11 @@ export class FakeContract implements ContractClient {
     this.requireIdle(p);
     if (a.qty <= 0) panic("BAD_REQUEST", "bad quantity");
     if (p.inventory[a.good] < a.qty) panic("INSUFFICIENT_STOCK", "you do not have that much");
+    if (this.strict) {
+      if (this.stalls.filter((x) => x.seller === p.account_id).length >= 5) panic("RATE_LIMIT", "too many open stalls");
+      const unit = BigInt(a.unit_price);
+      if (unit < 1n || unit > 1_000_000_000n) panic("BAD_REQUEST", "unit price out of range");
+    }
     p.inventory[a.good] -= a.qty;
     const s: ContractStall = { id: this.nextStallId++, seller: p.account_id, city: p.location, good: a.good, qty: a.qty, unit_price: a.unit_price };
     this.stalls.push(s);
@@ -427,13 +594,26 @@ export class FakeContract implements ContractClient {
     if (s.qty < a.qty) panic("INSUFFICIENT_STOCK", "the stall does not have that much");
     if (this.cargoUnits(p.inventory) + a.qty > PARAMS.CARGO_CAP) panic("CARGO_LIMIT", "caravan is full");
     const price = BigInt(a.qty) * BigInt(s.unit_price);
-    const fee = (price * BigInt(PARAMS.STALL_FEE_BP)) / BP; // OPEN_QUESTIONS #8
-    if (price + fee > BigInt(a.limit_total)) panic("SLIPPAGE", "the price moved");
-    if (price + fee > p.fils) panic("INSUFFICIENT_FUNDS", "not enough dinar");
-    p.fils -= price + fee;
+    let fee: bigint;
+    if (this.strict) {
+      // D5/D6: the seller pays ceil(2%) (at least 1 fils); the seller must be in the city and not travelling.
+      const seller = this.players.get(s.seller)!;
+      if (seller.location !== s.city || seller.journey) panic("NOT_IN_CITY", "the seller is not in that city");
+      fee = (price * BigInt(PARAMS.STALL_FEE_BP) + BP - 1n) / BP;
+      if (fee < 1n) fee = 1n;
+      if (price > BigInt(a.limit_total)) panic("SLIPPAGE", "the price moved");
+      if (price > p.fils) panic("INSUFFICIENT_FUNDS", "not enough dinar");
+      p.fils -= price;
+      this.players.get(s.seller)!.fils += price - fee;
+    } else {
+      fee = (price * BigInt(PARAMS.STALL_FEE_BP)) / BP; // OPEN_QUESTIONS #8: buyer pays on top
+      if (price + fee > BigInt(a.limit_total)) panic("SLIPPAGE", "the price moved");
+      if (price + fee > p.fils) panic("INSUFFICIENT_FUNDS", "not enough dinar");
+      p.fils -= price + fee;
+      this.players.get(s.seller)!.fils += price;
+    }
     p.inventory[s.good] += a.qty;
     s.qty -= a.qty;
-    this.players.get(s.seller)!.fils += price;
     this.house += fee;
     const sid = s.id;
     if (s.qty === 0) this.stalls.splice(this.stalls.indexOf(s), 1);
@@ -454,6 +634,12 @@ export class FakeContract implements ContractClient {
     if (this.mode !== "LIVE") panic("MODE_NOT_ALLOWED", "withdrawals are only available in LIVE mode");
     const fils = BigInt(a.fils);
     if (fils <= 0n) panic("BAD_REQUEST", "amount must be positive");
+    if (this.strict) {
+      if (fils < 1000n) panic("BAD_REQUEST", "minimum withdrawal is 1,000 fils");
+      for (const w of this.withdraws.values()) {
+        if (w.account_id === p.account_id && (w.status === "PENDING" || w.status === "SENT")) panic("RATE_LIMIT", "one open withdrawal at a time");
+      }
+    }
     if (fils > p.fils) panic("INSUFFICIENT_FUNDS", "not enough dinar");
     const day = Math.floor(this.clock() / DAY);
     let today = 0n;
@@ -492,8 +678,10 @@ export class FakeContract implements ContractClient {
         m.stock[g] = Math.min(GOODS[g].cap, Math.max(0, m.stock[g] + flow));
       }
     }
-    // 2. house caravans (integer gap test, OPEN_QUESTIONS #12; Appendix B order, #11)
-    for (const g of GOOD_IDS) {
+    this.shippedThisTick.clear();
+    this.shipBudget = new Map(ms.map((m) => [m.id, (m.treasury * 25n) / 100n]));
+    // 2. house caravans (integer gap test, OPEN_QUESTIONS #12; Appendix B order, #11). Strict mode: merchants ship themselves.
+    for (const g of this.strict ? [] : GOOD_IDS) {
       const target = GOODS[g].target;
       let hi = ms[0]!;
       let lo = ms[0]!;
@@ -541,4 +729,10 @@ export function quotesFor(m: Pick<ContractMerchant, "stock" | "spread_bp" | "bia
   return Object.fromEntries(
     GOOD_IDS.map((g) => [g, quote({ good: g, stock: m.stock[g], spreadBp: m.spread_bp, biasBp: m.bias_bp })]),
   ) as Record<GoodId, ReturnType<typeof quote>>;
+}
+
+/** D12-style deterministic roll: sha256(seed || journey id || account) as a little-endian u64 mod 10000. */
+function hashRoll(j: ContractJourney): number {
+  const h = createHash("sha256").update(`caravan-dev-seed:${j.id}:${j.from}:${j.to}:${j.started_at_ns}`).digest();
+  return Number(h.readBigUInt64LE(0) % 10000n);
 }

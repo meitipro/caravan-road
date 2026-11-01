@@ -125,11 +125,11 @@ describe("FakeContract follows spec/ECONOMY.md", () => {
     const key = await mk("a.t");
     await c.playerCall("a.t", "faucet", {}, key);
     advance(10);
-    expect((await c.worldTick()).returnValue).toEqual({ ticks: 0 });
+    expect((await c.worldTick()).returnValue).toMatchObject({ ticks: 0 });
     advance(50);
-    expect((await c.worldTick()).returnValue).toEqual({ ticks: 1 });
+    expect((await c.worldTick()).returnValue).toMatchObject({ ticks: 1 });
     advance(60 * 100);
-    expect((await c.worldTick()).returnValue).toEqual({ ticks: 10 });
+    expect((await c.worldTick()).returnValue).toMatchObject({ ticks: 10 });
     for (let i = 0; i < 238; i++) {
       advance(60);
       await c.worldTick();

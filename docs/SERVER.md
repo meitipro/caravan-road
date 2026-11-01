@@ -72,6 +72,33 @@ Error mapping: contract panics start with the ErrorCode (`SLIPPAGE: price moved`
   send whose outcome is unknown stays `SENDING` for a human (never retried blindly), provider answers validated.
 * PLAY closes all money routes; `PAUSE_ALL` (flags table) closes every POST and the money crons.
 
+## Local end-to-end dev mode (no chain, no Postgres server, no OAuth)
+
+Runs the UI against the REAL route handlers. Exact command (from the repository root):
+
+```
+NEXT_PUBLIC_MOCK=0 SERVER_BACKEND=dev DEV_LOGIN=1 GAME_MODE=PLAY pnpm --filter @caravan/web dev
+```
+
+(PowerShell: `$env:NEXT_PUBLIC_MOCK="0"; $env:SERVER_BACKEND="dev"; $env:DEV_LOGIN="1"; $env:GAME_MODE="PLAY"; pnpm --filter @caravan/web dev`.)
+Optional `DEV_TICK_SECONDS=5` makes the world tick faster (default 60).
+
+* `SERVER_BACKEND=dev` selects `services.dev.ts`: `FakeContract` in strict mode (the rules of
+  `contracts/caravan/DECISIONS.md`: faucet only below 50 dinars of net worth, seller-pays ceil 2% stall fee, minimum
+  withdrawal, one open withdrawal, policy steps, tick schedule), PGlite persisted in `apps/web/.data/` (it ignores
+  itself via `.data/.gitignore`), an in-process ticker, and a deterministic NPC stand-in (the baseline rules of
+  `apps/worker/src/baseline.ts`, re-implemented in `dev/ticker.ts`, calling only `set_policy` and `ship`).
+  The contract state is saved to `.data/dev-contract.json`, so accounts and balances survive restarts. Delete
+  `.data/` for a fresh world. Dev divergence from the contract: the faucet cooldown is 60 s instead of 1 h.
+* Dev login: `POST /api/dev/login {"name":"Sara"}` sets a signed `caravan_dev` cookie (the signing secret is generated
+  into `.data/`). `GET /api/dev/login?name=Sara&next=/play` does the same and redirects (a link, no UI change needed);
+  `/api/dev/logout` clears it. The route answers **404** unless `NODE_ENV != production`, `DEV_LOGIN=1`,
+  `GAME_MODE=PLAY` and the request host is `localhost`, `127.0.0.1` or `[::1]`. **It cannot be enabled in production:**
+  `getServices()`, the production wiring and the route modules throw at startup if `DEV_LOGIN=1` or
+  `SERVER_BACKEND=dev` is set with `NODE_ENV=production` (or outside PLAY). Tests cover every refusal path.
+* PLAY closes the money routes, so deposit/withdraw answer `MODE_NOT_ALLOWED` here; the 1Click path is tested with
+  `FakeIntents`.
+
 ## Review hardening (independent security review, 17 findings)
 
 All 17 findings were verified in the code; none was wrong. Each has a test in

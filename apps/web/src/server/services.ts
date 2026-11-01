@@ -10,6 +10,7 @@ import { createRateLimiter, type RateLimiter } from "./guards/rateLimit";
 import type { SessionResolver } from "./guards/auth";
 import type { IntentsClient } from "./intents/types";
 import { log, type Logger } from "./log";
+import { assertDevFlagsSafe, isDevBackend } from "./dev/flags";
 import { createAccountService, type AccountService } from "./near/accounts";
 import { Custody } from "./near/custody";
 import { createRelayer, type Relayer } from "./near/relayer";
@@ -91,24 +92,30 @@ export function buildServices(d: ServiceDeps): Services {
   };
 }
 
-let current: Services | null = null;
-let creating: Promise<Services> | null = null;
+// The container lives on globalThis: in `next dev` every route bundle has its own copy of this module, and the dev
+// backend (database file, ticker) must exist exactly once.
+interface Holder { __caravanServices?: Services | null; __caravanCreating?: Promise<Services> | null }
+const G = globalThis as Holder;
 
 export function setServices(s: Services | null): void {
-  current = s;
-  creating = null;
+  G.__caravanServices = s;
+  G.__caravanCreating = null;
 }
 
 export async function getServices(): Promise<Services> {
-  if (current) return current;
-  if (!creating) {
-    creating = import("./services.prod").then((m) => m.createProductionServices()).then((s) => {
-      current = s;
+  if (G.__caravanServices) return G.__caravanServices;
+  if (!G.__caravanCreating) {
+    assertDevFlagsSafe(process.env); // startup refusal: DEV_LOGIN / SERVER_BACKEND=dev in production or outside PLAY
+    const make = isDevBackend(process.env)
+      ? import("./services.dev").then((m) => m.createDevServices())
+      : import("./services.prod").then((m) => m.createProductionServices());
+    G.__caravanCreating = make.then((s) => {
+      G.__caravanServices = s;
       return s;
     });
-    creating.catch(() => {
-      creating = null;
+    G.__caravanCreating.catch(() => {
+      G.__caravanCreating = null;
     });
   }
-  return creating;
+  return G.__caravanCreating;
 }

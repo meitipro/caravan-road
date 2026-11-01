@@ -30,6 +30,14 @@ Nothing in `packages/shared` or `spec/` was edited. Items for the owners of thos
    a real network. The UI needs a loading state for the first `getState()` of a new user.
 8. **`.env.example`.** The scaffold's `GOOGLE_CLIENT_ID` / `DISCORD_CLIENT_ID` names were replaced by the Auth.js
    inferred names `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_DISCORD_ID`, `AUTH_DISCORD_SECRET`.
+11. **UI requests for the dev backend** (`SERVER_BACKEND=dev`, see docs/SERVER.md). None is required: a link to
+   `/api/dev/login?name=Sara&next=/play` signs a tester in. Nice to have when `NEXT_PUBLIC_MOCK=0` and the server
+   reports dev login: a name box that does `POST /api/dev/login {"name": ...}` instead of the Google/Discord buttons,
+   and a logout that calls `/api/dev/logout` instead of `/api/auth/signout`. The login route answers 404 whenever dev
+   login is off, so the UI can probe it with one request to decide which login to show.
+12. **`next.config.ts` and PGlite.** The server loads PGlite through a native dynamic import because webpack breaks its
+   WASM lookup inside `next dev`. If the config owner prefers, `serverExternalPackages: ["@electric-sql/pglite"]` does
+   the same.
 10. **Withdrawal listing view (review fix 6).** `NearContract.getWithdrawals` assumes
    `get_withdrawals({from_id, limit})` returning ascending ids, each with `id`, `account_id`, `fils`, `dest_asset`,
    `dest_address`, `status`, so the server can find debits that have no database row. Please add it (or tell us the
