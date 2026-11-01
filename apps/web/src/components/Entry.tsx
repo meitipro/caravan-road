@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 import { IS_MOCK } from "../ui/api";
 import { GAME_MODE_TEXT } from "../ui/game-meta";
 import { usePersisted } from "../ui/persisted";
-import { startLogin, useMockSession, type Provider } from "../ui/session";
+import { devLogin, startLogin, useDevLoginAvailable, useMockSession, type Provider } from "../ui/session";
 import { ErrorState, LoadingBlock, Money } from "./Bits";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { GameProvider, useActions, useGame } from "./GameProvider";
@@ -26,26 +26,73 @@ function ModeBadge({ mode }: { mode: "PLAY" | "LIVE" }) {
   );
 }
 
+function DevLoginForm() {
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const valid = /^[A-Za-z0-9 _-]{1,24}$/.test(name.trim());
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!valid || busy) return;
+    setBusy(true);
+    setErr(null);
+    const msg = await devLogin(name.trim());
+    if (msg) {
+      setErr(msg);
+      setBusy(false);
+    }
+    // on success the page reloads and the first state call creates the account (splash until it answers)
+  };
+  return (
+    <form className="stack-sm entry-actions" onSubmit={submit}>
+      <label className="stack-sm">
+        <span className="small strong">Your name</span>
+        <input
+          className="input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={24}
+          autoComplete="nickname"
+          placeholder="Sara"
+          aria-invalid={err ? true : undefined}
+          aria-describedby={err ? "dev-name-err" : undefined}
+        />
+      </label>
+      {err && <p id="dev-name-err" className="loss small" role="alert">{err}</p>}
+      <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={!valid || busy}>
+        {busy ? "Entering the caravan…" : "Play"}
+      </button>
+    </form>
+  );
+}
+
 export function LoginScreen({ onMockLogin }: { onMockLogin: (p: Provider) => void }) {
   const { mode } = useGame();
+  const dev = useDevLoginAvailable();
   return (
     <div className="entry">
       <div className="entry-card">
         <PixelImage slot="ui/logo" w={256} h={64} scale={1} alt="Caravan Road" color="var(--gold)" label="CARAVAN ROAD" className="logo-big" />
         <p className="entry-line">Trade across the desert. Outwit the merchants. Keep what you earn.</p>
         <ModeBadge mode={mode ?? "PLAY"} />
-        <div className="stack-sm entry-actions">
-          <button type="button" className="btn btn-primary btn-block btn-lg" onClick={() => startLogin("google", onMockLogin)}>
-            Continue with Google
-          </button>
-          <button type="button" className="btn btn-block btn-lg" onClick={() => startLogin("discord", onMockLogin)}>
-            Continue with Discord
-          </button>
-        </div>
+        {dev === true ? (
+          <DevLoginForm />
+        ) : (
+          <div className="stack-sm entry-actions" aria-busy={dev === null}>
+            <button type="button" className="btn btn-primary btn-block btn-lg" disabled={dev === null} onClick={() => startLogin("google", onMockLogin)}>
+              Continue with Google
+            </button>
+            <button type="button" className="btn btn-block btn-lg" disabled={dev === null} onClick={() => startLogin("discord", onMockLogin)}>
+              Continue with Discord
+            </button>
+          </div>
+        )}
         <p className="muted small">
           {IS_MOCK
             ? "Demo mode: this login is simulated and nothing leaves your browser."
-            : "No downloads, no setup. Your account is created for you."}
+            : dev === true
+              ? "Local test server: pick any name to start a practice account."
+              : "No downloads, no setup. Your account is created for you."}
         </p>
       </div>
     </div>

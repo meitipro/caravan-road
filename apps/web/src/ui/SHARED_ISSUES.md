@@ -10,3 +10,4 @@ Not fixed here (not owned by the UI). Please decide in the owning phase.
 6. **Tick length in the mock is 5 s, the spec says 60 s.** The UI only shows the tick number, never a countdown.
 7. **Merchant to portrait mapping is not specified.** `src/ui/game-meta.ts` assumes dasht=golnar, madan=rostam, bandar=nahid, shahr=sohrab.
 8. **Login button target.** In real mode the buttons navigate to `/api/auth/signin?provider=...`; the server phase should confirm the Auth.js route or replace `startLogin()` in `src/ui/session.ts`.
+9. **Dev login (done).** With `NEXT_PUBLIC_MOCK=0` the login screen probes `GET /api/dev/login` once (404 means off). When it answers 400 the OAuth buttons are replaced by a name box and Play (`POST /api/dev/login`), and Log out calls `/api/dev/logout`. Helpers in `src/ui/session.ts`; walkthrough script `src/ui/shoot/live.mjs` writes `docs/screens/live-*.png`.

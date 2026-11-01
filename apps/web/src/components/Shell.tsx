@@ -7,7 +7,7 @@ import { CITY_IDS } from "@caravan/shared";
 import { IS_MOCK } from "../ui/api";
 import { formatEta } from "../ui/format";
 import { CITY_META, GAME_MODE_TEXT } from "../ui/game-meta";
-import { useMockSession } from "../ui/session";
+import { devLogout, useDevLoginAvailable, useMockSession } from "../ui/session";
 import { Money } from "./Bits";
 import { useGame, useNow } from "./GameProvider";
 import { useLang } from "./Lang";
@@ -74,6 +74,7 @@ export function TopBar() {
 function MenuSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const mind = useMind();
   const { logout } = useMockSession();
+  const dev = useDevLoginAvailable();
   const { mode } = useGame();
   const { lang, toggle } = useLang();
   return (
@@ -108,6 +109,10 @@ function MenuSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         {IS_MOCK ? (
           <button type="button" className="btn btn-block" onClick={() => { logout(); onClose(); }}>
             Log out (demo)
+          </button>
+        ) : dev === true ? (
+          <button type="button" className="btn btn-block" onClick={() => { onClose(); void devLogout(); }}>
+            Log out
           </button>
         ) : (
           // eslint-disable-next-line @next/next/no-html-link-for-pages -- NextAuth sign-out is a server route, not a page

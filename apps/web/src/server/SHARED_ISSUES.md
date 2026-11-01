@@ -46,3 +46,8 @@ Nothing in `packages/shared` or `spec/` was edited. Items for the owners of thos
 9. **`Idempotency-Key` per call.** `api-client` generates a new key for every call, so a client-side retry after a
    network error is a new action. That is safe (contract rules decide), but server-side replay protection only helps
    callers that reuse a key. Optional: let the UI reuse the key for retries of the same click.
+13. **Live walkthrough findings (UI session, dev backend, DEV_TICK_SECONDS=5).** Item 11 is done in the UI (name box + Play, Log out via /api/dev/logout). Full loop worked against the real routes: login, faucet 500.00, buy 10 Grain in Bandar, guard 1, journey, claim, sell, Ranks. Observations for the server/economy owners, none blocking:
+   a. Journey duration is wall-clock (3:00 to Bandar-Shahr, 6:00 to Madan) and ignores `DEV_TICK_SECONDS`, so a dev walkthrough still waits 3 to 6 minutes. A `DEV_JOURNEY_SCALE` would make demos quick.
+   b. `/api/leaderboard` returns only human players. The four NPC merchants are not in the table, so a new player is rank #1 with 500 dinars. Intended? The mock shows NPCs in the list.
+   c. Price impact looks large for small trades: Bandar grain was 10.44 for the first buyer, 12.92 and 14.96 for the next two accounts a few minutes later (+43%) after only 10-unit buys. The planner estimate (taken at departure) then differs a lot from the sale price (101.48 estimated, 114.10 paid for 10 grain). Please check the dev ticker/NPC drift against docs/ECONOMY.md.
+   d. `GET /api/dev/login` with no name answers 400 (dev login on) or 404 (off). The UI uses that as its probe, so please keep this behaviour stable.
