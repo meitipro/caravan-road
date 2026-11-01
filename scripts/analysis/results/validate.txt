@@ -1,0 +1,7 @@
+== 1. Python variant (default Cfg) vs scripts/ref/economy_sim.py, and 2. vs TypeScript runSim ==
+python-variant == python-reference: 25/25 configs; python-variant == TypeScript runSim: 25/25 configs
+== 3. contract_d123() vs spec/CHANGELOG.md spec-v1.1 numbers (seed 7, 240 ticks) ==
+  OK  bots=2: changelog 61/6714/26  variant 61/6714/26  conserved=True
+  OK  bots=5: changelog 132/933/44  variant 132/933/44  conserved=True
+  OK  bots=10: changelog 344/958/74  variant 344/958/74  conserved=True
+VALIDATION PASSED
