@@ -9,6 +9,7 @@
   "scripts": {
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
-    "sim": "pnpm --filter @caravan/shared sim"
+    "sim": "pnpm --filter @caravan/shared sim",
+    "dev:mock": "node scripts/dev.mjs mock"
   }
 }

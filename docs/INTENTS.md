@@ -90,7 +90,13 @@ All of these are his actions; nothing here has been done.
 
 1. **Get the JWT.** Request an API key in the partner dashboard (<https://partners.near-intents.org/home>, per the
    [authentication page](https://docs.near-intents.org/integration/distribution-channels/1click-api/authentication.md)).
-   Without it every quote pays an extra 0.25%. Put it in the host's secret store as `ONECLICK_JWT`; never paste it in chat.
+   The fee wording differs between sources, so check it again before relying on it (read 2026-11-01): the NEAR Intents
+   docs say that without a JWT or API key a quote pays an additional 0.25% (25 bps) platform fee, and that with a key and no
+   `appFees` the default fee is 0.20% (20 bps), or 0.01% for stablecoin pairs such as USDC, USDT and DAI
+   (<https://docs.near-intents.org/resources/fees.md> and the authentication page linked above). The hackathon rules
+   (`https://nearhackathon.com/HACKATHON.md`, Q-006, as summarised in `docs/SUBMISSION.md`) say 0.2% without the JWT and that a
+   JWT is not required. The 0.2% figure matches the docs' fee with a key, not the no-key surcharge, so the two readings are
+   unresolved; either way the amount is small. Put the JWT in the host's secret store as `ONECLICK_JWT`; never paste it in chat.
 2. **Treasury account.** Create a separate mainnet NEAR account for the treasury (not the prize account, not the
    relayer). Register it with the USDC contract (`storage_deposit`) so it can receive USDC, and give it a few cents of
    NEAR for gas. Fund it with a **few USDC** only (it is a hot wallet; its balance is also what withdrawals can pay).

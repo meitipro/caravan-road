@@ -59,7 +59,7 @@ World totals per good, production = consumption (checked by hand from the table)
 | spice | bandar 4 = 4 | dasht 1 + madan 1 + shahr 2 = 4 |
 | silk | bandar 3 = 3 | dasht 1 + madan 1 + shahr 1 = 3 |
 
-The specification text says "each city produces two goods"; `shahr` produces one (OPEN_QUESTIONS #5). The table is
+The specification text says "each city produces two goods"; `shahr` produces one (`spec/OPEN_QUESTIONS.md` #5). The table is
 used as written.
 
 Routes (spec 2.4), both directions:

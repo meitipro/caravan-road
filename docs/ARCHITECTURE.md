@@ -3,9 +3,10 @@
 Caravan Road has five runtime parts: a browser UI, a Next.js server, one NEAR smart contract, a worker that
 runs four AI merchants, and external services (Postgres, Google/Discord login, NEAR AI Cloud, NEAR Intents).
 
-> Status of each part today (2026-11-01): the UI runs on an in-memory mock; the server, worker and contract
-> are implemented and tested offline (fake contract, in-memory or PGlite database, mocked HTTP). Nothing is
-> deployed. See the README section "What is real and what is not".
+> Status of each part today (2026-11-01): the UI runs on an in-memory mock, and also on a local end-to-end dev backend
+> (`node scripts/dev.mjs local`) that serves the real route handlers on a strict fake contract with an in-process Postgres
+> (PGlite). The server, worker and contract are implemented and tested offline. Nothing is deployed and nothing has run on a
+> NEAR network. See the README section "What is real and what is not".
 
 ## Diagram
 
