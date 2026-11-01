@@ -162,24 +162,42 @@ describe("loop", () => {
     expect((await runCycle(deps, { staggerMs: 0, sleep: noSleep })).tick).toBe("skipped");
   });
 
-  it("stops promptly on abort (graceful shutdown)", async () => {
+  it("stops on abort after the cycle in progress (graceful shutdown), event-driven, no wall clock", async () => {
     const world = new SimWorld({ bots: 0, seed: 1 });
     const ctl = new AbortController();
     const deps = cycleDeps(world);
-    const loop = runLoop(deps, { periodMs: 60_000, staggerMs: 0, sleep: abortableSleep, signal: ctl.signal });
-    await new Promise((r) => setTimeout(r, 30));
-    ctl.abort();
-    await expect(loop).resolves.toBeUndefined();
-    expect(deps.store.heartbeats.length).toBeGreaterThanOrEqual(1);
+    // abort exactly when the first cycle's heartbeat is written: the loop is then in its (abortable) wait
+    const hb = deps.store.heartbeat.bind(deps.store);
+    deps.store.heartbeat = async (at) => {
+      await hb(at);
+      ctl.abort();
+    };
+    await runLoop(deps, { periodMs: 3_600_000, staggerMs: 0, sleep: abortableSleep, signal: ctl.signal });
+    expect(deps.store.heartbeats).toHaveLength(1);
+    expect(deps.store.rows).toHaveLength(4);
+    expect(world.tick).toBe(1);
+  });
+
+  it("an abort during a cycle skips the remaining merchants and the heartbeat", async () => {
+    const world = new SimWorld({ bots: 0, seed: 1 });
+    const ctl = new AbortController();
+    const deps = cycleDeps(world);
+    const ins = deps.store.insertDecision.bind(deps.store);
+    deps.store.insertDecision = async (r) => {
+      await ins(r);
+      if (deps.store.rows.length === 2) ctl.abort();
+    };
+    const r = await runCycle(deps, { staggerMs: 0, sleep: noSleep, signal: ctl.signal });
+    expect(r.ok).toEqual(["dasht", "madan"]);
+    expect(r.tick).toBe("aborted");
+    expect(deps.store.heartbeats).toHaveLength(0);
   });
 
   it("abortableSleep resolves on abort", async () => {
     const ctl = new AbortController();
-    const t0 = Date.now();
-    const p = abortableSleep(10_000, ctl.signal);
+    const p = abortableSleep(3_600_000, ctl.signal); // would take an hour unless the abort works
     ctl.abort();
-    await p;
-    expect(Date.now() - t0).toBeLessThan(500);
+    await expect(p).resolves.toBeUndefined();
   });
 });
 

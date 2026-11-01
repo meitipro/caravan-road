@@ -3,7 +3,7 @@
 //
 //   pnpm --filter @caravan/worker dry-run -- --ticks 30 --bots 5 --seed 7 [--baseline] [--faults 0.15] [--show 6]
 
-import { FakeModel, FAKE_MODEL_NAME } from "./fake/fake-model.js";
+import { FakeModel, FAKE_MODEL_NAME, isFakeDecision } from "./fake/fake-model.js";
 import { simulate } from "./simulate.js";
 import { PERSONAS } from "./personas.js";
 
@@ -28,11 +28,18 @@ function parse(argv: string[]) {
   return o;
 }
 
+const BANNER = [
+  "=== FAKE MODEL ===  Every row tagged [FAKE] comes from a scripted heuristic, not from a language model.",
+  "Decision.source says \"llm\" in these rows only because the schema has no other model value;",
+  "model=fake-scripted, request ids are fake-*, attested=false. None of this is real inference evidence.",
+].join("\n");
+
 async function main(): Promise<void> {
   const o = parse(process.argv.slice(2));
   const model = o.baseline
     ? null
     : new FakeModel(o.seed, { noJson: o.faults / 3, outOfRange: o.faults / 3, wrongType: o.faults / 3 });
+  if (!o.baseline) console.log(BANNER);
   console.log(`DRY RUN (no network, no keys). Model: ${o.baseline ? "none (baseline only)" : `${FAKE_MODEL_NAME}, a scripted fake, NOT a language model`}`);
   console.log(`ticks=${o.ticks} bots=${o.bots} seed=${o.seed} injected-fault-rate=${o.faults}`);
 
@@ -47,8 +54,9 @@ async function main(): Promise<void> {
       if (d.ts < 1_800_000_000 + o.show * 60 * 1) {
         shown++;
         const ship = d.ship ? `ship ${d.ship.qty} ${d.ship.good} -> ${d.ship.to}` : "no ship";
+        const tag = isFakeDecision(d) ? "[FAKE] " : "";
         console.log(
-          `t+${String(Math.round((d.ts - 1_800_000_000) / 60)).padStart(3)}  ${PERSONAS[d.merchant].name.padEnd(13)} ${d.source.padEnd(8)} spread=${String(d.spread_bp).padStart(4)} bias=${String(d.bias_bp).padStart(5)} ${d.mood.padEnd(8)} ${ship}${out.skippedModel ? " (model skipped)" : ""} | ${d.line.en}`,
+          `${tag}t+${String(Math.round((d.ts - 1_800_000_000) / 60)).padStart(3)}  ${PERSONAS[d.merchant].name.padEnd(13)} ${d.source.padEnd(8)} model=${String(d.model).padEnd(13)} attested=${d.attested} spread=${String(d.spread_bp).padStart(4)} bias=${String(d.bias_bp).padStart(5)} ${d.mood.padEnd(8)} ${ship}${out.skippedModel ? " (model skipped)" : ""} | ${d.line.en}`,
         );
       }
     },
@@ -56,11 +64,15 @@ async function main(): Promise<void> {
   void shown;
   const s = res.stats;
   console.log("");
-  console.log(`decisions: ${res.decisions.length} (llm ${res.bySource.llm}, baseline ${res.bySource.baseline}, keep ${res.bySource.keep})`);
+  const fakeRows = res.decisions.filter(isFakeDecision).length;
+  const attestedRows = res.decisions.filter((d) => d.attested).length;
+  console.log(`decisions: ${res.decisions.length} (${o.baseline ? "llm" : "FAKE-model (source=llm)"} ${res.bySource.llm}, baseline ${res.bySource.baseline}, keep ${res.bySource.keep})`);
+  console.log(`rows from the fake model: ${fakeRows}; rows with attested=true: ${attestedRows} (must be 0)`);
   console.log(`bot trips: ${s.trips}  median profit/trip (fils): ${s.medianProfit}  merchant-broke events: ${s.brokeEvents}  ambushes: ${s.ambushes}`);
   console.log(`mean spread over run (bp): ${s.meanSpreadBp}`);
   console.log(`merchant treasuries (fils): ${JSON.stringify(s.treasuries)}  house: ${s.house}`);
   console.log(`money conserved on every tick: yes (start ${s.moneyStart}, now ${s.moneyNow})`);
+  if (!o.baseline) console.log(BANNER);
 }
 
 main().catch((e) => {

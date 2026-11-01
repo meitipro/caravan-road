@@ -4,6 +4,7 @@
 
 import type { Decision } from "@caravan/shared";
 import type { ModelClient } from "./brain.js";
+import { isFakeDecision } from "./fake/fake-model.js";
 import { StockHistory } from "./features.js";
 import { runCycle } from "./loop.js";
 import { MemoryStore } from "./memory-store.js";
@@ -51,6 +52,12 @@ export async function simulate(opts: SimulateOptions): Promise<SimulateResult> {
     if (r.failed.length > 0) throw new Error(`merchant run failed in simulation: ${r.failed[0]!.error}`);
   }
   const decisions = store.rows.map((r) => r.decision);
+  // A decision from the fake model must never look like real inference evidence.
+  for (const r of store.rows) {
+    if (isFakeDecision(r.decision) && (r.decision.attested || r.evidence !== null)) {
+      throw new Error("fake-model decision carries attestation or evidence; refusing to continue");
+    }
+  }
   const bySource = { llm: 0, baseline: 0, keep: 0 };
   for (const d of decisions) bySource[d.source]++;
   return { stats: world.stats(), decisions, bySource, world };

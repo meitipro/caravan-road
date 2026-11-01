@@ -204,6 +204,8 @@ export function renderDoc(p: {
   L.push("");
   L.push("## Read this first");
   L.push("");
+  L.push("> **FAKE MODEL.** Every model-driven row in this document comes from a scripted heuristic, not from a language model. In the underlying records `Decision.source` reads `llm` only because the schema has no other value; the records carry `model = fake-scripted`, request ids `fake-*` and `attested = false`. None of it is real inference evidence.");
+  L.push("");
   L.push(`- The model used for every table below is **${FAKE_MODEL_NAME}**: a scripted heuristic with optional injected faults (src/fake/fake-model.ts). It is **not a language model**. These tables measure this repository's validation, clamping, retry, fallback and simulation plumbing. They say nothing about how a real model on NEAR AI Cloud behaves.`);
   L.push("- The simulation uses the worker's own in-memory world (src/sim-world.ts), not the Appendix B reference simulation. Numbers are comparable only with other rows of this document (same seeds, same bots), never with spec/ECONOMY.md section 2.9.");
   L.push("- No latency figure is given for the fake model, because there is no network to measure.");
@@ -243,9 +245,9 @@ export function renderDoc(p: {
   L.push("");
   L.push(`## B. Simulation, ${p.ticks} ticks, 5 greedy bots, same seed per group`);
   L.push("");
-  L.push("Worker cycle against SimWorld. \"Baseline only\" means no model: every decision is the spec 8.6 baseline. Spread and bias set by the merchants change what the bots pay, so the economy differs between rows.");
+  L.push("Worker cycle against SimWorld. \"Baseline only\" means no model: every decision is the spec 8.6 baseline. In the \"fake-model\" counts, each such decision has `source = llm` in the schema but comes from the scripted fake. Spread and bias set by the merchants change what the bots pay, so the economy differs between rows.");
   L.push("");
-  L.push("| seed | mode | decisions (llm / baseline / keep) | bot trips | median profit per trip (fils) | merchant-broke events | ambushes | mean spread (bp) | money conserved |");
+  L.push("| seed | mode | decisions (fake-model / baseline / keep) | bot trips | median profit per trip (fils) | merchant-broke events | ambushes | mean spread (bp) | money conserved |");
   L.push("|---|---|---|---|---|---|---|---|---|");
   for (const s of p.sim) {
     L.push(`| ${s.seed} | ${s.mode} | ${s.decisions} (${s.llm} / ${s.baseline} / ${s.keep}) | ${s.trips} | ${s.medianProfit} | ${s.brokeEvents} | ${s.ambushes} | ${s.meanSpreadBp} | ${s.conserved ? "yes" : "NO"} |`);

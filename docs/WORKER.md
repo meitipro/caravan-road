@@ -26,7 +26,7 @@ pnpm --filter @caravan/worker eval -- --write ../../docs/NPC_EVAL.md     # fake 
 pnpm --filter @caravan/worker start      # production: needs the environment below
 ```
 
-The dry run and the evaluation use a scripted fake model and an in-memory world. They are labelled as such in their output and never import production wiring; `main.ts` and `bootstrap.ts` never import the fake (a test enforces that).
+**FAKE MODEL notice.** The dry run and the evaluation use a scripted fake model (`src/fake/fake-model.ts`) and an in-memory world. The `Decision` schema has no value for "fake", so fake-model rows carry `source = llm`; they are identifiable by `model = fake-scripted`, request ids starting `fake-`, and `attested = false` (the simulation refuses to continue if a fake row ever has attestation or evidence). The dry-run prints a FAKE MODEL banner and tags each row `[FAKE]`; `docs/NPC_EVAL.md` carries the same warning. None of it is real inference evidence, and fake rows must never be shown to players or judges as such. Production wiring never imports the fake: `main.ts` and `bootstrap.ts` do not (a test enforces that).
 
 ## Environment (names only; values live in the host dashboard or `.env.local`)
 

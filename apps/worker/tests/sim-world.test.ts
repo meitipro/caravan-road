@@ -72,7 +72,7 @@ describe("dry-run simulation with the FAKE model", () => {
       expect(d.bias_bp).toBeLessThanOrEqual(1500);
       expect(d.attested).toBe(false);
       if (d.source !== "llm") expect(d.request_id).toBeNull();
-      if (d.source === "llm") expect(d.model).toBe("FAKE-scripted-model");
+      if (d.source === "llm") expect(d.model).toBe("fake-scripted");
     }
     expect(res.world.rejected).toEqual({ setPolicy: 0, ship: 0 });
     expect(res.stats.moneyNow).toBe(res.stats.moneyStart);
@@ -90,5 +90,28 @@ describe("dry-run simulation with the FAKE model", () => {
     expect(spread("dasht")).toBeLessThan(spread("madan"));
     expect(spread("madan")).toBeLessThan(spread("bandar"));
     expect(spread("bandar")).toBeLessThan(spread("shahr"));
+  });
+});
+
+describe("fake-model rows can never look like real evidence", () => {
+  it("every row has model fake-scripted, a fake-* request id, attested=false and no evidence", async () => {
+    const { isFakeDecision, FAKE_MODEL_NAME } = await import("../src/fake/fake-model.js");
+    const res = await simulate({ ticks: 30, bots: 3, seed: 2, model: new FakeModel(2, { outOfRange: 0.2, noJson: 0.2 }) });
+    const modelRows = res.decisions.filter((d) => d.source === "llm");
+    expect(modelRows.length).toBeGreaterThan(0);
+    for (const d of modelRows) {
+      expect(d.model).toBe(FAKE_MODEL_NAME);
+      expect(d.request_id).toMatch(/^fake-/);
+      expect(d.attested).toBe(false);
+      expect(isFakeDecision(d)).toBe(true);
+    }
+    expect(res.decisions.some((d) => d.attested)).toBe(false);
+  });
+
+  it("the dry-run CLI prints a FAKE MODEL banner", async () => {
+    const { readFileSync } = await import("node:fs");
+    const text = readFileSync(new URL("../src/dry-run.ts", import.meta.url), "utf8");
+    expect(text).toContain("=== FAKE MODEL ===");
+    expect(text).toContain("[FAKE]");
   });
 });

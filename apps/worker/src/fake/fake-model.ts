@@ -12,7 +12,10 @@ import { PERSONAS } from "../personas.js";
 import type { ChatMessage } from "../prompts.js";
 import { Rng } from "../sim-world.js";
 
-export const FAKE_MODEL_NAME = "FAKE-scripted-model";
+/** Value of Decision.model for every decision the fake produces. Never a real model id. */
+export const FAKE_MODEL_NAME = "fake-scripted";
+/** Prefix of every request id / chat id the fake invents; real service ids never use it. */
+export const FAKE_ID_PREFIX = "fake-";
 
 export interface FakeFaults {
   /** probability per call of: reply without any JSON */
@@ -52,6 +55,11 @@ export function scriptedPolicy(f: Features, optionCount: number): { spread_bp: n
   return { spread_bp: spread, bias_bp: bias, mood, ship_choice: ship };
 }
 
+/** True for any decision that came from the fake model (by model value or by invented request id). */
+export function isFakeDecision(d: { model: string | null; request_id: string | null }): boolean {
+  return d.model === FAKE_MODEL_NAME || (d.request_id?.startsWith(FAKE_ID_PREFIX) ?? false);
+}
+
 export class FakeModel implements ModelClient {
   private readonly rng: Rng;
   calls = 0;
@@ -83,12 +91,12 @@ export class FakeModel implements ModelClient {
       else if (r2 < (acc += f.outOfRange ?? 0)) content = JSON.stringify({ ...(body as object), spread_bp: 5000, bias_bp: -9000 });
       else if (r2 < (acc += f.wrongType ?? 0)) content = JSON.stringify({ ...(body as object), spread_bp: "900" });
     }
-    const responseBody = JSON.stringify({ id: `fake-${this.calls}`, model: FAKE_MODEL_NAME, choices: [{ message: { content } }] });
+    const responseBody = JSON.stringify({ id: `${FAKE_ID_PREFIX}${this.calls}`, model: FAKE_MODEL_NAME, choices: [{ message: { content } }] });
     return {
       content,
-      requestId: `fake-req-${this.calls}`,
+      requestId: `${FAKE_ID_PREFIX}req-${this.calls}`,
       model: FAKE_MODEL_NAME,
-      chatId: `fake-${this.calls}`,
+      chatId: `${FAKE_ID_PREFIX}${this.calls}`,
       latencyMs: 0,
       requestBody: JSON.stringify(messages),
       responseBody,
