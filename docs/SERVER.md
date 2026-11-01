@@ -97,6 +97,20 @@ All 17 findings were verified in the code; none was wrong. Each has a test in
 | 16 | Clients get a fixed message per ErrorCode; the raw panic text is logged through the redacting logger only. |
 | 17 | The route error path and the CLI scripts log through `redact()`. |
 
+## Withdrawal lifecycle (LIVE)
+
+`RESERVED` (cap reserved) -> `REQUESTED` (debited on chain, id known) -> `SENDING` (cron claimed it) ->
+`SENT` (treasury paid the 1Click deposit address; the contract is marked **SENT**, not DONE, so a refund stays possible)
+-> `FINALIZING` (a cron run is closing it) -> `DONE` (provider success; contract DONE) or `REFUNDED` (provider
+REFUNDED/FAILED; `refund_withdraw` returns the dinars). Every chain step first reads `getWithdraw()` (same account and
+amount, expected status), so concurrent or restarted runs cannot mark twice or refund twice. A partial provider
+refund, a chain mismatch, or an unknown send outcome goes to `FAILED`/`SENDING` for a human (alerts + `/api/cron/health`).
+A `FINALIZING` row whose run died is taken over after 5 minutes. The provider's quote `signature` is stored in
+`deposits.quote_signature` / `withdrawals.quote_signature` for disputes.
+
+Environment: `ONECLICK_JWT` and `ONECLICK_USDC_ASSET_ID` are optional in PLAY and required together in LIVE
+(`loadEnv()`); the asset id must look like `nep141:<contract>`.
+
 ## Known limitation: the relayer key is a full-access key on the parent account (finding 8)
 
 Only a parent account can create `p<8hex>.<parent>`, and the plan's `<ROOT>` is not specified, so the server uses

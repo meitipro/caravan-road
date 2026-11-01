@@ -25,6 +25,7 @@ export class FakeIntents implements IntentsClient {
     const q: IntentQuote = {
       quoteId: id, depositAddress: `deposit-${this.n}.fake`, amountIn: req.amountIn,
       expectedFils: (BigInt(req.amountIn) * this.filsPerUnit).toString(), deadline: this.now() + 600,
+      signature: `fakesig-${this.n}`,
     };
     this.quotes.set(id, { ...q, state: "PENDING", asset: req.originAsset });
     return q;
@@ -38,7 +39,18 @@ export class FakeIntents implements IntentsClient {
 
   async withdraw(req: IntentWithdrawRequest): Promise<IntentWithdrawResult> {
     this.withdrawals.push(req);
-    return this.withdrawResult ?? { ok: true, quoteId: `fakew-${req.ref}`, txHash: `fakeintenttx-${req.ref}` };
+    return this.withdrawResult ?? { ok: true, quoteId: `fakew-${req.ref}`, txHash: `fakeintenttx-${req.ref}`, signature: `fakewsig-${req.ref}` };
+  }
+
+  /** Provider-side outcome of sent withdrawals; anything not set is still PENDING. */
+  readonly withdrawalStates = new Map<string, { state: IntentState; refundedMicro?: string }>();
+  withdrawalStatusCalls = 0;
+  async withdrawalStatus(quoteId: string): Promise<{ state: IntentState; refundedMicro?: string }> {
+    this.withdrawalStatusCalls++;
+    return this.withdrawalStates.get(quoteId) ?? { state: "PENDING" };
+  }
+  setWithdrawalState(quoteId: string, state: IntentState, refundedMicro?: string): void {
+    this.withdrawalStates.set(quoteId, { state, refundedMicro });
   }
 
   // test controls

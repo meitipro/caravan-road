@@ -412,7 +412,7 @@ describe("withdrawal", () => {
     });
     const addr = [...mock.quotes.keys()][0]!;
     expect(treasury.transfers).toEqual([{ tokenContract: "usdc-test-placeholder.near", receiver: addr, amount: 1_000_000n }]);
-    expect(r).toEqual({ ok: true, quoteId: addr, txHash: "treasury-tx-1" });
+    expect(r).toEqual({ ok: true, quoteId: addr, txHash: "treasury-tx-1", signature: expect.any(String) }); // the quote signature is kept for disputes
     expect(mock.count("/v0/deposit/submit", "POST")).toBe(1);
     expect(mock.last("/v0/deposit/submit").body).toEqual({ txHash: "treasury-tx-1", depositAddress: addr, nearSenderAccount: TEST_TREASURY });
   });

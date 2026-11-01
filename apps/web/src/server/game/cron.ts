@@ -61,15 +61,17 @@ export interface HealthReport {
 
 /** /api/cron/health: balances, heartbeat, flags. Reports booleans and ages, never balances or keys. */
 export async function cronHealth(svc: Services): Promise<HealthReport> {
-  const [relayerBal, config, hb, sending, reserved, failedDeposits, paused] = await Promise.all([
+  const [relayerBal, config, hb, sendingOnly, finalizing, reserved, failedDeposits, paused] = await Promise.all([
     svc.contract.accountBalance(svc.relayerAccountId),
     svc.contract.getConfig(),
     svc.repo.latestHeartbeat(),
     svc.repo.listWithdrawalsByStatus("SENDING", BATCH),
+    svc.repo.listWithdrawalsByStatus("FINALIZING", BATCH),
     svc.repo.listWithdrawalsByStatus("RESERVED", BATCH),
     svc.repo.countDepositsByStatus("FAILED"),
     isPaused(svc.repo, svc.mode),
   ]);
+  const sending = [...sendingOnly, ...finalizing]; // both mean "a run died half way"
   const treasuryLow = svc.treasuryAccountId ? BigInt(await svc.contract.accountBalance(svc.treasuryAccountId)) < RELAYER_LOW_YOCTO : null;
   const relayerLow = BigInt(relayerBal) < RELAYER_LOW_YOCTO;
   if (relayerLow) svc.log.error("ALERT: relayer balance is low");
@@ -215,8 +217,9 @@ export async function cronWithdrawals(svc: Services): Promise<{ sent: number; re
     }
     if (result.ok) {
       try {
-        await svc.contract.operatorCall("mark_withdraw", { id: w.contract_withdraw_id, reference: result.txHash });
-        if (await svc.repo.transitionWithdrawal(w.id, "SENDING", "SENT", svc.now(), { quoteId: result.quoteId, txHash: result.txHash })) res.sent++;
+        // SENT (not DONE): the contract keeps a refund possible until the provider reports the final outcome.
+        await svc.contract.operatorCall("mark_withdraw", { id: w.contract_withdraw_id, status: "SENT", reference: result.txHash });
+        if (await svc.repo.transitionWithdrawal(w.id, "SENDING", "SENT", svc.now(), { quoteId: result.quoteId, txHash: result.txHash, signature: result.signature })) res.sent++;
       } catch {
         svc.log.error(`withdrawal ${w.id} was sent but could not be marked: manual review`);
       }
@@ -229,5 +232,98 @@ export async function cronWithdrawals(svc: Services): Promise<{ sent: number; re
       }
     }
   }
+  await followSentWithdrawals(svc, res);
   return res;
+}
+
+export const FINALIZING_STALE_SECONDS = 300;
+
+/**
+ * Finishes withdrawals that were sent: asks the provider for the outcome and
+ *  - SUCCESS: contract DONE, row DONE;
+ *  - REFUNDED/FAILED: the money came back to (or never left) the treasury, so the player is refunded on chain
+ *    with refund_withdraw, after checking the chain state (account, amount, status SENT).
+ * A run claims a row with a compare-and-set to FINALIZING; every chain step first reads the chain state, so a
+ * concurrent or restarted run cannot mark twice, refund twice, or refund a withdrawal that is already DONE.
+ */
+export async function followSentWithdrawals(svc: Services, res: { sent: number; refunded: number }): Promise<{ done: number }> {
+  const out = { done: 0 };
+  const sent = await svc.repo.listWithdrawalsByStatus("SENT", BATCH);
+  const stuck = (await svc.repo.listWithdrawalsByStatus("FINALIZING", BATCH)).filter((w) => svc.now() - w.updated_at > FINALIZING_STALE_SECONDS);
+  const claimed: Array<{ id: number; user_id: string; fils: string; quote_id: string | null; contract_withdraw_id: number | null; from: "SENT" | "FINALIZING" }> = [];
+  for (const w of sent) {
+    if (!w.quote_id || w.contract_withdraw_id === null) continue;
+    if (await svc.repo.transitionWithdrawal(w.id, "SENT", "FINALIZING", svc.now())) claimed.push({ ...w, from: "SENT" });
+  }
+  for (const w of stuck) {
+    if (w.quote_id && w.contract_withdraw_id !== null && (await svc.repo.reclaimWithdrawal(w.id, svc.now(), svc.now() - FINALIZING_STALE_SECONDS))) {
+      claimed.push({ ...w, from: "FINALIZING" });
+    }
+  }
+
+  const release = async (id: number): Promise<void> => {
+    await svc.repo.transitionWithdrawal(id, "FINALIZING", "SENT", svc.now()); // try again next run
+  };
+
+  for (const w of claimed) {
+    const cid = w.contract_withdraw_id!;
+    let st;
+    try {
+      st = await svc.intents.withdrawalStatus(w.quote_id!);
+    } catch {
+      svc.log.error(`withdrawal ${w.id} status check failed; will retry`);
+      await release(w.id);
+      continue;
+    }
+    if (st.state === "PENDING") {
+      await release(w.id);
+      continue;
+    }
+    try {
+      const user = await svc.repo.getUser(w.user_id);
+      const chain = await svc.contract.getWithdraw(cid);
+      if (!user?.near_account_id || !chain || chain.account_id !== user.near_account_id || chain.fils !== w.fils) {
+        svc.log.error(`ALERT: withdrawal ${w.id} does not match the chain; not finishing it`);
+        await svc.repo.transitionWithdrawal(w.id, "FINALIZING", "FAILED", svc.now());
+        continue;
+      }
+      if (st.state === "SUCCESS") {
+        if (chain.status === "SENT") {
+          try {
+            await svc.contract.operatorCall("mark_withdraw", { id: cid, status: "DONE" });
+          } catch (e) {
+            if (!(e instanceof ContractPanic && (await svc.contract.getWithdraw(cid))?.status === "DONE")) throw e; // lost a race: already DONE
+          }
+        } else if (chain.status !== "DONE") {
+          svc.log.error(`ALERT: withdrawal ${w.id} succeeded at the provider but the chain says ${chain.status}`);
+          await svc.repo.transitionWithdrawal(w.id, "FINALIZING", "FAILED", svc.now());
+          continue;
+        }
+        if (await svc.repo.transitionWithdrawal(w.id, "FINALIZING", "DONE", svc.now())) out.done++;
+        continue;
+      }
+      // REFUNDED or FAILED: return the player's dinars, but only against a verified refund where we can verify it.
+      if (st.state === "REFUNDED" && st.refundedMicro !== undefined && BigInt(st.refundedMicro) < BigInt(w.fils) * 100n) {
+        svc.log.error(`ALERT: withdrawal ${w.id} was only partly refunded by the provider; manual review`);
+        await svc.repo.transitionWithdrawal(w.id, "FINALIZING", "FAILED", svc.now());
+        continue;
+      }
+      if (chain.status === "SENT" || chain.status === "PENDING") {
+        try {
+          await svc.contract.operatorCall("refund_withdraw", { id: cid });
+        } catch (e) {
+          if (!(e instanceof ContractPanic && (await svc.contract.getWithdraw(cid))?.status === "REFUNDED")) throw e; // lost a race: already refunded
+        }
+      } else if (chain.status !== "REFUNDED") {
+        svc.log.error(`ALERT: withdrawal ${w.id} was refunded by the provider but the chain says ${chain.status}; manual review`);
+        await svc.repo.transitionWithdrawal(w.id, "FINALIZING", "FAILED", svc.now());
+        continue;
+      }
+      if (await svc.repo.transitionWithdrawal(w.id, "FINALIZING", "REFUNDED", svc.now())) res.refunded++;
+    } catch {
+      svc.log.error(`withdrawal ${w.id} could not be finished; will retry`);
+      // stays FINALIZING: picked up again after FINALIZING_STALE_SECONDS
+    }
+  }
+  return out;
 }

@@ -172,7 +172,7 @@ describe("LIVE withdrawals", () => {
     expect(c1).toEqual({ sent: 1, refunded: 0 });
     expect(c2).toEqual({ sent: 0, refunded: 0 });
     expect(kit.intents.withdrawals).toHaveLength(1);
-    expect((await kit.contract.getWithdraw(1))!.status).toBe("DONE");
+    expect((await kit.contract.getWithdraw(1))!.status).toBe("SENT"); // DONE only after the provider reports success
     const rows = await kit.db.query<{ status: string }>("select status from withdrawals");
     expect(rows).toEqual([{ status: "SENT" }]);
     expect(kit.contract.audit().total).toBe(kit.contract.audit().expected);

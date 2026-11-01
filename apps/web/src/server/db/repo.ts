@@ -52,6 +52,7 @@ export interface DepositRow {
   amount_in: string;
   expected_fils: string;
   credited_fils: string | null;
+  quote_signature: string | null;
   refund_address: string | null;
   status: DepositStatus;
   credit_ref: string | null;
@@ -60,7 +61,7 @@ export interface DepositRow {
   updated_at: number;
 }
 
-export type WithdrawalStatus = "RESERVED" | "REQUESTED" | "SENDING" | "SENT" | "REFUNDED" | "FAILED" | "CANCELLED";
+export type WithdrawalStatus = "RESERVED" | "REQUESTED" | "SENDING" | "SENT" | "FINALIZING" | "DONE" | "REFUNDED" | "FAILED" | "CANCELLED";
 export interface WithdrawalRow {
   id: number;
   user_id: string;
@@ -69,6 +70,7 @@ export interface WithdrawalRow {
   dest_asset: string;
   dest_address: string;
   quote_id: string | null;
+  quote_signature: string | null;
   status: WithdrawalStatus;
   tx_hashes: string[];
   created_at: number;
@@ -102,7 +104,7 @@ const mapAction = (r: R): ActionRow => ({
 const mapDeposit = (r: R): DepositRow => ({
   id: num(r.id), user_id: str(r.user_id), quote_id: str(r.quote_id), deposit_address: str(r.deposit_address),
   origin_asset: str(r.origin_asset), amount_in: str(r.amount_in), expected_fils: str(r.expected_fils),
-  credited_fils: optStr(r.credited_fils),
+  credited_fils: optStr(r.credited_fils), quote_signature: optStr(r.quote_signature),
   refund_address: optStr(r.refund_address), status: str(r.status) as DepositStatus, credit_ref: optStr(r.credit_ref),
   deadline: num(r.deadline), created_at: num(r.created_at), updated_at: num(r.updated_at),
 });
@@ -110,6 +112,7 @@ const mapWithdrawal = (r: R): WithdrawalRow => ({
   id: num(r.id), user_id: str(r.user_id),
   contract_withdraw_id: r.contract_withdraw_id === null || r.contract_withdraw_id === undefined ? null : num(r.contract_withdraw_id),
   fils: str(r.fils), dest_asset: str(r.dest_asset), dest_address: str(r.dest_address), quote_id: optStr(r.quote_id),
+  quote_signature: optStr(r.quote_signature),
   status: str(r.status) as WithdrawalStatus, tx_hashes: JSON.parse(str(r.tx_hashes)) as string[],
   created_at: num(r.created_at), updated_at: num(r.updated_at),
 });
@@ -237,7 +240,7 @@ export function createRepo(db: Db) {
      * Inserts the deposit only if credited + every PENDING/CREDITING row (deadline or not: cron can still credit
      * them) + this one stays within `cap`. Atomic per user (advisory lock inside one transaction).
      */
-    async insertDepositWithinCap(d: { userId: string; quoteId: string; depositAddress: string; originAsset: string; amountIn: string; expectedFils: string; refundAddress: string; deadline: number; now: number }, cap: bigint): Promise<DepositRow | null> {
+    async insertDepositWithinCap(d: { userId: string; quoteId: string; depositAddress: string; originAsset: string; amountIn: string; expectedFils: string; refundAddress: string; deadline: number; now: number; signature?: string | null }, cap: bigint): Promise<DepositRow | null> {
       return db.transaction(async (tx) => {
         await tx.query("select pg_advisory_xact_lock(hashtext($1))", [`deposit:${d.userId}`]);
         const t = await tx.query<R>(
@@ -248,9 +251,9 @@ export function createRepo(db: Db) {
         );
         if (BigInt(str(t[0]!.credited)) + BigInt(str(t[0]!.open)) + BigInt(d.expectedFils) > cap) return null;
         const rows = await tx.query<R>(
-          `insert into deposits (user_id, quote_id, deposit_address, origin_asset, amount_in, expected_fils, refund_address, status, deadline, created_at, updated_at)
-           values ($1, $2, $3, $4, $5, $6, $7, 'PENDING', $8, $9, $9) returning *`,
-          [d.userId, d.quoteId, d.depositAddress, d.originAsset, d.amountIn, d.expectedFils, d.refundAddress, d.deadline, d.now],
+          `insert into deposits (user_id, quote_id, deposit_address, origin_asset, amount_in, expected_fils, refund_address, status, deadline, created_at, updated_at, quote_signature)
+           values ($1, $2, $3, $4, $5, $6, $7, 'PENDING', $8, $9, $9, $10) returning *`,
+          [d.userId, d.quoteId, d.depositAddress, d.originAsset, d.amountIn, d.expectedFils, d.refundAddress, d.deadline, d.now, d.signature ?? null],
         );
         return mapDeposit(rows[0]!);
       });
@@ -362,13 +365,18 @@ export function createRepo(db: Db) {
     async listWithdrawalsByStatus(status: WithdrawalStatus, limit: number): Promise<WithdrawalRow[]> {
       return (await db.query<R>("select * from withdrawals where status = $1 order by id limit $2", [status, limit])).map(mapWithdrawal);
     },
-    async transitionWithdrawal(id: number, from: WithdrawalStatus, to: WithdrawalStatus, now: number, extra?: { quoteId?: string; txHash?: string }): Promise<boolean> {
+    async transitionWithdrawal(id: number, from: WithdrawalStatus, to: WithdrawalStatus, now: number, extra?: { quoteId?: string; txHash?: string; signature?: string }): Promise<boolean> {
       const rows = await db.query<R>(
-        `update withdrawals set status = $3, updated_at = $4, quote_id = coalesce($5, quote_id),
+        `update withdrawals set status = $3, updated_at = $4, quote_id = coalesce($5, quote_id), quote_signature = coalesce($7, quote_signature),
            tx_hashes = case when $6::text is null then tx_hashes else (tx_hashes::jsonb || to_jsonb($6::text))::text end
          where id = $1 and status = $2 returning id`,
-        [id, from, to, now, extra?.quoteId ?? null, extra?.txHash ?? null],
+        [id, from, to, now, extra?.quoteId ?? null, extra?.txHash ?? null, extra?.signature ?? null],
       );
+      return rows.length === 1;
+    },
+    /** Takes over a FINALIZING row whose run died (no update for `staleBefore` seconds). */
+    async reclaimWithdrawal(id: number, now: number, staleBefore: number): Promise<boolean> {
+      const rows = await db.query<R>("update withdrawals set updated_at = $2 where id = $1 and status = 'FINALIZING' and updated_at < $3 returning id", [id, now, staleBefore]);
       return rows.length === 1;
     },
     /** Fils that still have to leave the treasury (not yet sent). */

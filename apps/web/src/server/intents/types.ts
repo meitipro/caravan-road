@@ -20,6 +20,8 @@ export interface IntentQuote {
   expectedFils: string;
   /** Unix seconds. */
   deadline: number;
+  /** The provider's quote signature; the docs say to keep it for dispute resolution. */
+  signature?: string;
 }
 
 export type IntentState = "PENDING" | "SUCCESS" | "REFUNDED" | "FAILED";
@@ -43,7 +45,7 @@ export interface IntentWithdrawRequest {
 }
 
 export type IntentWithdrawResult =
-  | { ok: true; quoteId: string; txHash: string }
+  | { ok: true; quoteId: string; txHash: string; signature?: string }
   | { ok: false; reason: string };
 
 export interface IntentsClient {
@@ -54,4 +56,9 @@ export interface IntentsClient {
   quote(req: IntentQuoteRequest): Promise<IntentQuote>;
   status(quoteId: string): Promise<IntentStatus>;
   withdraw(req: IntentWithdrawRequest): Promise<IntentWithdrawResult>;
+  /**
+   * Follow-up of a withdrawal that was sent (by the quoteId withdraw() returned). `refundedMicro` is what the
+   * provider says it returned to the treasury, in USDC micro-units (1 fil = 100 micro).
+   */
+  withdrawalStatus(quoteId: string): Promise<{ state: IntentState; refundedMicro?: string }>;
 }

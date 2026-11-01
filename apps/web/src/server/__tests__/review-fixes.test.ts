@@ -102,7 +102,7 @@ describe("1 (HIGH) withdrawal ids come from the contract's receipt, never from n
         ["SENT", 2, "9000"],
       ]);
       expect(kit.intents.withdrawals.map((w) => w.fils)).toEqual(["7000", "9000"]);
-      expect((await kit.contract.getWithdraw(2))!.status).toBe("DONE");
+      expect((await kit.contract.getWithdraw(2))!.status).toBe("SENT");
     });
 
     it("the cron refuses to send a row that does not match the chain (amount or account)", async () => {
@@ -379,7 +379,7 @@ describe("12 and 13: strict secret and consistent mode", () => {
     expect(() => loadEnv({ ...base(), GAME_MODE: "LIVE" })).toThrow(/GAME_MODE/);
     expect(() => loadEnv({ ...base(), NEAR_NETWORK: "mainnet" })).toThrow(/GAME_MODE/);
     expect(() => loadEnv({ ...base(), GAME_MODE: "LIVE", NEAR_NETWORK: "mainnet" })).toThrow(/NEAR_RPC_URL/);
-    expect(() => loadEnv({ ...base(), GAME_MODE: "LIVE", NEAR_NETWORK: "mainnet", NEAR_RPC_URL: "https://rpc.example.org" })).not.toThrow();
+    expect(() => loadEnv({ ...base(), GAME_MODE: "LIVE", NEAR_NETWORK: "mainnet", NEAR_RPC_URL: "https://rpc.example.org", ONECLICK_JWT: "j", ONECLICK_USDC_ASSET_ID: "nep141:usdc.fake" })).not.toThrow();
   });
 
   it("mode-specific routes are refused when the contract runs in another mode", async () => {

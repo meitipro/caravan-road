@@ -127,7 +127,7 @@ export class FakeContract implements ContractClient {
     let total = this.house;
     for (const m of this.merchants.values()) total += m.treasury;
     for (const p of this.players.values()) total += p.fils;
-    for (const w of this.withdraws.values()) if (w.status === "PENDING") total += w.fils;
+    for (const w of this.withdraws.values()) if (w.status === "PENDING" || w.status === "SENT") total += w.fils; // escrow
     const initial = BigInt(PARAMS.MERCHANT_TREASURY_FILS) * BigInt(CITY_IDS.length);
     return { total, expected: initial + this.minted - this.burned };
   }
@@ -222,16 +222,19 @@ export class FakeContract implements ContractClient {
       case "mark_withdraw": {
         const a = args as OperatorArgs["mark_withdraw"];
         const w = this.withdraws.get(a.id);
-        if (!w || w.status !== "PENDING") panic("BAD_REQUEST", "withdrawal is not pending");
-        w!.status = "DONE";
-        this.burned += w!.fils;
+        const target = a.status ?? "DONE";
+        // Contract rules: PENDING -> SENT, PENDING|SENT -> DONE; anything else is rejected.
+        const allowed = w && ((w.status === "PENDING" && target === "SENT") || ((w.status === "PENDING" || w.status === "SENT") && target === "DONE"));
+        if (!allowed) panic("BAD_REQUEST", "withdrawal cannot move to that status");
+        w!.status = target;
+        if (target === "DONE") this.burned += w!.fils;
         this.emit("withdraw_marked", { id: a.id, reference: a.reference });
         break;
       }
       case "refund_withdraw": {
         const a = args as OperatorArgs["refund_withdraw"];
         const w = this.withdraws.get(a.id);
-        if (!w || w.status !== "PENDING") panic("BAD_REQUEST", "withdrawal is not pending");
+        if (!w || (w.status !== "PENDING" && w.status !== "SENT")) panic("BAD_REQUEST", "withdrawal cannot be refunded");
         w!.status = "REFUNDED";
         this.players.get(w!.account_id)!.fils += w!.fils;
         this.emit("withdraw_marked", { id: a.id, refunded: true });

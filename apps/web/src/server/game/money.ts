@@ -56,7 +56,7 @@ export const depositQuoteSpec: PostSpec<z.infer<typeof DepositQuoteRequestSchema
     // The authoritative cap check is atomic with the insert (parallel quotes cannot both fit).
     const row = await svc.repo.insertDepositWithinCap({
       userId: user.id, quoteId: q.quoteId, depositAddress: q.depositAddress, originAsset: body.origin_asset,
-      amountIn: q.amountIn, expectedFils: q.expectedFils, refundAddress: body.refund_address, deadline: q.deadline, now,
+      amountIn: q.amountIn, expectedFils: q.expectedFils, refundAddress: body.refund_address, deadline: q.deadline, now, signature: q.signature ?? null,
     }, cap);
     if (!row) throw new ApiError("BAD_REQUEST", "This deposit would exceed the deposit limit.");
     return { quote_id: q.quoteId, deposit_address: q.depositAddress, amount_in: q.amountIn, expected_fils: q.expectedFils, deadline: q.deadline };

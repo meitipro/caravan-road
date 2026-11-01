@@ -337,7 +337,7 @@ export class OneClickIntents implements IntentsClient {
       this.log.warn(`1Click deposit quote created correlation=${r.correlationId.slice(0, 64)} address=${short(depositAddress!)}`);
       return {
         quoteId: depositAddress!, depositAddress: depositAddress!, amountIn: r.quote.amountIn,
-        expectedFils: expected.toString(), deadline: deadline!,
+        expectedFils: expected.toString(), deadline: deadline!, signature: r.signature,
       };
     } catch (e) {
       throw this.asApiError(e, "deposit quote");
@@ -446,6 +446,7 @@ export class OneClickIntents implements IntentsClient {
 
     let usdc: UsdcInfo;
     let depositAddress: string;
+    let signature: string | undefined;
     try {
       usdc = await this.usdc();
       if (!(await this.tokenMap()).has(req.destAsset)) return { ok: false, reason: "unsupported destination asset" };
@@ -478,6 +479,7 @@ export class OneClickIntents implements IntentsClient {
       // The deposit address is on NEAR (origin chain = NEAR): it must look like a NEAR account id.
       if (!NEAR_ACCOUNT.test(checked.depositAddress!)) throw new OneClickError("rejected", "Quote rejected (deposit address is not a NEAR account)");
       depositAddress = checked.depositAddress!;
+      signature = r.signature;
       this.log.warn(`1Click withdrawal quote created correlation=${r.correlationId.slice(0, 64)} address=${short(depositAddress)}`);
     } catch (e) {
       // Nothing has been sent yet, so the player can be refunded safely.
@@ -501,6 +503,6 @@ export class OneClickIntents implements IntentsClient {
     } catch {
       this.log.warn(`withdrawal ${req.ref}: deposit notification failed (harmless)`);
     }
-    return { ok: true, quoteId: depositAddress, txHash: t.txHash };
+    return { ok: true, quoteId: depositAddress, txHash: t.txHash, signature };
   }
 }

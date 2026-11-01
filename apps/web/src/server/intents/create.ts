@@ -4,7 +4,7 @@
 //
 // Variables: ONECLICK_JWT, TREASURY_ACCOUNT_ID, TREASURY_PRIVATE_KEY, NEAR_RPC_URL (mainnet) are read by
 // env.ts; ONECLICK_USDC_ASSET_ID (the assetId of USDC on NEAR, copied by the operator from GET /v0/tokens)
-// is read here because env.ts is outside this component (see OPEN_ISSUES.md).
+// is now also validated by env.ts (required together with ONECLICK_JWT in LIVE) and read from there first.
 
 import type { ServerEnv } from "../env";
 import { log as defaultLog, type Logger } from "../log";
@@ -22,11 +22,11 @@ export interface CreateIntentsOptions {
   overrides?: Partial<OneClickConfig>;
 }
 
-type Needed = Pick<ServerEnv, "GAME_MODE" | "NEAR_NETWORK" | "NEAR_RPC_URL" | "ONECLICK_JWT" | "TREASURY_ACCOUNT_ID" | "TREASURY_PRIVATE_KEY">;
+type Needed = Pick<ServerEnv, "GAME_MODE" | "NEAR_NETWORK" | "NEAR_RPC_URL" | "ONECLICK_JWT" | "TREASURY_ACCOUNT_ID" | "TREASURY_PRIVATE_KEY"> & { ONECLICK_USDC_ASSET_ID?: string };
 
 export function createIntentsClient(env: Needed, opts: CreateIntentsOptions = {}): IntentsClient {
   const lg = opts.log ?? defaultLog;
-  const usdcAssetId = (opts.source ?? process.env).ONECLICK_USDC_ASSET_ID || undefined;
+  const usdcAssetId = env.ONECLICK_USDC_ASSET_ID || (opts.source ?? process.env).ONECLICK_USDC_ASSET_ID || undefined;
 
   if (env.GAME_MODE !== "LIVE" || env.NEAR_NETWORK !== "mainnet") return unconfiguredIntents; // PLAY: money routes are closed anyway
 

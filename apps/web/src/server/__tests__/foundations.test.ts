@@ -153,7 +153,7 @@ describe("custody (AES-256-GCM with a test-only key)", () => {
 describe("database and repository (PGlite)", () => {
   it("migrates once and creates every table of plan 6.4", async () => {
     const db = await createPgliteDb();
-    expect((await migrate(db)).length).toBe(2);
+    expect((await migrate(db)).length).toBe(3);
     expect(await migrate(db)).toEqual([]);
     const tables = (await db.query<{ table_name: string }>("select table_name from information_schema.tables where table_schema = 'public'")).map((r) => r.table_name);
     for (const t of ["users", "custody_keys", "actions", "deposits", "withdrawals", "npc_decisions", "worker_heartbeat", "rate_limits", "flags"]) {

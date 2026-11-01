@@ -75,3 +75,11 @@ the file named in each item (I did not edit those files).
 13. **Terms of use.** The API has its own terms
     (<https://docs.near-intents.org/security-compliance/terms-of-service.md>) and a risk/compliance page. I did not
     review them; Mahdi should read them before going LIVE.
+
+## Resolved by the server owner
+
+- Item 7 (SENT withdrawals never followed): `game/cron.ts` `followSentWithdrawals` now polls `IntentsClient.withdrawalStatus()`
+  (added to the interface), marks DONE on success and calls `refund_withdraw` on REFUNDED/FAILED after checking the chain state.
+  The contract is first marked SENT (not DONE) so a refund remains possible.
+- Item 9 (quote signature): stored in the nullable `quote_signature` columns (migration 0003) for deposits and withdrawals.
+- Item 3 (env): `ONECLICK_USDC_ASSET_ID` is validated in `env.ts` (required with `ONECLICK_JWT` in LIVE).

@@ -34,7 +34,9 @@ const EnvSchema = z.object({
   DATABASE_URL: nonEmpty,
   AUTH_SECRET: nonEmpty,
   CRON_SECRET: nonEmpty,
+  // Optional in PLAY (money routes are closed); in LIVE both are required together (checked in loadEnv).
   ONECLICK_JWT: nonEmpty.optional(),
+  ONECLICK_USDC_ASSET_ID: z.string().regex(/^nep141:\S+$/, "must look like nep141:<contract>").optional(),
 });
 
 export type ServerEnv = Omit<z.infer<typeof EnvSchema>, "KEY_ENC_SECRET"> & { KEY_ENC_SECRET: Uint8Array };
@@ -69,6 +71,11 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
       bad.add("NEAR_NETWORK");
     }
     if (NEAR_NETWORK === "mainnet" && !parsed.data.NEAR_RPC_URL) bad.add("NEAR_RPC_URL");
+    // LIVE needs the 1Click credential and the USDC asset id together; PLAY needs neither.
+    if (GAME_MODE === "LIVE") {
+      if (!parsed.data.ONECLICK_JWT) bad.add("ONECLICK_JWT");
+      if (!parsed.data.ONECLICK_USDC_ASSET_ID) bad.add("ONECLICK_USDC_ASSET_ID");
+    }
   }
   if (bad.size > 0 || !parsed.success || !secret) throw new EnvError([...bad].sort());
   return { ...parsed.data, KEY_ENC_SECRET: secret };

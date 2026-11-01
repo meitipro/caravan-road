@@ -113,7 +113,8 @@ export interface PlayerArgs {
 
 export interface OperatorArgs {
   credit_deposit: { account_id: string; fils: Fils; reference: string };
-  mark_withdraw: { id: number; reference: string };
+  /** Default status DONE. SENT (PENDING -> SENT) keeps a refund possible until the provider finishes. */
+  mark_withdraw: { id: number; status?: "SENT" | "DONE"; reference?: string };
   refund_withdraw: { id: number };
   set_paused: { paused: boolean };
 }
