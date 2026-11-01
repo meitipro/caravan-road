@@ -41,7 +41,7 @@ Times are UTC.
 - [x] Phase 6 — art pipeline done (`78f0972`, `930a3e6`): 18 slots with exact sizes, 25 tests pass (re-run by Claude 2026-10-30). CREDITS.md notes UI fonts are not yet recorded.
 - [ ] Phase 7 — 1Click client built offline (`c3fb765`): asset list, deposit/withdraw, status mapping, fail-closed, 254 web tests pass (re-verified 2026-11-01), doc-derived fixtures only, never called the real API. Gaps: no cron polling of SENT withdrawals (1Click refunds not returned to the player), auth header X-API-Key vs JWT unconfirmed, USDC asset id and treasury registration need the live test (`docs/INTENTS.md`). All mainnet actions are Mahdi's.
 - [ ] Phase 8 — integration, tuning, review
-- [ ] Phase 9 — README, docs, judge rehearsal
+- [ ] Phase 9 — README/docs DRAFT done (`dc649e3`): README, ARCHITECTURE, ECONOMY, DEPLOY, CREDITS (fonts OFL 1.1), helper scripts (`check-env`, `secret-scan`, `init-args`, `call-cron`); honest timeline (first commit 2026-10-22 UTC, 31 commits before the window). TODO(owner): live URL, video/X post, team statement, root LICENSE. Judge rehearsal by a fresh agent not yet run; wait until the live PLAY demo exists. Secret-scan history hit `ed25519:3tys...` in a redaction test sample (public-key-shaped example, not in HEAD): checked by Claude 2026-11-01, not a secret.
 - [ ] Phase 10 — demo, X post, submission
 
 ## Decisions
