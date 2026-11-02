@@ -58,7 +58,7 @@ export function findRoute(from: CityId, to: CityId): RouteSpec | undefined {
 // Parameter names and values: spec/ECONOMY.md section 2.5 and Appendix A (world.py).
 export const PARAMS = {
   TICK_SECONDS: 60,
-  MULT_K_BP: 4000,
+  MULT_K_BP: 3000, // spec-v1.2 (PROPOSAL); spec-v1.1 was 4000
   MULT_MIN_BP: 7500,
   MULT_MAX_BP: 13500,
   STOCK_CAP_FACTOR: 2,
