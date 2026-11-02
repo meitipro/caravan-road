@@ -1,4 +1,5 @@
-//! Golden vectors (spec/ECONOMY.md 2.7) and price math parity with packages/shared/src/quote.ts.
+//! Golden vectors (spec/ECONOMY.md 2.7; spec-v1.2 PROPOSAL values, MULT_K_BP = 3000) and price math parity with
+//! packages/shared/src/quote.ts.
 
 use crate::math::*;
 
@@ -8,14 +9,16 @@ use crate::types::*;
 
 #[test]
 fn golden_vectors_section_2_7() {
-    // good, stock, spread_bp, bias_bp, bid, mid, ask  (spec/ECONOMY.md 2.7, verbatim)
+    // good, stock, spread_bp, bias_bp, bid, mid, ask  (spec/ECONOMY.md 2.7, verbatim, spec-v1.2 / K = 3000).
+    // spec-v1.1 (K = 4000) had grain 0: 1296/1350/1404, iron 37: 4807/5008/5208, spice 55: 9827/10455/11082,
+    // silk 12: 21873/22320/22766; the other three rows are unchanged (grain 200 at target, grain 400 and silk 60 on the low clamp).
     let rows: [(GoodId, i128, u32, i32, u128, u128, u128); 7] = [
-        (GoodId::Grain, 0, 800, 0, 1296, 1350, 1404),
+        (GoodId::Grain, 0, 800, 0, 1248, 1300, 1352),
         (GoodId::Grain, 200, 800, 0, 960, 1000, 1040),
         (GoodId::Grain, 400, 800, 0, 720, 750, 780),
-        (GoodId::Iron, 37, 800, 0, 4807, 5008, 5208),
-        (GoodId::Spice, 55, 1200, 250, 9827, 10455, 11082),
-        (GoodId::Silk, 12, 400, -1000, 21873, 22320, 22766),
+        (GoodId::Iron, 37, 800, 0, 4565, 4756, 4946),
+        (GoodId::Spice, 55, 1200, 250, 10261, 10916, 11570),
+        (GoodId::Silk, 12, 400, -1000, 20815, 21240, 21664),
         (GoodId::Silk, 60, 2000, 1500, 15525, 17250, 18975),
     ];
     for (g, stock, spread, bias, bid, mid, ask) in rows {
@@ -26,41 +29,51 @@ fn golden_vectors_section_2_7() {
 
 #[test]
 fn mult_bp_truncates_toward_zero() {
-    // 4000 * (30 - 31) / 30 = -133.33: truncation gives -133 (9867); floor would give 9866.
-    assert_eq!(mult_bp(31, 30).unwrap(), 10000 - 133);
-    assert_eq!(mult_bp(29, 30).unwrap(), 10000 + 133);
+    // With K = 3000 every real target (30, 40, 100, 120, 200) divides 3000 x d exactly, so the truncation is
+    // exercised with synthetic targets: 3000 * (7 - 8) / 7 = -428.57: truncation gives -428 (9572); floor would give 9571.
+    assert_eq!(mult_bp(8, 7).unwrap(), 10000 - 428);
+    assert_eq!(mult_bp(6, 7).unwrap(), 10000 + 428);
+    // real targets: exact steps of 100 bp per unit for silk (target 30)
+    assert_eq!(mult_bp(31, 30).unwrap(), 10000 - 100);
+    assert_eq!(mult_bp(29, 30).unwrap(), 10000 + 100);
+    // upper clamp is unreachable for stock >= 0 (max 13000) but still applies to out-of-range inputs
+    assert_eq!(mult_bp(0, 30).unwrap(), 13000);
     assert_eq!(mult_bp(-1000, 30).unwrap(), 13500);
+    // lower clamp binds from 183.3% of target: target 200, stock 366 -> 7510, stock 367 -> 7495 -> 7500
+    assert_eq!(mult_bp(366, 200).unwrap(), 7510);
+    assert_eq!(mult_bp(367, 200).unwrap(), 7500);
     assert_eq!(mult_bp(1000, 30).unwrap(), 7500);
 }
 
 #[test]
 fn trade_cost_matches_reference_vectors() {
-    // Generated from scripts/ref/world.py quote() (same math as packages/shared tradeCost()):
+    // Generated from a LOCAL copy of scripts/ref/world.py quote() with MULT_K_BP = 3000 (spec-v1.2 PROPOSAL; scripts/ref itself
+    // still says 4000) and cross-checked with tradeCost() in packages/shared: same inputs as spec-v1.1, new prices.
     // good, side, qty, merchant stock, spread, bias, unit, total, fee
     let rows: [TradeVector; 24] = [
-        (GoodId::Grain, Side::Buy, 18, 89, 901, -586, 1219, 21942, 219),
-        (GoodId::Grain, Side::Buy, 38, 53, 1264, -1370, 1221, 46398, 463),
-        (GoodId::Grain, Side::Buy, 15, 28, 1434, 965, 1586, 23790, 237),
-        (GoodId::Silk, Side::Buy, 35, 49, 1259, -598, 19454, 680890, 6808),
-        (GoodId::Silk, Side::Sell, 1, 44, 1954, -847, 13435, 13435, 134),
-        (GoodId::Spice, Side::Sell, 18, 61, 718, -619, 8138, 146484, 1464),
-        (GoodId::Iron, Side::Buy, 6, 97, 1178, -1104, 3857, 23142, 231),
-        (GoodId::Iron, Side::Sell, 3, 137, 1894, 381, 3187, 9561, 95),
-        (GoodId::Grain, Side::Sell, 6, 321, 1530, -300, 673, 4038, 40),
-        (GoodId::Silk, Side::Sell, 37, 2, 793, 1385, 24783, 916971, 9169),
-        (GoodId::Grain, Side::Buy, 19, 70, 563, -547, 1241, 23579, 235),
-        (GoodId::Spice, Side::Sell, 30, 10, 1701, -6, 12618, 378540, 3785),
+        (GoodId::Grain, Side::Buy, 18, 89, 901, -586, 1159, 20862, 208),
+        (GoodId::Grain, Side::Buy, 38, 53, 1264, -1370, 1145, 43510, 435),
+        (GoodId::Grain, Side::Buy, 15, 28, 1434, 965, 1489, 22335, 223),
+        (GoodId::Silk, Side::Buy, 35, 49, 1259, -598, 19586, 685510, 6855),
+        (GoodId::Silk, Side::Sell, 1, 44, 1954, -847, 14204, 14204, 142),
+        (GoodId::Spice, Side::Sell, 18, 61, 718, -619, 8410, 151380, 1513),
+        (GoodId::Iron, Side::Buy, 6, 97, 1178, -1104, 3835, 23010, 230),
+        (GoodId::Iron, Side::Sell, 3, 137, 1894, 381, 3330, 9990, 99),
+        (GoodId::Grain, Side::Sell, 6, 321, 1530, -300, 728, 4368, 43),
+        (GoodId::Silk, Side::Sell, 37, 2, 793, 1385, 24055, 890035, 8900),
+        (GoodId::Grain, Side::Buy, 19, 70, 563, -547, 1173, 22287, 222),
+        (GoodId::Spice, Side::Sell, 30, 10, 1701, -6, 12207, 366210, 3662),
         (GoodId::Iron, Side::Sell, 14, 179, 1772, -407, 2622, 36708, 367),
-        (GoodId::Grain, Side::Buy, 35, 118, 1893, -498, 1245, 43575, 435),
-        (GoodId::Spice, Side::Sell, 18, 35, 1710, 1318, 11923, 214614, 2146),
-        (GoodId::Salt, Side::Sell, 4, 206, 869, -1369, 927, 3708, 37),
-        (GoodId::Iron, Side::Sell, 18, 145, 535, -636, 2857, 51426, 514),
-        (GoodId::Iron, Side::Buy, 32, 149, 1210, 1133, 4098, 131136, 1311),
-        (GoodId::Salt, Side::Sell, 9, 137, 905, 799, 1437, 12933, 129),
-        (GoodId::Iron, Side::Sell, 38, 56, 1217, -18, 4124, 156712, 1567),
+        (GoodId::Grain, Side::Buy, 35, 118, 1893, -498, 1193, 41755, 417),
+        (GoodId::Spice, Side::Sell, 18, 35, 1710, 1318, 12047, 216846, 2168),
+        (GoodId::Salt, Side::Sell, 4, 206, 869, -1369, 965, 3860, 38),
+        (GoodId::Iron, Side::Sell, 18, 145, 535, -636, 3054, 54972, 549),
+        (GoodId::Iron, Side::Buy, 32, 149, 1210, 1133, 4254, 136128, 1361),
+        (GoodId::Salt, Side::Sell, 9, 137, 905, 799, 1464, 13176, 131),
+        (GoodId::Iron, Side::Sell, 38, 56, 1217, -18, 4031, 153178, 1531),
         (GoodId::Salt, Side::Sell, 6, 220, 1947, -1308, 881, 5286, 52),
-        (GoodId::Grain, Side::Buy, 11, 316, 1793, 229, 866, 9526, 95),
-        (GoodId::Grain, Side::Sell, 25, 270, 1620, 417, 799, 19975, 199),
+        (GoodId::Grain, Side::Buy, 11, 316, 1793, 229, 928, 10208, 102),
+        (GoodId::Grain, Side::Sell, 25, 270, 1620, 417, 839, 20975, 209),
         (GoodId::Iron, Side::Buy, 8, 200, 1796, 699, 3497, 27976, 279),
     ];
     for (g, side, qty, stock, spread, bias, unit, total, fee) in rows {
@@ -157,7 +170,7 @@ fn ship_gap_integer_test_ships_at_exactly_50_percent() {
 
 #[test]
 fn ship_payment_is_average_of_mids() {
-    // grain mids: stock 300 -> 800, stock 100 -> 1200; average 1000 x 4
+    // grain mids (K = 3000): stock 300 -> 850, stock 100 -> 1150; average 1000 x 4
     assert_eq!(ship_payment(GoodId::Grain, 300, 100, 4).unwrap(), 4000);
 }
 
