@@ -5,6 +5,11 @@ Audience: a judge or a developer who wants to check the numbers. Everything here
 `spec/ECONOMY.md`, `spec/GAME.md`, `spec/CHANGELOG.md` and `contracts/caravan/DECISIONS.md`, or was
 produced by a command listed in the section where it appears.
 
+> **spec-v1.2 PROPOSAL (branch `proposal/spec-v1.2-mult-k-3000`).** This file shows `MULT_K_BP = 3000` (spec-v1.1: 4000).
+> Prices, golden vectors, the mid-price ranges and the `pnpm sim` numbers were recomputed from real runs; the Appendix B
+> figures of spec-v1.1 (64 / 5,944 / 23, 177 / 1,088 / 43, 342 / 1,099 / 86) no longer apply to the shared sim.
+> Figures that were not re-run are labelled "spec-v1.1, K = 4000". See `spec/CHANGELOG.md`.
+
 ## 1. Which numbers are which
 
 Three kinds of numbers appear in this repository. Do not mix them.
@@ -15,9 +20,11 @@ Three kinds of numbers appear in this repository. Do not mix them.
 | **Appendix B reference** | The Python reference simulation of the master plan and its published table (spec section 2.9). Its rules differ from the contract in three places (section 8.2) | `scripts/ref/economy_sim.py`, ported to `packages/shared/src/sim.ts` | `pnpm sim --bots N --ticks 240 --seed 7` |
 | **Worker evaluation** | The NPC loop against its own in-memory world, with a scripted FAKE model | `apps/worker/src/sim-world.ts`, `docs/NPC_EVAL.md` | `pnpm --filter @caravan/worker eval` |
 
-`pnpm sim` prints the Appendix B reference numbers, not the contract's. The contract-rule figures in
-section 8.2 come from `contracts/caravan/DECISIONS.md` and `spec/CHANGELOG.md` (the reference script run with the
-three contract decisions switched on); there is no command in the repository that prints them.
+`pnpm sim` prints the Appendix B reference rules, not the contract's, with `MULT_K_BP = 3000` on this branch. The
+unchanged `scripts/ref/economy_sim.py` still has K = 4000 and prints the spec-v1.1 numbers until `scripts/ref/world.py` is
+changed by the owner. The contract-rule figures in section 8.2 come from `contracts/caravan/DECISIONS.md` and
+`spec/CHANGELOG.md` (spec-v1.1, K = 4000) and from `scripts/analysis/econ_variant.py` (`contract_d123`, K = 3000); no
+`pnpm` command prints them.
 
 ## 2. Units
 
@@ -33,11 +40,13 @@ Goods (spec 2.2):
 
 | id | base (fils) | base (dinar) | target stock | stock cap (2 x target) | mid-price range (fils) |
 |---|---|---|---|---|---|
-| `grain` | 1,000 | 10 | 200 | 400 | 750 - 1,350 |
-| `salt` | 1,500 | 15 | 120 | 240 | 1,125 - 2,025 |
-| `iron` | 4,000 | 40 | 100 | 200 | 3,000 - 5,400 |
-| `spice` | 12,000 | 120 | 40 | 80 | 9,000 - 16,200 |
-| `silk` | 20,000 | 200 | 30 | 60 | 15,000 - 27,000 |
+| `grain` | 1,000 | 10 | 200 | 400 | 750 - 1,300 |
+| `salt` | 1,500 | 15 | 120 | 240 | 1,125 - 1,950 |
+| `iron` | 4,000 | 40 | 100 | 200 | 3,000 - 5,200 |
+| `spice` | 12,000 | 120 | 40 | 80 | 9,000 - 15,600 |
+| `silk` | 20,000 | 200 | 30 | 60 | 15,000 - 26,000 |
+
+The upper bounds were 1,350 / 2,025 / 5,400 / 16,200 / 27,000 in spec-v1.1 (K = 4000); the lower bounds did not change.
 
 Cities, net change per 60 s tick (spec 2.3). Each city starts every good at its target stock; stock is
 clamped to `[0, 2 x target]`:
@@ -84,35 +93,37 @@ randomness source is the block's `random_seed`, which is not tamper-proof (READM
 Basis points: 10,000 bp = 100%.
 
 ```
-mult_bp(stock, target) = clamp( 10000 + 4000 * (target - stock) / target , 7500 , 13500 )
+mult_bp(stock, target) = clamp( 10000 + 3000 * (target - stock) / target , 7500 , 13500 )
 mid  = base * mult_bp / 10000
 mid  = mid * (10000 + bias_bp) / 10000            # merchant bias
 ask  = mid * (10000 + spread_bp / 2) / 10000      # the player buys at ask
 bid  = mid * (10000 - spread_bp / 2) / 10000      # the player sells at bid
 ```
 
-Scarce goods (stock under target) cost more, abundant goods cost less, within 75% to 135% of base. Each
+Scarce goods (stock under target) cost more, abundant goods cost less, within 75% to 130% of base (spec-v1.1: 135%; at K = 3000 the multiplier tops out at 13000, so only the lower clamp can bind). Each
 merchant also sets a `spread_bp` (400 to 2000, default 800) and a `bias_bp` (-1500 to +1500) once a minute;
 that is the only thing the AI decides (see `spec/NPC.md`).
 
 Worked example, the golden vector `spice`, stock 55, spread 1200, bias 250 (target 40):
 
 ```
-mult = 10000 + 4000 * (40 - 55) / 40 = 10000 - 1500 = 8500
-mid  = 12000 * 8500 / 10000          = 10200
-mid  = 10200 * 10250 / 10000         = 10455
-ask  = 10455 * 10600 / 10000         = 11082   (11082.3 truncated)
-bid  = 10455 *  9400 / 10000         =  9827   ( 9827.7 truncated)
+mult = 10000 + 3000 * (40 - 55) / 40 = 10000 - 1125 = 8875
+mid  = 12000 * 8875 / 10000          = 10650
+mid  = 10650 * 10250 / 10000         = 10916   (10916.25 truncated)
+ask  = 10916 * 10600 / 10000         = 11570   (11570.96 truncated)
+bid  = 10916 *  9400 / 10000         = 10261   (10261.04 truncated)
 ```
 
-Output of `quote()` for these inputs, run on 2026-11-01: `{"bid":"9827","mid":"10455","ask":"11082"}`.
+Output of `quote()` for these inputs, run on 2026-11-02 with K = 3000: `{"bid":"10261","mid":"10916","ask":"11570"}`
+(spec-v1.1, K = 4000: 9827 / 10455 / 11082).
 
 ### Trade rules (spec 2.6, contract `trade`)
 
 - **Midpoint pricing.** Buying `qty` units is priced at the `ask` for stock `stock - qty/2`; selling at the `bid`
   for stock `stock + qty/2` (integer division). Example from `tradeCost()`: buying 10 grain at stock 200,
-  spread 800, bias 0 prices at stock 195: mult 10100, mid 1010, ask 1050, total 10,500 fils, fee 105 fils. Selling
-  the same 10 grain at stock 200 prices at stock 205: unit 950, total 9,500 fils, fee 95 fils.
+  spread 800, bias 0 prices at stock 195: mult 10075, mid 1007, ask 1047, total 10,470 fils, fee 104 fils. Selling
+  the same 10 grain at stock 200 prices at stock 205: unit 952, total 9,520 fils, fee 95 fils (spec-v1.1, K = 4000:
+  ask 1050, total 10,500, fee 105; unit 950, total 9,500, fee 95).
 - **Fee**: 1% of the trade total, paid by the player to `house`.
 - At most 40 units per trade; a caravan holds at most 40 units.
 - The player must be in that city and not travelling.
@@ -126,7 +137,7 @@ Output of `quote()` for these inputs, run on 2026-11-01: `{"bid":"9827","mid":"1
 | parameter | value | meaning |
 |---|---|---|
 | `TICK_SECONDS` | 60 | world tick length |
-| `MULT_K_BP / MIN / MAX` | 4000 / 7500 / 13500 | price sensitivity and clamp of the multiplier |
+| `MULT_K_BP / MIN / MAX` | 3000 / 7500 / 13500 | price sensitivity and clamp of the multiplier (spec-v1.2 PROPOSAL; spec-v1.1: 4000) |
 | `SPREAD_DEFAULT / MIN / MAX` | 800 / 400 / 2000 | buy/sell spread (bp) |
 | `BIAS_MIN / MAX` | -1500 / +1500 | merchant mid-price bias (bp) |
 | `TRADE_FEE_BP` | 100 | trade fee paid by the player (to `house`) |
@@ -153,13 +164,16 @@ Rust and TypeScript must both produce exactly these (spec 2.7). They are asserte
 
 | good | stock | spread_bp | bias_bp | bid | mid | ask |
 |---|---|---|---|---|---|---|
-| `grain` | 0 | 800 | 0 | 1296 | 1350 | 1404 |
+| `grain` | 0 | 800 | 0 | 1248 | 1300 | 1352 |
 | `grain` | 200 | 800 | 0 | 960 | 1000 | 1040 |
 | `grain` | 400 | 800 | 0 | 720 | 750 | 780 |
-| `iron` | 37 | 800 | 0 | 4807 | 5008 | 5208 |
-| `spice` | 55 | 1200 | 250 | 9827 | 10455 | 11082 |
-| `silk` | 12 | 400 | -1000 | 21873 | 22320 | 22766 |
+| `iron` | 37 | 800 | 0 | 4565 | 4756 | 4946 |
+| `spice` | 55 | 1200 | 250 | 10261 | 10916 | 11570 |
+| `silk` | 12 | 400 | -1000 | 20815 | 21240 | 21664 |
 | `silk` | 60 | 2000 | 1500 | 15525 | 17250 | 18975 |
+
+These are the spec-v1.2 (K = 3000) values; spec-v1.1 (K = 4000) had 1296 / 1350 / 1404, 4807 / 5008 / 5208,
+9827 / 10455 / 11082 and 21873 / 22320 / 22766 in rows 1, 4, 5 and 6. The derivations are in `spec/ECONOMY.md` 2.7.
 
 ## 7. World tick
 
@@ -194,18 +208,24 @@ Setup: greedy bots, 240 ticks (4 hours), seed 7, house caravans, rebalancing and
 buys where the price is lowest, travels, sells where it is highest, with no strategy beyond that. This is a
 sanity check that the loop is profitable and money is conserved, not a forecast of player behaviour.
 
-Commands run from the repository root on 2026-11-01 (`pnpm sim --bots N --ticks 240 --seed 7`); the Python
-reference (`python scripts/ref/economy_sim.py N 240 7`) printed the same three rows:
+Commands run from the repository root on 2026-11-02, on the spec-v1.2 branch with `MULT_K_BP = 3000`
+(`pnpm sim --bots N --ticks 240 --seed 7`). A local copy of the Python reference with K changed to 3000 (`scripts/ref`
+itself is untouched and still says 4000) printed the same output for all three rows:
 
 | Bots | Trips | Median profit per trip (fils) | p10 / p90 profit (fils) | "Merchant broke" events | Money conserved |
 |---|---|---|---|---|---|
-| 2 | 64 | 5,944 | -15,756 / 19,810 | 23 | yes, every tick |
-| 5 | 177 | 1,088 | -10,531 / 12,948 | 43 | yes, every tick |
-| 10 | 342 | 1,099 | -18,487 / 15,775 | 86 | yes, every tick |
+| 2 | 53 | 5,795 | -13,572 / 17,385 | 10 | yes, every tick |
+| 5 | 190 | 1,392 | -17,013 / 14,836 | 47 | yes, every tick |
+| 10 | 329 | 689 | -15,825 / 14,578 | 72 | yes, every tick |
 
-Further output for 5 bots (same run): final bot net worth (fils) `[122925, 49894, 10243, 18568, 11332]` (wealth
-concentrates: one bot ends far ahead of the rest), the mid price range seen for spice (9,000 - 16,200) and silk
-(15,000 - 27,000) equals the clamps (scarce goods sit at the clamp), and the money check
+spec-v1.1 (K = 4000) printed 64 / 5,944 / -15,756 / 19,810 / 23, 177 / 1,088 / -10,531 / 12,948 / 43 and
+342 / 1,099 / -18,487 / 15,775 / 86 for the same rows. Those Appendix B figures are what the unchanged
+`scripts/ref/economy_sim.py` still prints.
+
+Further output for 5 bots (same run): final bot net worth (fils) `[64404, 46522, 30924, 15897, 68025]` (one bot ends
+well ahead of the rest), the mid price range seen for spice (9,000 - 15,600) and silk (15,000 - 26,000) equals the
+range of the price curve at K = 3000, as it did at K = 4000 (scarce goods still reach the end of the range; see
+`docs/ECONOMY_TUNING.md` section 4 for how often), and the money check
 "merchants + house + bot cash = 450,000 (start 450,000; ambush destroys goods only)".
 
 What the run shows, and what it does not:
@@ -213,7 +233,7 @@ What the run shows, and what it does not:
 - Money is conserved on every tick because production and consumption create and destroy goods, not money; so the
   largest loss the operator can suffer in LIVE equals the merchants' treasuries (4 x 5 = 20 USDC).
 - A median trip is profitable, but p10 is negative: ambushes and price moves lose money on some trips.
-- "Merchant broke" events grow with the number of bots (23, 43, 86): with many players some treasuries run dry.
+- "Merchant broke" events grow with the number of bots (10, 47, 72; spec-v1.1: 23, 43, 86): with many players some treasuries run dry.
   Rebalancing, house recycling and the merchants' policy (wider spread when poor) exist to soften this.
 - It does not say how real players behave, and the model is chaotic: one changed rounding moves later choices and
   medians swing by 2x (see 8.2).
@@ -228,16 +248,21 @@ The contract differs from Appendix B in three places (`spec/CHANGELOG.md`, spec-
 | Tick order | production, house caravans, rebalancing, recycling | production, rebalancing, recycling, then merchant-driven shipping (D2) |
 | Caravan gap test | float `(hi/target - lo/target) x 10000 >= 5000` | integer `(hi - lo) x 10000 >= 5000 x target` (D3) |
 
-Reference script re-run with all three decisions on (seed 7, 240 ticks), as recorded in
-`contracts/caravan/DECISIONS.md` and `spec/CHANGELOG.md` (not reproducible with a command in this repository):
+Reference rules with all three decisions on (seed 7, 240 ticks), `MULT_K_BP = 3000`, computed with
+`scripts/analysis/econ_variant.py` (`contract_d123(mult_k=3000)`; the same function reproduces the spec-v1.1
+figures 61/6,714/26, 132/933/44, 344/958/74 at K = 4000, `python scripts/analysis/validate.py` section 3). There is no `pnpm`
+command that prints these:
 
 | Bots | Trips | Median profit per trip (fils) | "Merchant broke" events | Money conserved |
 |---|---|---|---|---|
-| 2 | 61 | 6,714 | 26 | yes |
-| 5 | 132 | 933 | 44 | yes |
-| 10 | 344 | 958 | 74 | yes |
+| 2 | 53 | 8,175 | 16 | yes |
+| 5 | 182 | 739 | 28 | yes |
+| 10 | 314 | 704 | 66 | yes |
 
-Each decision on its own (DECISIONS table): floor loss only 72/5,382/26 (2 bots), 158/1,723/45 (5), 341/1,341/94 (10);
+spec-v1.1 (K = 4000), as recorded in `contracts/caravan/DECISIONS.md` and `spec/CHANGELOG.md`: 61 / 6,714 / 26,
+132 / 933 / 44, 344 / 958 / 74.
+
+Each decision on its own (DECISIONS table, spec-v1.1, K = 4000, not re-run for K = 3000): floor loss only 72/5,382/26 (2 bots), 158/1,723/45 (5), 341/1,341/94 (10);
 tick order only 52/818/12, 183/1,236/30, 329/710/45; integer gap only 64/5,944/23, 165/1,352/40, 351/1,019/79. The
 qualitative findings of 8.1 hold in every variant (money conserved, trips profitable, broke events grow with bots).
 `packages/shared/src/sim.ts` was not changed to the contract rules: it reproduces Appendix B exactly and is the reference.
@@ -245,17 +270,20 @@ qualitative findings of 8.1 hold in every variant (money conserved, trips profit
 ### 8.3 Economy tuning status
 
 The master plan schedules economy tuning with live play for Day 11 and then a freeze. That has not happened: no
-live play exists, and no parameter was changed after spec-v1. The parameters above are the initial ones. Known
+live play exists, and no parameter was changed after spec-v1 except `MULT_K_BP` in the spec-v1.2 proposal (4000 to 3000, from the offline study in `docs/ECONOMY_TUNING.md`, not from live play). The other parameters above are the initial ones. Known
 observations that tuning should look at:
 
 - A merchant's starting treasury is 500 dinars. One caravan of spice or silk can exceed it, so a sale can end in
   `MERCHANT_BROKE`; the UI caps the quantity to what the merchant can pay and says so
   (`apps/web/src/ui/SHARED_ISSUES.md` item 4). In the UI walkthrough run on 2026-11-01 the journey planner offered an
   estimate that only counted the part of a cargo the merchant could pay for.
-- Spice is expensive: in the UI walkthrough on the mock, 10 spice at Bandar showed "You pay 1,121.80" (about 111 dinars
-  each), more than the 500 dinars a PLAY player gets from the faucet; 500 dinars buy about 4 spice. Grain, salt and iron
+- Spice is expensive: in the UI walkthrough on the mock (run on 2026-11-01 under spec-v1.1 prices, K = 4000; not re-run), 10 spice at Bandar showed "You pay 1,121.80" (about 111 dinars
+  each), more than the 500 dinars a PLAY player gets from the faucet; 500 dinars buy about 4 spice. At K = 3000 the multiplier at that stock is
+  slightly lower, so the same trade costs a little less, but the conclusion holds. Grain, salt and iron
   are the goods a new player can afford in quantity.
-- Spice and silk prices sit on the clamps in the simulation; raise `MULT_K_BP` if more sensitivity is wanted.
+- Spice and silk prices sat on the clamps in the simulation at K = 4000 (86% of the time with 5 bots). spec-v1.2 lowers
+  `MULT_K_BP` to 3000 (22%) instead of raising it; a higher K makes the clamping worse (`docs/ECONOMY_TUNING.md`
+  section 4, section 7 proposal 3).
 
 ### 8.4 NPC evaluation
 

@@ -1,6 +1,7 @@
 # Economy tuning evidence (Phase 8 input)
 
 > **Status: analysis and PROPOSALS only.** Nothing in `spec/`, `packages/shared/` or `contracts/` was changed (spec-v1.1 stays locked).
+> **Branch note (`proposal/spec-v1.2-mult-k-3000`):** proposal 3 of section 7 (`MULT_K_BP` 4000 to 3000) is applied on that branch only. Every table below was produced with the spec-v1.1 code (K = 4000 in `packages/shared`) and is the evidence for the proposal; it was not regenerated. On that branch `python scripts/analysis/validate.py` sections 1-2 report the K = 4000 variant as different from `runSim()` (the shared sim now uses K = 3000), by design; section 3 still passes.
 > Every recommendation below needs the owner's decision and, if accepted, a new spec version (spec-v1.2) applied to `packages/shared` and the contract together, as master plan section 11 step 2 requires.
 > This file is generated: `python scripts/analysis/build_doc.py` fills the tables from `scripts/analysis/results/`, which the scripts in `scripts/analysis/` produce. Every number in a table comes from a run; sentences quote those tables.
 
