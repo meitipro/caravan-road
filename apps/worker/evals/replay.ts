@@ -13,7 +13,7 @@
 
 import { writeFileSync } from "node:fs";
 import type { CityId, GoodId } from "@caravan/shared";
-import { CITY_IDS, GOOD_IDS } from "@caravan/shared";
+import { CITY_IDS, GOOD_IDS, PARAMS } from "@caravan/shared";
 import { baselineDecision } from "../src/baseline.js";
 import { NearAiClient, proposeDecision, type ModelClient } from "../src/brain.js";
 import { computeShipOptions } from "../src/candidates.js";
@@ -208,6 +208,7 @@ export function renderDoc(p: {
   L.push("");
   L.push(`- The model used for every table below is **${FAKE_MODEL_NAME}**: a scripted heuristic with optional injected faults (src/fake/fake-model.ts). It is **not a language model**. These tables measure this repository's validation, clamping, retry, fallback and simulation plumbing. They say nothing about how a real model on NEAR AI Cloud behaves.`);
   L.push("- The simulation uses the worker's own in-memory world (src/sim-world.ts), not the Appendix B reference simulation. Numbers are comparable only with other rows of this document (same seeds, same bots), never with spec/ECONOMY.md section 2.9.");
+  L.push(`- Prices use \`MULT_K_BP = ${PARAMS.MULT_K_BP}\` from packages/shared (spec-v1.2 PROPOSAL: 3000; spec-v1.1: 4000). Every table below (the synthetic states in A and the simulations in B) was generated with that value, so the numbers differ from a file generated under spec-v1.1.`);
   L.push("- No latency figure is given for the fake model, because there is no network to measure.");
   L.push(`- Real-model results: ${p.real ? "see the last section." : "**not run**. They require a NEAR_AI_API_KEY and a model choice (see docs/WORKER.md). The harness supports them with `--real`."}`);
   L.push("");

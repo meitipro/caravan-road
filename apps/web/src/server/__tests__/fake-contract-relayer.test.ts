@@ -33,7 +33,7 @@ describe("FakeContract follows spec/ECONOMY.md", () => {
     const out = await c.playerCall("a.t", "trade", { merchant: "bandar", good: "grain", side: "buy", qty: 10, limit_total: "99999" }, key);
     const cost = tradeCost({ good: "grain", side: "buy", qty: 10, merchantStock: 200, spreadBp: 800, biasBp: 0 });
     expect(out.returnValue).toEqual({ total: cost.total.toString(), fee: cost.fee.toString() });
-    expect(cost.unit).toBe(1050n); // ask at midpoint stock 195
+    expect(cost.unit).toBe(1047n); // ask at midpoint stock 195: mult 10075, mid 1007, ask 1047 (spec-v1.2, MULT_K_BP 3000; spec-v1.1 gave 1050)
     expect(out.events.map((e) => e.event)).toEqual(["trade"]);
   });
 
