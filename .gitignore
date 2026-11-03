@@ -5,3 +5,5 @@ target
 .next
 dist
 *.tsbuildinfo
+__pycache__/
+*.pyc
