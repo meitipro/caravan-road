@@ -30,7 +30,7 @@ ROUTES = [
 
 PARAMS = dict(
     TICK_SECONDS=60,
-    MULT_K_BP=4000,         # price sensitivity to scarcity
+    MULT_K_BP=3000,         # price sensitivity to scarcity (spec-v1.2; Appendix B of the plan used 4000)
     MULT_MIN_BP=7500,       # price multiplier floor
     MULT_MAX_BP=13500,      # price multiplier ceiling
     STOCK_CAP_FACTOR=2,     # stock cap = 2 x target
