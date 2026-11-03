@@ -13,7 +13,8 @@ pub const BP_U: u128 = 10_000;
 pub const TICK_SECONDS: u64 = 60;
 pub const TICK_MIN_INTERVAL_SECONDS: u64 = 55;
 pub const MAX_MISSED_TICKS: u64 = 10;
-pub const MULT_K_BP: i128 = 4000;
+// spec-v1.2 (PROPOSAL): 3000. spec-v1.1 was 4000. Keep in step with PARAMS.MULT_K_BP in packages/shared/src/world.ts.
+pub const MULT_K_BP: i128 = 3000;
 pub const MULT_MIN_BP: i128 = 7500;
 pub const MULT_MAX_BP: i128 = 13_500;
 pub const STOCK_CAP_FACTOR: u32 = 2;
@@ -130,7 +131,9 @@ pub struct Quote {
     pub ask: u128,
 }
 
-/// mult_bp(stock, target) = clamp(10000 + 4000 * (target - stock) / target, 7500, 13500)
+/// mult_bp(stock, target) = clamp(10000 + MULT_K_BP * (target - stock) / target, 7500, 13500), MULT_K_BP = 3000
+/// (spec-v1.2: the upper clamp is unreachable for stock >= 0, since the maximum is 13000; the lower clamp binds from
+/// 183.3% of target stock).
 pub fn mult_bp(stock: i128, target: i128) -> CResult<i128> {
     let diff = ovf(target.checked_sub(stock))?;
     let scaled = ovf(MULT_K_BP.checked_mul(diff))?;

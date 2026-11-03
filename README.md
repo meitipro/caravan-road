@@ -37,6 +37,8 @@ three UI fonts from Google Fonts (not tested offline).
 | 7 | Click "Send caravan to Shahr" | "On the road", a 3:00 countdown, "Aboard: Spice 3". You have dispatched a caravan; that is the 2 minutes |
 | 8 | Optional, 3 minutes later: "Claim your caravan", "Go to the market", "Sell" on Spice | "Safe arrival in Shahr"; a toast like "Sold 3 Spice: +400.30 dinars (+71.34 profit)" (my last run; earlier runs gave +77.00 and +103.82). "Ranks" then shows your row among fixture players |
 
+> The dinar amounts in steps 5-8 (and in `docs/screens/`) were observed under the spec-v1.1 price curve (`MULT_K_BP` 4000). On the spec-v1.2 proposal branch (`MULT_K_BP` 3000) they differ a little as soon as stock moves away from its target; a fresh world opens at the same prices. They were not re-observed.
+
 Also try "Why this price?" on a market: a drawer with the merchant's mood and last decisions. In mock mode this is fixture text
 ("Fixture decision: ...", tag "Rule-based", "No AI evidence yet"); the fixture for Dasht carries the placeholder model
 `fixture-model` and request id `fixture-request-0001` with `attested: false` (`packages/shared/fixtures/decisions.json`).
@@ -77,7 +79,7 @@ the destination whose "est. profit" in the planner is highest. In my run (about 
 | `pnpm install --frozen-lockfile` | completes in seconds |
 | `pnpm typecheck` | `packages/shared`, `apps/web`, `apps/worker`: Done |
 | `pnpm test` | all three packages pass (counts in "Economy and tests"); the worker's abort test was flaky once and was fixed in `610eaa6` |
-| `pnpm sim` | 5 bots, 240 ticks: `trips: 177 \| median profit/trip (fils): 1088`, `merchant-broke events: 43`, `money conserved on every tick: yes` |
+| `pnpm sim` | 5 bots, 240 ticks (spec-v1.2 proposal, `MULT_K_BP` 3000): `trips: 190 \| median profit/trip (fils): 1392`, `merchant-broke events: 47`, `money conserved on every tick: yes` (spec-v1.1, K = 4000: 177 / 1088 / 43) |
 | `pnpm --filter @caravan/worker dry-run -- --ticks 40 --bots 5 --seed 7` | 160 decisions from a FAKE scripted model against an in-memory world, money conserved, and a closing "=== FAKE MODEL ===" banner |
 | `cd contracts/caravan && cargo test` | `68 passed` (Rust 1.95+; the first, cold build takes minutes) |
 
@@ -268,16 +270,19 @@ Deploying: `docs/DEPLOY.md`.
 
 - Formulas, parameters, golden vectors, and which numbers come from the reference simulation versus the contract:
   `docs/ECONOMY.md`. NPC evaluation (fake model): `docs/NPC_EVAL.md`.
-- `pnpm sim` (greedy bots, 240 ticks, seed 7; the Appendix B reference, which differs from the contract in three rules):
+- `pnpm sim` (greedy bots, 240 ticks, seed 7; the Appendix B reference rules, which differ from the contract in three rules).
+  This branch carries the **spec-v1.2 proposal `MULT_K_BP` 3000** (spec-v1.1: 4000), so the Appendix B figures changed;
+  the unchanged `scripts/ref/economy_sim.py` still prints the old ones (64 / 5,944 / 23, 177 / 1,088 / 43, 342 / 1,099 / 86):
 
   | Bots | Trips | Median profit per trip (fils) | "Merchant broke" events | Money conserved |
   |---|---|---|---|---|
-  | 2 | 64 | 5,944 | 23 | yes |
-  | 5 | 177 | 1,088 | 43 | yes |
-  | 10 | 342 | 1,099 | 86 | yes |
+  | 2 | 53 | 5,795 | 10 | yes |
+  | 5 | 190 | 1,392 | 47 | yes |
+  | 10 | 329 | 689 | 72 | yes |
 
-  The same simulation with the contract's rules (recorded in `contracts/caravan/DECISIONS.md` and `spec/CHANGELOG.md`, not
-  reproducible with a command here): 61 / 6,714 / 26, 132 / 933 / 44, 344 / 958 / 74.
+  The same simulation with the contract's rules (`scripts/analysis/econ_variant.py`, `contract_d123(mult_k=3000)`; no `pnpm`
+  command prints it): 53 / 8,175 / 16, 182 / 739 / 28, 314 / 704 / 66. At K = 4000 (spec-v1.1, recorded in
+  `contracts/caravan/DECISIONS.md` and `spec/CHANGELOG.md`): 61 / 6,714 / 26, 132 / 933 / 44, 344 / 958 / 74.
 - Test counts: run on 2026-11-01 (the web count changes as tests are added):
 
   | Package | Command | Result |

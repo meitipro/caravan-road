@@ -6,6 +6,8 @@ pane. Date of the run: 2026-11-01. README last changed in commit `dc649e3`; HEAD
 README was not modified in between. Nothing was deployed, no account or secret was used, no tracked file was edited.
 The dev server was started from the README command and stopped at the end.
 
+> **Pre-v1.2 record.** This rehearsal was run on spec-v1.1 (`MULT_K_BP` 4000). Rows below that quote `pnpm sim` figures (177 / 1,088 / 43 and the 2- and 10-bot rows 64 / 5,944 / 23, 342 / 1,099 / 86) or Rust test counts are not changed; on the spec-v1.2 proposal branch `pnpm sim` prints 2 bots 53 / 5,795 / 10, 5 bots 190 / 1,392 / 47, 10 bots 329 / 689 / 72.
+
 Method note: the browser pane starts with leftover localStorage from an earlier session (login flag set, "Tick 42"). I
 cleared it first so the run starts at the login screen like a new visitor's would. A real judge's browser would be fresh.
 

@@ -236,7 +236,7 @@ Rust 1.99.1).
 | most code written with Claude Code | README "Timeline"; `docs/CREDITS.md`; PROGRESS | stated by the project itself |
 
 Typecheck run now: `pnpm typecheck` passed for `packages/shared`, `apps/web`, `apps/worker`. `pnpm sim` run now: 5 bots,
-240 ticks: `trips: 177 | median profit/trip (fils): 1088`, `merchant-broke events: 43`. One flaky test: on the first run
+240 ticks: `trips: 190 | median profit/trip (fils): 1392`, `merchant-broke events: 47` (spec-v1.2 proposal, `MULT_K_BP` 3000; with the locked spec-v1.1 value 4000 it printed 177 / 1088 / 43). One flaky test: on the first run
 `apps/worker/tests/loop-config.test.ts` "stops promptly on abort (graceful shutdown)" failed while `cargo test` was running
 in parallel on the same machine; it passed (177/177) when re-run alone. It is a timing test; it is not mentioned in the
 idea text.

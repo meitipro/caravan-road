@@ -17,14 +17,19 @@ describe("PyRandom matches CPython", () => {
   });
 });
 
-// Numbers below come from scripts/ref/economy_sim.py (seed 7, 240 ticks) and master plan section 2.9.
+// spec-v1.2 (PROPOSAL, MULT_K_BP = 3000): these numbers come from real `pnpm sim --bots N --ticks 240 --seed 7` runs and
+// were cross-checked against a LOCAL copy of scripts/ref/economy_sim.py with MULT_K_BP changed to 3000 (the full
+// printed output is identical). They REPLACE the Appendix B figures of spec-v1.1 (K=4000), which `scripts/ref` still
+// produces and which no longer match this sim:
+//   spec-v1.1 / Appendix B (K=4000): 2 bots 64 / 5944 / 23, 5 bots 177 / 1088 / 43, 10 bots 342 / 1099 / 86
+// p10 and p90 are the 10th/90th percentile of profit per trip.
 const EXPECTED = [
-  { bots: 2, trips: 64, median: 5944, broke: 23, p10: -15756, p90: 19810 },
-  { bots: 5, trips: 177, median: 1088, broke: 43, p10: -10531, p90: 12948 },
-  { bots: 10, trips: 342, median: 1099, broke: 86, p10: -18487, p90: 15775 },
+  { bots: 2, trips: 53, median: 5795, broke: 10, p10: -13572, p90: 17385 },
+  { bots: 5, trips: 190, median: 1392, broke: 47, p10: -17013, p90: 14836 },
+  { bots: 10, trips: 329, median: 689, broke: 72, p10: -15825, p90: 14578 },
 ];
 
-describe("economy sim reproduces the Python reference", () => {
+describe("economy sim reproduces the Python reference (with MULT_K_BP = 3000, spec-v1.2)", () => {
   it.each(EXPECTED)("$bots bots", (e) => {
     const start = 50000 * 4 + 50000 * e.bots;
     let ticks = 0;

@@ -12,7 +12,7 @@ function clamp(v: bigint, lo: bigint, hi: bigint): bigint {
   return v < lo ? lo : v > hi ? hi : v;
 }
 
-/** mult_bp(stock, target) = clamp(10000 + 4000 * (target - stock) / target, 7500, 13500) */
+/** mult_bp(stock, target) = clamp(10000 + MULT_K_BP * (target - stock) / target, 7500, 13500), MULT_K_BP = 3000 (spec-v1.2) */
 export function multBp(stock: bigint, target: bigint): bigint {
   return clamp(BP + (MULT_K_BP * (target - stock)) / target, MULT_MIN_BP, MULT_MAX_BP);
 }

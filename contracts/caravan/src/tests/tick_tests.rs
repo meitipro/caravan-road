@@ -110,7 +110,7 @@ fn auto_ship_moves_goods_at_exact_50_percent_gap() {
     c.merchants[CityId::Bandar.idx()].stock[g] = 203;
     c.merchants[CityId::Shahr.idx()].stock[g] = 201;
     let pay = ship_payment(GoodId::Grain, 300, 200, 4).unwrap();
-    assert_eq!(pay, 3600); // (800 + 1000) / 2 x 4
+    assert_eq!(pay, 3700); // (850 + 1000) / 2 x 4 (spec-v1.1, K = 4000: 3600)
     ctx(&player(9), T0 + secs(60));
     c.world_tick();
     assert_eq!(c.merchants[CityId::Dasht.idx()].stock[g], 296);
@@ -124,7 +124,7 @@ fn auto_ship_moves_goods_at_exact_50_percent_gap() {
 #[test]
 fn auto_ship_skips_when_destination_cannot_pay() {
     let mut c = new_contract_auto_ship(Mode::Play);
-    // silk 21 vs 6 after step 1: gap is exactly 50% but 4 silk cost dasht 97,600 > 50,000.
+    // silk 21 vs 6 after step 1: gap is exactly 50% but 4 silk cost dasht 93,200 > 50,000 (spec-v1.1: 97,600).
     let s = GoodId::Silk.idx();
     c.merchants[CityId::Bandar.idx()].stock[s] = 18;
     c.merchants[CityId::Dasht.idx()].stock[s] = 7;

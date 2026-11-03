@@ -164,7 +164,7 @@ fn buy_moves_money_and_goods_exactly() {
     let expect = trade_cost(GoodId::Grain, Side::Buy, 10, 200, 800, 0).unwrap();
     let r = c.trade(CityId::Bandar, GoodId::Grain, Side::Buy, 10, near_sdk::json_types::U128(1_000_000));
     assert_eq!((r.unit.0, r.total.0, r.fee.0), (expect.unit, expect.total, expect.fee));
-    assert_eq!(r.unit.0, 1050); // midpoint stock 195: mult 10100 -> mid 1010 -> ask 1050.4 -> 1050
+    assert_eq!(r.unit.0, 1047); // midpoint stock 195: mult 10075 -> mid 1007 (1007.5) -> ask 1047.28 -> 1047 (spec-v1.1: 1050)
     assert_eq!(fils_of(&c, &a), 50_000 - expect.total - expect.fee);
     assert_eq!(goods_of(&c, &a, GoodId::Grain), 10);
     let m = &c.merchants[CityId::Bandar.idx()];
