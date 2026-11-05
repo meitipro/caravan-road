@@ -3,6 +3,8 @@
 Placeholders in the template:  {{T:q1:1B}}  -> table whose heading starts with "#### 1B." in results/q1.md
                                {{X:5-1}}    -> table built from the JSON line "check":"5-1 ..." in results/q5_exploits.txt
                                {{V}}        -> contents of results/validate.txt
+                               {{C}}        -> sentence with the money-conservation run counts (results/conservation_*.json, validate.txt)
+                               {{C:total}}  -> total number of variant runs behind the doc (build fails if any run was not conserved)
 Run from the repo root: python scripts/analysis/build_doc.py
 """
 import json
@@ -56,8 +58,9 @@ def render_x(key):
                      f"{e['tested']:,}", e["positive"], e["bestNetFils"], e["bestDesc"], f"{100 * e['smallestLossShareOfOutlay']:.2f}%", e["smallestLossDesc"]]])
     if key == "5-2":
         e = expl("5-2")
+        ss = e["startStocks"]
         return tbl(["check", "closed loops tested", "profitable", "best net result (fils)", "where"],
-                   [["sequences of 2-4 trades (sizes 1, 2, 3, 5, 10, 20, 40) that return the player's inventory to its start, spread 400, 17 start stocks per good incl. both clamp edges, both from empty hands and from a full 40-unit hold",
+                   [[f"sequences of 2-4 trades (sizes 1, 2, 3, 5, 10, 20, 40) that return the player's inventory to its start, spread 400, {min(ss.values())}-{max(ss.values())} start stocks per good incl. the clamp edges of both the K = 3000 and the K = 4000 curve, both from empty hands and from a full 40-unit hold",
                      f"{e['tested']:,}", e["positive"], e["bestNetFils"], e["bestDesc"]]])
     if key == "5-3":
         b = expl("5-3 buy")
@@ -92,8 +95,32 @@ def render_x(key):
     raise KeyError(key)
 
 
+def conservation():
+    """(sentence, total, all_conserved) from the real run counters."""
+    def load(name):
+        d = json.load(open(os.path.join(RES, name), encoding="utf-8"))
+        return d["n"], d.get("conserved", d.get("ok"))
+    parts = {k: load(f"conservation_{k}.json") for k in ("q1", "q2", "q3", "q4", "q5")}
+    pat = r"variant runs in this validation: (\d+) \(money conserved in (\d+)\); TypeScript runSim configurations conserved on every tick: (\d+)"
+    v = re.search(pat, open(os.path.join(RES, "validate.txt"), encoding="utf-8").read())
+    vn, vc, ts = int(v.group(1)), int(v.group(2)), int(v.group(3))
+    exp_n = sum(parts[k][0] for k in ("q1", "q2", "q3"))
+    total = exp_n + parts["q4"][0] + parts["q5"][0] + vn
+    conserved = sum(parts[k][1] for k in ("q1", "q2", "q3")) + parts["q4"][1] + parts["q5"][1] + vc
+    verdict = "all conserved" if conserved == total else f"NOT ALL CONSERVED ({conserved} of {total})"
+    sentence = (f"{exp_n:,} runs of `run_exp.py` (q1 {parts['q1'][0]:,}, q2 {parts['q2'][0]:,}, q3 {parts['q3'][0]:,}), {parts['q4'][0]:,} of `run_q4.py`, "
+                f"{parts['q5'][0]:,} of `run_q5.py`, {vn} of `validate.py`: {total:,} variant runs in all, {verdict}. "
+                f"The {ts} TypeScript `runSim()` configurations checked in validation also conserved on every tick.")
+    return sentence, total, conserved == total
+
+
 def sub(m):
     kind = m.group(1)
+    if kind == "C":
+        sentence, total, ok = conservation()
+        if not ok:
+            raise SystemExit("money conservation failed in at least one run: " + sentence)
+        return f"{total:,}" if m.group(2) == "total" else sentence
     if kind == "V":
         return "```\n" + open(os.path.join(RES, "validate.txt"), encoding="utf-8").read().strip() + "\n```"
     if kind == "T":
@@ -107,7 +134,7 @@ def sub(m):
 
 def main():
     tpl = open(os.path.join(HERE, "doc_template.md"), encoding="utf-8").read()
-    out = re.sub(r"\{\{(T|V)(?::([a-z0-9]+))?(?::([0-9A-Z-]+))?\}\}", sub, tpl)
+    out = re.sub(r"\{\{(T|V|C)(?::([a-z0-9]+))?(?::([0-9A-Z-]+))?\}\}", sub, tpl)
     out = re.sub(r"\{\{X:([0-9a-z-]+)\}\}", lambda m: render_x(m.group(1)), out)
     left = re.findall(r"\{\{[^}]*\}\}", out)
     if left:

@@ -1,4 +1,5 @@
 """Question 4: is the first profitable trade achievable in under one minute? (writes results/q4.md)
+Every table runs at the spec-v1.2 baseline MULT_K_BP = 3000 (econ_variant.K_SPEC); the titles say so.
 
 Method: take world states (stock + merchant treasuries) from the instrumented sim and ask what a SENSIBLE new player with the
 PLAY faucet (50,000 fils) would earn in expectation from one journey, using the exact integer price/fee/ambush rules:
@@ -22,6 +23,7 @@ os.makedirs(OUT, exist_ok=True)
 CASH = 50000
 SHORT = {("bandar", "shahr"), ("shahr", "bandar")}
 FEE = 100
+KB = f"K = {E.K_SPEC} (spec-v1.2 baseline)"
 
 
 def risk_bp(base, g):
@@ -167,7 +169,7 @@ def main():
         def fmt(x):
             return "never within 181 ticks" if x is None else f"tick {x[0]} ({x[0]} min): {f0(x[1]['ep'])} fils on {x[1]['o']}>{x[1]['d']} {x[1]['q']} {x[1]['gid']}"
         rows.append([rule, fmt(first_short), fmt(first_any)] + [f"{f0(eps[n][0])} / {f0(eps[n][1])}" for n in (0, 10, 30, 60, 120)])
-    md.append("#### 4A. Fresh world (no players, nothing traded yet): first tick at which a positive expected-profit trade exists for a 500-dinar player (0 guards)\n")
+    md.append(f"#### 4A. Fresh world (no players, nothing traded yet), {KB}: first tick at which a positive expected-profit trade exists for a 500-dinar player (0 guards)\n")
     md.append(table(["rules", "first positive trade, shortest route bandar-shahr", "first positive trade, any route", "best EP at 0 min: short / any (fils)", "10 min", "30 min", "60 min", "120 min"], rows))
     md.append("")
 
@@ -199,7 +201,7 @@ def main():
             top = max(route_a, key=route_a.get)
             rows.append([rule, bots, n_snap, pct(pos_s / n_snap, 0), f"{f0(med(eps_s))} ({pct(med(eps_s) / CASH)})", f"{f0(sum(eps_s) / len(eps_s))}",
                          pct(pos_a / n_snap, 0), f"{f0(med(eps_a))} ({pct(med(eps_a) / CASH)})", f"{f0(sum(eps_a) / len(eps_a))}", f"{top} ({route_a[top]}/{n_snap})", pct(gu / n_snap, 0)])
-    md.append("#### 4B. Established worlds (state after 60, 80, ..., 240 ticks; seeds 7, 11, 13 pooled): best expected profit of one journey for a 500-dinar newcomer (guards chosen optimally)\n")
+    md.append(f"#### 4B. Established worlds ({KB}; state after 60, 80, ..., 240 ticks; seeds 7, 11, 13 pooled): best expected profit of one journey for a 500-dinar newcomer (guards chosen optimally)\n")
     md.append(table(["rules", "bots in world", "snapshots", "short route: positive EP", "short route: median EP (fils, % of 50,000)", "short route: mean EP", "any route: positive EP", "any route: median EP (% of capital)", "any route: mean EP", "most common best route", "snapshots where >= 1 guard is optimal"], rows))
     md.append("")
 
@@ -237,7 +239,7 @@ def main():
             m = lambda xs: sum(xs) / len(xs)
             rows.append([rule, bots, len(s_eps), f"{f0(m(s_eps_short))} ({pct(m(s_eps_short) / CASH)})", f"{f0(m(i_eps_short))} ({pct(m(i_eps_short) / CASH)})",
                          f"{f0(m(s_eps))} ({pct(m(s_eps) / CASH)})", f"{f0(m(i_eps))} ({pct(m(i_eps) / CASH)})"])
-    md.append("#### 4D. Ambush-immune cargo (at most 3 units of each good, floor(30% x 3) = 0) vs the best single-good cargo, mean expected profit, snapshots at 60/120/180/240 ticks, seeds 7, 11, 13\n")
+    md.append(f"#### 4D. Ambush-immune cargo (at most 3 units of each good, floor(30% x 3) = 0) vs the best single-good cargo, {KB}, mean expected profit, snapshots at 60/120/180/240 ticks, seeds 7, 11, 13\n")
     md.append(table(["rules", "bots", "snapshots", "short route: best single good (guards optimal)", "short route: best immune bundle", "any route: best single good", "any route: best immune bundle"], rows))
     md.append("")
 
@@ -283,7 +285,7 @@ def main():
                              f0(sum(firsts) / len(firsts)) if firsts else "n/a",
                              f"{med(buys)} min" if buys else "n/a", f"{med(arrs)} min" if arrs else "n/a",
                              f"{len(poss)}/{n}", f"{med(poss)} min" if poss else "n/a"])
-    md.append("#### 4F. Realised first journey of a newcomer (greedy bot with 50,000 fils joining at minute J into a world of bots-1 active bots; 10 seeds; sim ticks = minutes)\n")
+    md.append(f"#### 4F. Realised first journey of a newcomer ({KB}; greedy bot with 50,000 fils joining at minute J into a world of bots-1 active bots; 10 seeds; sim ticks = minutes)\n")
     md.append(table(["rules", "bots in world (incl. newcomer)", "joins at minute J", "newcomers that completed a first journey within 120 min", "first journey profitable", "median first-journey profit (fils, % of capital)", "mean first-journey profit (fils)",
                      "median minutes join to first purchase", "median minutes join to first arrival", "newcomers with any profitable arrival", "median minutes join to first profitable arrival"], rows))
     md.append("")

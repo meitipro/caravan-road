@@ -1,7 +1,28 @@
-== 1. Python variant (default Cfg) vs scripts/ref/economy_sim.py, and 2. vs TypeScript runSim ==
-python-variant == python-reference: 25/25 configs; python-variant == TypeScript runSim: 25/25 configs
-== 3. contract_d123() vs spec/CHANGELOG.md spec-v1.1 numbers (seed 7, 240 ticks) ==
-  OK  bots=2: changelog 61/6714/26  variant 61/6714/26  conserved=True
-  OK  bots=5: changelog 132/933/44  variant 132/933/44  conserved=True
-  OK  bots=10: changelog 344/958/74  variant 344/958/74  conserved=True
+== 0. MULT_K_BP in every source (the baseline must be the same everywhere) ==
+  scripts/ref/world.py: 3000
+  packages/shared/src/world.ts: 3000
+  contracts/caravan/src/math.rs: 3000
+  variant default (econ_variant.K_SPEC): 3000
+  consistent
+=== K = MULT_K_BP 3000 (spec-v1.2) ===
+python-variant == python-reference (as is): 25/25 configs
+python-variant == TypeScript runSim (K compiled into packages/shared = 3000): 25/25 configs
+-- vs spec/CHANGELOG.md spec-v1.2 figures (seed 7, 240 ticks), trips/median/broke --
+  OK   Appendix B rules (`pnpm sim`) bots=2: changelog 53/5795/10  variant 53/5795/10  conserved=True
+  OK   Appendix B rules (`pnpm sim`) bots=5: changelog 190/1392/47  variant 190/1392/47  conserved=True
+  OK   Appendix B rules (`pnpm sim`) bots=10: changelog 329/689/72  variant 329/689/72  conserved=True
+  OK   contract rules D1-D3 (contract_d123) bots=2: changelog 53/8175/16  variant 53/8175/16  conserved=True
+  OK   contract rules D1-D3 (contract_d123) bots=5: changelog 182/739/28  variant 182/739/28  conserved=True
+  OK   contract rules D1-D3 (contract_d123) bots=10: changelog 314/704/66  variant 314/704/66  conserved=True
+=== K = MULT_K_BP 4000 (spec-v1.1) ===
+python-variant == python-reference (with MULT_K_BP patched in memory to 4000): 25/25 configs
+TypeScript runSim not compared at K = 4000: packages/shared is compiled with K = 3000 and runSim takes no K
+-- vs spec/CHANGELOG.md spec-v1.1 figures (seed 7, 240 ticks), trips/median/broke --
+  OK   Appendix B rules (`pnpm sim`) bots=2: changelog 64/5944/23  variant 64/5944/23  conserved=True
+  OK   Appendix B rules (`pnpm sim`) bots=5: changelog 177/1088/43  variant 177/1088/43  conserved=True
+  OK   Appendix B rules (`pnpm sim`) bots=10: changelog 342/1099/86  variant 342/1099/86  conserved=True
+  OK   contract rules D1-D3 (contract_d123) bots=2: changelog 61/6714/26  variant 61/6714/26  conserved=True
+  OK   contract rules D1-D3 (contract_d123) bots=5: changelog 132/933/44  variant 132/933/44  conserved=True
+  OK   contract rules D1-D3 (contract_d123) bots=10: changelog 344/958/74  variant 344/958/74  conserved=True
+variant runs in this validation: 62 (money conserved in 62); TypeScript runSim configurations conserved on every tick: 25
 VALIDATION PASSED

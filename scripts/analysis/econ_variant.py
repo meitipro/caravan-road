@@ -5,6 +5,10 @@ never modified) with extra knobs and counters. With the default Cfg() it reprodu
 output exactly (checked by validate.py against `python scripts/ref/economy_sim.py` and against the
 TypeScript runSim()). Every rule switch below is OFF/Appendix-B by default.
 
+PRICE SENSITIVITY: the default `mult_k` is K_SPEC = 3000 (spec-v1.2, merged 2026-11-03; scripts/ref/world.py and
+packages/shared use 3000 too). The analysis was first written with the spec-v1.1 baseline K_PREV = 4000; tables that
+compare the two pass `mult_k` explicitly and are labelled. validate.py checks that the three sources agree.
+
 Knobs (Cfg):
   treasury, bot_cash      merchant treasury and starting cash of each bot (fils)
   rebal_pct, house_pct    REBALANCE_PCT, HOUSE_RECYCLE_PCT
@@ -33,6 +37,9 @@ REF_DIR = os.path.normpath(os.path.join(HERE, "..", "ref"))
 sys.path.insert(0, REF_DIR)
 import world as W  # noqa: E402  (read only: world data, routes)
 
+K_SPEC = 3000  # MULT_K_BP of spec-v1.2 (the baseline of every table that does not say otherwise)
+K_PREV = 4000  # MULT_K_BP of spec-v1.1 / Appendix B (kept as an explicit comparison, never as a default)
+
 GOODS = W.GOODS
 GOOD = W.GOOD
 CITY = W.CITY
@@ -56,7 +63,7 @@ class Cfg:
     house_pct: int = 10
     ship_units: int = 4
     gap_bp: int = 5000
-    mult_k: int = 4000
+    mult_k: int = K_SPEC  # spec-v1.2 baseline; pass mult_k=K_PREV (4000) for the spec-v1.1 numbers
     mult_min: int = 7500
     mult_max: int = 13500
     spread: int = 800

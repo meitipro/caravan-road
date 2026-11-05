@@ -3,6 +3,10 @@
 Run from the repo root:   python scripts/analysis/run_exp.py            (all)   |   python scripts/analysis/run_exp.py q1
 Writes scripts/analysis/results/q1.md, q2.md, q3.md (markdown tables) and conservation.json.
 Seeds: SEEDS3 = 7, 11, 13 for per-seed tables; SEEDS10 = ten seeds 7, 11, 13, 17, 19, 23, 29, 31, 37, 41 for averages.
+
+MULT_K_BP: every table runs at the spec-v1.2 baseline K = 3000 (econ_variant.K_SPEC) unless its title says otherwise. The tables
+that show the evidence for the change (1H, 3A, 3B, 3C, 3D, 3E) carry explicit K = 3000 and K = 4000 (spec-v1.1) rows.
+Parts can run in parallel processes:  python scripts/analysis/run_exp.py q1 | q2 | q3  (each writes its own conservation file).
 """
 import json
 import os
@@ -102,7 +106,15 @@ def table(headers, rows):
 
 
 MAKERS = {"A": E.appendix_b, "C": E.contract_full}
+KB = f"K = {E.K_SPEC} (spec-v1.2 baseline)"
+KP = f"K = {E.K_PREV} (spec-v1.1, previous baseline)"
 RULE_NAME = {"A": "Appendix B (`pnpm sim`)", "C": "contract rules (D1-D3, D25 ship limits, warehouse cap)"}
+
+
+def klabel(k):
+    if k == E.K_SPEC:
+        return f"{k} (spec-v1.2 baseline)"
+    return f"{k} (spec-v1.1, previous)" if k == E.K_PREV else str(k)
 
 
 # ------------------------------------------------------------------ Q1
@@ -117,7 +129,7 @@ def q1():
                 a = agg([r])
                 rows.append([bots, s, r["trips"], r["sales"], r["broke"], pct(a["trunc"]), pct(a["lost_rev"]), ppp(a),
                              f0(r["median"]), pct(a["dry"]), r["overdraft"], r["wh_hits"], "yes" if r["conserved"] else "NO"])
-        md.append(f"#### 1A-{rule}. Truncated sales per run, {RULE_NAME[rule]}, 240 ticks\n")
+        md.append(f"#### 1A-{rule}. Truncated sales per run, {RULE_NAME[rule]}, {KB}, 240 ticks\n")
         md.append(table(["bots", "seed", "trips", "cargo sales", "truncated (= 'broke')", "truncated share", "net revenue lost",
                          "profit per cargo sale (fils): if merchant always paid / actual", "median profit/trip (fils)", "merchant-ticks with treasury < 20%", "overdrafts", "warehouse-cap hits", "money conserved"], rows))
         md.append("")
@@ -128,7 +140,7 @@ def q1():
             a = agg(many(MAKERS[rule], SEEDS10, bots=bots))
             rows.append([rule, bots, f1(a["trips"]), f1(a["sales"]), f1(a["broke"]), f"{pct(a['trunc'])} (sd {pct(a['trunc_sd'])})", pct(a["lost_rev"]), ppp(a),
                          f0(a["median"]), f0(a["mean"]), pct(a["dry"]), f1(a["overdraft"]), f1(a["wh"]), a["cons"]])
-    md.append("#### 1B. Ten-seed means (seeds 7, 11, 13, 17, 19, 23, 29, 31, 37, 41), 240 ticks\n")
+    md.append(f"#### 1B. Ten-seed means (seeds 7, 11, 13, 17, 19, 23, 29, 31, 37, 41), {KB}, 240 ticks\n")
     md.append(table(["rules", "bots", "trips", "cargo sales", "truncated", "truncated share", "net revenue lost", "profit per cargo sale (fils): if merchant always paid / actual",
                      "median profit/trip (fils)", "mean profit/trip (fils)", "merchant-ticks < 20% treasury", "overdrafts", "warehouse hits", "conserved runs"], rows))
     md.append("")
@@ -141,7 +153,7 @@ def q1():
                 a = agg(many(MAKERS[rule], SEEDS10, bots=bots, treasury=tr))
                 rows.append([bots, f"{tr:,}", f"{4 * tr / 10000:.0f}", f1(a["broke"]), pct(a["trunc"]), pct(a["lost_rev"]), ppp(a), f0(a["median"]), f0(a["mean"]),
                              pct(a["dry"]), f0(a["op_final"]), f0(a["op_min"]), a["cons"]])
-        md.append(f"#### 1C-{rule}. Merchant treasury sweep, {RULE_NAME[rule]}, 10-seed means, 240 ticks (bot start cash stays 50,000)\n")
+        md.append(f"#### 1C-{rule}. Merchant treasury sweep, {RULE_NAME[rule]}, {KB}, 10-seed means, 240 ticks (bot start cash stays 50,000)\n")
         md.append(table(["bots", "treasury per merchant (fils)", "operator seed capital (USDC)", "truncated sales", "truncated share", "net revenue lost", "profit per cargo sale (fils): if merchant always paid / actual",
                          "median profit/trip", "mean profit/trip", "merchant-ticks < 20%", "operator P&L at end (fils, mean)", "worst operator P&L seen (fils)", "conserved"], rows))
         md.append("")
@@ -154,7 +166,7 @@ def q1():
                 for v in values:
                     a = agg(many(MAKERS[rule], SEEDS10, bots=bots, **{param: v}))
                     rows.append([bots, fmt(v), f1(a["trips"]), f1(a["broke"]), pct(a["trunc"]), pct(a["lost_rev"]), ppp(a), f0(a["median"]), f0(a["mean"]), pct(a["dry"]), a["cons"]])
-            md.append(f"#### {tag}-{rule}. {title}, {RULE_NAME[rule]}, 10-seed means, 240 ticks\n")
+            md.append(f"#### {tag}-{rule}. {title}, {RULE_NAME[rule]}, {KB}, 10-seed means, 240 ticks\n")
             md.append(table(["bots", param, "trips", "truncated sales", "truncated share", "net revenue lost", "profit per cargo sale (fils): if merchant always paid / actual", "median profit/trip", "mean profit/trip", "merchant-ticks < 20%", "conserved"], rows))
             md.append("")
 
@@ -169,8 +181,20 @@ def q1():
             for keep in (False, True):
                 a = agg(many(MAKERS[rule], SEEDS10, bots=bots, keep_unsold=keep))
                 rows.append([rule, bots, "keeps unsold goods" if keep else "unsold goods destroyed (reference)", f1(a["trips"]), f1(a["broke"]), pct(a["trunc"]), f0(a["unsold"]), f0(a["median"]), f0(a["mean"]), f0(a["bot_total"]), a["cons"]])
-    md.append("#### 1G. What happens to the unsold part of a truncated cargo (10-seed means, 240 ticks)\n")
+    md.append(f"#### 1G. What happens to the unsold part of a truncated cargo ({KB}, 10-seed means, 240 ticks)\n")
     md.append(table(["rules", "bots", "policy", "trips", "truncated sales", "truncated share", "units unsold per run", "median profit/trip", "mean profit/trip", "total bot net worth at end (fils)", "conserved"], rows))
+    md.append("")
+
+    # 1H: the same cells as 1B at the previous baseline K = 4000, so the change of baseline is visible row by row
+    rows = []
+    for rule in ("A", "C"):
+        for bots in (2, 5, 10):
+            a = agg(many(MAKERS[rule], SEEDS10, bots=bots, mult_k=E.K_PREV))
+            rows.append([rule, bots, f1(a["trips"]), f1(a["sales"]), f1(a["broke"]), f"{pct(a['trunc'])} (sd {pct(a['trunc_sd'])})", pct(a["lost_rev"]), ppp(a),
+                         f0(a["median"]), f0(a["mean"]), pct(a["dry"]), f1(a["overdraft"]), f1(a["wh"]), a["cons"]])
+    md.append(f"#### 1H. The same as Table 1B at the previous baseline {KP} (comparison; ten-seed means, 240 ticks)\n")
+    md.append(table(["rules", "bots", "trips", "cargo sales", "truncated", "truncated share", "net revenue lost", "profit per cargo sale (fils): if merchant always paid / actual",
+                     "median profit/trip (fils)", "mean profit/trip (fils)", "merchant-ticks < 20% treasury", "overdrafts", "warehouse hits", "conserved runs"], rows))
     md.append("")
     open(os.path.join(OUT, "q1.md"), "w", encoding="utf-8").write("\n".join(md))
 
@@ -186,7 +210,7 @@ def q2():
                     a = agg(many(MAKERS[rule], SEEDS10, bots=bots, ticks=ticks, faucet=fa))
                     rows.append([rule, f"{ticks} ({ticks // 60} h)", bots, "faucet on" if fa else "no faucet", f"{a['gini']:.2f}", f"{pct(a['below_end'], 0)}",
                                  pct(a["below_avg"], 1), f1(a["claims"] / bots), f"{a['injected'] / 10000:.1f}", f0(a["bot_total"] / bots), a["cons"]])
-    md.append("#### 2A. Gini of final bot net worth and bots under 50 dinars, 10-seed means\n")
+    md.append(f"#### 2A. Gini of final bot net worth and bots under 50 dinars, {KB}, 10-seed means\n")
     md.append(table(["rules", "ticks", "bots", "PLAY faucet rule", "Gini of final net worth", "bots < 50 dinars at the end", "share of bot-ticks < 50 dinars", "faucet claims per bot", "money injected (USDC-equivalent per run)", "mean bot net worth at end (fils)", "conserved (start + injected)"], rows))
     md.append("")
     # 2B per-seed detail, 5 bots 240 ticks, A
@@ -195,7 +219,7 @@ def q2():
         for s in SEEDS3:
             r = go(E.appendix_b(bots=5, seed=s, faucet=fa))
             rows.append(["faucet on" if fa else "no faucet", s, ", ".join(f0(w) for w in sorted(r["worths"], reverse=True)), f"{r['gini']:.2f}", r["final_below50"], r["claims"]])
-    md.append("#### 2B. Per-seed final net worth (fils), Appendix B rules, 5 bots, 240 ticks\n")
+    md.append(f"#### 2B. Per-seed final net worth (fils), Appendix B rules, {KB}, 5 bots, 240 ticks\n")
     md.append(table(["rule", "seed", "final net worth, richest first", "Gini", "bots < 5,000 fils", "claims"], rows))
     md.append("")
     # 2C: what is the lowest net worth a stuck bot has? how fast does a sub-threshold bot recover without faucet? time stuck
@@ -210,25 +234,26 @@ def q3():
     for k in (2000, 3000, 3500, 4000, 6000, 8000):
         hi = 1 - 3500 / k  # stock/target at or below which mult = 13500
         lo = 1 + 2500 / k  # stock/target at or above which mult = 7500
-        rows.append([k, f"{hi * 100:.1f}% of target" if hi > 0 else ("only at stock 0 (no effect)" if hi == 0 else "never (multiplier cannot reach 13,500)"),
+        rows.append([klabel(k), f"{hi * 100:.1f}% of target" if hi > 0 else ("only at stock 0 (no effect)" if hi == 0 else "never (multiplier cannot reach 13,500)"),
                      f"{lo * 100:.1f}% of target" if lo < 2 else "never (above the 200% cap)",
                      f"{E.mult_bp(E.Cfg(mult_k=k), 0, 40)}", f"{E.mult_bp(E.Cfg(mult_k=k), 80, 40)}"])
     md.append("#### 3A. Where the multiplier clamps bind (analytic, from `mult_bp`)\n")
     md.append(table(["MULT_K_BP", "high clamp (13,500) when stock is at or below", "low clamp (7,500) when stock is at or above", "mult at stock 0", "mult at stock = 2 x target"], rows))
     md.append("")
-    # 3B clamp share by good, default K
+    # 3B clamp share by good: the baseline K = 3000 and the previous K = 4000 side by side
     for rule in ("A", "C"):
         rows = []
-        for bots in (0, 2, 5, 10):
-            for ticks in (240, 1440):
-                a = agg(many(MAKERS[rule], SEEDS10, bots=bots, ticks=ticks))
-                cells = []
-                for g in E.GOOD_IDS:
-                    cells.append(f"{pct(a['clamp_hi'][g], 0)} / {pct(a['clamp_lo'][g], 0)}")
-                tot = (sum(a["clamp_hi"].values()) + sum(a["clamp_lo"].values())) / 5
-                rows.append([bots, ticks] + cells + [pct(tot, 0), a["cons"]])
-        md.append(f"#### 3B-{rule}. Share of time the multiplier sits at the HIGH clamp / LOW clamp, per good (all 4 cities pooled), {RULE_NAME[rule]}, 10-seed means\n")
-        md.append(table(["bots", "ticks"] + [f"{g} (high / low)" for g in E.GOOD_IDS] + ["all goods at either clamp", "conserved"], rows))
+        for k in (E.K_SPEC, E.K_PREV):
+            for bots in (0, 2, 5, 10):
+                for ticks in (240, 1440):
+                    a = agg(many(MAKERS[rule], SEEDS10, bots=bots, ticks=ticks, mult_k=k))
+                    cells = []
+                    for g in E.GOOD_IDS:
+                        cells.append(f"{pct(a['clamp_hi'][g], 0)} / {pct(a['clamp_lo'][g], 0)}")
+                    tot = (sum(a["clamp_hi"].values()) + sum(a["clamp_lo"].values())) / 5
+                    rows.append([klabel(k), bots, ticks] + cells + [pct(tot, 0), a["cons"]])
+        md.append(f"#### 3B-{rule}. Share of time the multiplier sits at the HIGH clamp / LOW clamp, per good (all 4 cities pooled), {RULE_NAME[rule]}, K = 3000 (spec-v1.2 baseline) and K = 4000 (spec-v1.1), 10-seed means\n")
+        md.append(table(["MULT_K_BP", "bots", "ticks"] + [f"{g} (high / low)" for g in E.GOOD_IDS] + ["all goods at either clamp", "conserved"], rows))
         md.append("")
     # 3C K sweep
     for rule in ("A", "C"):
@@ -240,32 +265,33 @@ def q3():
                 allc = (sum(a["clamp_hi"].values()) + sum(a["clamp_lo"].values())) / 5
                 ss = (a["clamp_hi"]["spice"] + a["clamp_lo"]["spice"] + a["clamp_hi"]["silk"] + a["clamp_lo"]["silk"]) / 2
                 gsi = sum(a["clamp_hi"][g] + a["clamp_lo"][g] for g in ("grain", "salt", "iron")) / 3
-                rows.append([bots, k, pct(allc, 0), pct(ss, 0), pct(gsi, 0), f1(a["trips"]), f0(a["median"]), f0(a["mean"]), f1(a["broke"]), pct(a["trunc"]), pct(a["dry"]), f0(a["bot_total"] / bots), a["cons"]])
-        md.append(f"#### 3C-{rule}. MULT_K_BP sweep, {RULE_NAME[rule]}, 10-seed means, 240 ticks (clamps 7,500 / 13,500)\n")
+                rows.append([bots, klabel(k), pct(allc, 0), pct(ss, 0), pct(gsi, 0), f1(a["trips"]), f0(a["median"]), f0(a["mean"]), f1(a["broke"]), pct(a["trunc"]), pct(a["dry"]), f0(a["bot_total"] / bots), a["cons"]])
+        md.append(f"#### 3C-{rule}. MULT_K_BP sweep (3000 = spec-v1.2 baseline, 4000 = spec-v1.1), {RULE_NAME[rule]}, 10-seed means, 240 ticks (clamps 7,500 / 13,500)\n")
         md.append(table(["bots", "MULT_K_BP", "all goods at a clamp", "spice+silk at a clamp", "grain+salt+iron at a clamp", "trips", "median profit/trip (fils)", "mean profit/trip (fils)", "truncated sales", "truncated share", "merchant-ticks < 20%", "mean bot net worth at end (fils)", "conserved"], rows))
         md.append("")
     # 3D wider clamps
     rows = []
     for bots in (5, 10):
-        for k, mn, mx in ((4000, 7500, 13500), (4000, 6000, 15000), (6000, 6000, 15000), (6000, 5000, 17000), (8000, 5000, 17000)):
+        for k, mn, mx in ((3000, 7500, 13500), (3000, 6000, 15000), (4000, 7500, 13500), (4000, 6000, 15000), (6000, 6000, 15000), (6000, 5000, 17000), (8000, 5000, 17000)):
             rs = many(E.appendix_b, SEEDS10, bots=bots, mult_k=k, mult_min=mn, mult_max=mx)
             a = agg(rs)
             allc = (sum(a["clamp_hi"].values()) + sum(a["clamp_lo"].values())) / 5
             ss = (a["clamp_hi"]["spice"] + a["clamp_lo"]["spice"] + a["clamp_hi"]["silk"] + a["clamp_lo"]["silk"]) / 2
-            rows.append([bots, k, mn, mx, pct(allc, 0), pct(ss, 0), f1(a["trips"]), f0(a["median"]), f0(a["mean"]), f1(a["broke"]), pct(a["trunc"]), a["cons"]])
-    md.append("#### 3D. Clamp widening together with MULT_K_BP, Appendix B rules, 10-seed means, 240 ticks\n")
+            rows.append([bots, klabel(k), mn, mx, pct(allc, 0), pct(ss, 0), f1(a["trips"]), f0(a["median"]), f0(a["mean"]), f1(a["broke"]), pct(a["trunc"]), a["cons"]])
+    md.append("#### 3D. Clamp widening together with MULT_K_BP (3000 = spec-v1.2 baseline, 4000 = spec-v1.1), Appendix B rules, 10-seed means, 240 ticks\n")
     md.append(table(["bots", "MULT_K_BP", "MULT_MIN_BP", "MULT_MAX_BP", "all goods at a clamp", "spice+silk at a clamp", "trips", "median profit/trip", "mean profit/trip", "truncated sales", "truncated share", "conserved"], rows))
     md.append("")
     # 3E: bigger target stock (and cap) for the two goods that live on the clamps
     rows = []
     for rule in ("A", "C"):
-        for bots in (5, 10):
-            for label, tp in (("spec (40 / 30)", ()), ("x2 (80 / 60)", (("spice", 200), ("silk", 200))), ("x3 (120 / 90)", (("spice", 300), ("silk", 300)))):
-                a = agg(many(MAKERS[rule], SEEDS10, bots=bots, target_pct=tp))
-                ss = (a["clamp_hi"]["spice"] + a["clamp_lo"]["spice"] + a["clamp_hi"]["silk"] + a["clamp_lo"]["silk"]) / 2
-                rows.append([rule, bots, label, pct(ss, 0), f1(a["trips"]), f0(a["median"]), f0(a["mean"]), f1(a["broke"]), pct(a["trunc"]), pct(a["dry"]), a["cons"]])
-    md.append("#### 3E. Spice and silk target stock scaled (cap = 2 x target), MULT_K 4000 and clamps unchanged, 10-seed means, 240 ticks\n")
-    md.append(table(["rules", "bots", "spice / silk target stock", "spice+silk at a clamp", "trips", "median profit/trip", "mean profit/trip", "truncated sales", "truncated share", "merchant-ticks < 20%", "conserved"], rows))
+        for k in (E.K_SPEC, E.K_PREV):
+            for bots in (5, 10):
+                for label, tp in (("spec (40 / 30)", ()), ("x2 (80 / 60)", (("spice", 200), ("silk", 200))), ("x3 (120 / 90)", (("spice", 300), ("silk", 300)))):
+                    a = agg(many(MAKERS[rule], SEEDS10, bots=bots, target_pct=tp, mult_k=k))
+                    ss = (a["clamp_hi"]["spice"] + a["clamp_lo"]["spice"] + a["clamp_hi"]["silk"] + a["clamp_lo"]["silk"]) / 2
+                    rows.append([rule, klabel(k), bots, label, pct(ss, 0), f1(a["trips"]), f0(a["median"]), f0(a["mean"]), f1(a["broke"]), pct(a["trunc"]), pct(a["dry"]), a["cons"]])
+    md.append("#### 3E. Spice and silk target stock scaled (cap = 2 x target), clamps unchanged, at K = 3000 (spec-v1.2 baseline) and K = 4000 (spec-v1.1), 10-seed means, 240 ticks\n")
+    md.append(table(["rules", "MULT_K_BP", "bots", "spice / silk target stock", "spice+silk at a clamp", "trips", "median profit/trip", "mean profit/trip", "truncated sales", "truncated share", "merchant-ticks < 20%", "conserved"], rows))
     md.append("")
     open(os.path.join(OUT, "q3.md"), "w", encoding="utf-8").write("\n".join(md))
 
@@ -273,7 +299,8 @@ def q3():
 if __name__ == "__main__":
     which = sys.argv[1:] or ["q1", "q2", "q3"]
     for w in which:
+        before = dict(RUNS)
         {"q1": q1, "q2": q2, "q3": q3}[w]()
-        print("done", w, RUNS)
-    cons_path = os.path.join(OUT, "conservation_q123.json")
-    json.dump(RUNS, open(cons_path, "w"))
+        part = {"n": RUNS["n"] - before["n"], "conserved": RUNS["conserved"] - before["conserved"]}
+        print("done", w, part)
+        json.dump(part, open(os.path.join(OUT, f"conservation_{w}.json"), "w"))
