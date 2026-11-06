@@ -55,10 +55,10 @@ describe("env loader", () => {
 });
 
 describe("error mapping", () => {
-  it("maps every ErrorCode prefix (except UNAUTHENTICATED, which only the server issues)", () => {
+  it("maps every ErrorCode prefix; a contract UNAUTHENTICATED becomes BAD_REQUEST (the server alone issues UNAUTHENTICATED)", () => {
     for (const code of ERROR_CODES) {
       const m = mapPanic(`Smart contract panicked: ${code}: something happened`);
-      if (code === "UNAUTHENTICATED") expect(m.code).toBe("INTERNAL");
+      if (code === "UNAUTHENTICATED") expect(m.code).toBe("BAD_REQUEST");
       else {
         expect(m.code).toBe(code);
         expect(m.message).toBe(PUBLIC_MESSAGES[code]); // fixed text, never the raw panic

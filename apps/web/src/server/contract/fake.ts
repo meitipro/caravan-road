@@ -360,6 +360,36 @@ export class FakeContract implements ContractClient {
     }
   }
 
+  // ---------------------------------------------------------------- dev-only world keeper
+
+  /**
+   * NOT a contract rule: the dev backend calls it after each tick so a long-lived local world cannot collapse into an
+   * unplayable market (a city out of its staple goods, or a merchant too poor to buy). A good below 15% of its target is
+   * raised to 30%; a treasury below 20% of the initial one is topped up (minted, so audit() still balances).
+   * The real tick, pricing and shipping rules are untouched and nothing calls this in tests of those rules.
+   */
+  devKeepAlive(): { goods: number; fils: bigint } {
+    const out = { goods: 0, fils: 0n };
+    const floorTreasury = (BigInt(PARAMS.MERCHANT_TREASURY_FILS) * 20n) / 100n;
+    for (const m of this.merchants.values()) {
+      for (const g of GOOD_IDS) {
+        const t = GOODS[g].target;
+        if (m.stock[g] * 100 < t * 15) {
+          const lift = Math.floor((t * 30) / 100);
+          out.goods += lift - m.stock[g];
+          m.stock[g] = lift;
+        }
+      }
+      if (m.treasury < floorTreasury) {
+        out.fils += floorTreasury - m.treasury;
+        this.minted += floorTreasury - m.treasury;
+        m.treasury = floorTreasury;
+      }
+    }
+    if (out.goods > 0 || out.fils > 0n) this.changed();
+    return out;
+  }
+
   // ---------------------------------------------------------------- persistence (dev backend)
 
   /** Serialises the whole state; bigint and -Infinity are tagged so JSON.parse can restore them. */
@@ -623,6 +653,13 @@ export class FakeContract implements ContractClient {
 
   private stallCancel(p: FPlayer, a: PlayerArgs["stall_cancel"]): null {
     const s = this.stalls.find((x) => x.id === a.stall_id);
+    if (this.strict) {
+      // contracts/caravan game.rs try_stall_cancel: unknown stall, not yours, travelling, wrong city (in this order).
+      if (!s) return panic("BAD_REQUEST", "no such stall");
+      if (s.seller !== p.account_id) panic("UNAUTHENTICATED", "not your stall");
+      if (p.journey) panic("IN_TRANSIT", "you are travelling");
+      if (p.location !== s.city) panic("NOT_IN_CITY", "you are not in that city");
+    }
     if (!s || s.seller !== p.account_id) return panic("BAD_REQUEST", "no such stall of yours");
     p.inventory[s.good] += s.qty;
     this.stalls.splice(this.stalls.indexOf(s), 1);

@@ -9,7 +9,7 @@ import { createHash } from "node:crypto";
 import type { ApiResult, ErrorCode } from "@caravan/shared";
 import type { ZodType } from "zod";
 import type { UserRow } from "./db/repo";
-import { ApiError, fail, HTTP_STATUS, ok } from "./errors";
+import { ApiError, fail, HTTP_STATUS, ok, isApiError } from "./errors";
 import { resolveUser } from "./guards/auth";
 import { LIMITS } from "./guards/rateLimit";
 import { assertContractMode, checkMode, checkNotPaused, type ModeRule } from "./guards/mode";
@@ -29,7 +29,7 @@ export function respond<T>(result: ApiResult<T>, extra: Record<string, string> =
 }
 
 function toResult(e: unknown, svc?: Services): ApiResult<never> {
-  if (e instanceof ApiError) return fail(e.code, e.message);
+  if (isApiError(e)) return fail(e.code, e.message);
   (svc?.log ?? log).error("unhandled route error:", e instanceof Error ? e : "unknown"); // redacted by the logger
   return fail("INTERNAL", "Something went wrong. Please try again.");
 }
@@ -203,7 +203,7 @@ export function getRoute<T>(spec: GetSpec<T>): (req: Request) => Promise<Respons
           user = await svc.accounts.ensure(user);
         } catch (e) {
           // Paused, busy or backing off: still serve the world, just without a player view yet.
-          if (!(e instanceof ApiError && (e.code === "PAUSED" || e.code === "RATE_LIMIT"))) throw e;
+          if (!(isApiError(e) && (e.code === "PAUSED" || e.code === "RATE_LIMIT"))) throw e;
         }
       }
       return respond(ok(await spec.run({ svc, req, user })));

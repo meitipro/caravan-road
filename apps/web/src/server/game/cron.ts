@@ -3,7 +3,7 @@
 // double-send; the contract also ignores a repeated deposit reference.
 
 import { PARAMS } from "@caravan/shared";
-import { ApiError, ContractPanic, mapPanic } from "../errors";
+import { mapPanic, isApiError, isContractPanic } from "../errors";
 import { assertContractMode, isPaused } from "../guards/mode";
 import type { Services } from "../services";
 
@@ -22,7 +22,7 @@ async function moneyEnabled(svc: Services): Promise<boolean> {
     await assertContractMode(svc);
     return true;
   } catch (e) {
-    if (e instanceof ApiError) return false;
+    if (isApiError(e)) return false;
     throw e;
   }
 }
@@ -110,7 +110,7 @@ export async function cronDeposits(svc: Services): Promise<{ credited: number; e
       await svc.contract.operatorCall("credit_deposit", { account_id: user.near_account_id, fils, reference: quoteId });
       if (await svc.repo.transitionDeposit(id, "CREDITING", "CREDITED", svc.now(), { creditRef: quoteId, creditedFils: fils })) res.credited++;
     } catch (e) {
-      const m = e instanceof ContractPanic ? mapPanic(e.message) : null;
+      const m = isContractPanic(e) ? mapPanic(e.message) : null;
       if (m && PERMANENT_CODES.has(m.code)) await fail(id, "CREDITING", `contract ${m.code}`);
       else svc.log.error(`deposit ${id} credit failed and will be retried`); // transient: RATE_LIMIT, PAUSED, INTERNAL, network
     }
@@ -292,7 +292,7 @@ export async function followSentWithdrawals(svc: Services, res: { sent: number; 
           try {
             await svc.contract.operatorCall("mark_withdraw", { id: cid, status: "DONE" });
           } catch (e) {
-            if (!(e instanceof ContractPanic && (await svc.contract.getWithdraw(cid))?.status === "DONE")) throw e; // lost a race: already DONE
+            if (!(isContractPanic(e) && (await svc.contract.getWithdraw(cid))?.status === "DONE")) throw e; // lost a race: already DONE
           }
         } else if (chain.status !== "DONE") {
           svc.log.error(`ALERT: withdrawal ${w.id} succeeded at the provider but the chain says ${chain.status}`);
@@ -312,7 +312,7 @@ export async function followSentWithdrawals(svc: Services, res: { sent: number; 
         try {
           await svc.contract.operatorCall("refund_withdraw", { id: cid });
         } catch (e) {
-          if (!(e instanceof ContractPanic && (await svc.contract.getWithdraw(cid))?.status === "REFUNDED")) throw e; // lost a race: already refunded
+          if (!(isContractPanic(e) && (await svc.contract.getWithdraw(cid))?.status === "REFUNDED")) throw e; // lost a race: already refunded
         }
       } else if (chain.status !== "REFUNDED") {
         svc.log.error(`ALERT: withdrawal ${w.id} was refunded by the provider but the chain says ${chain.status}; manual review`);

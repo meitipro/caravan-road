@@ -19,7 +19,7 @@ import {
   Account, JsonRpcProvider, PublicKey, Signer, actions, teraToGas, type KeyPairString,
 } from "near-api-js";
 import type { CityId, GoodId, Mode } from "@caravan/shared";
-import { ContractPanic } from "../errors";
+import { ContractPanic, isContractPanic } from "../errors";
 import {
   secToNs,
   type ContractClient, type ContractConfig, type ContractEvent, type ContractJourney, type ContractMerchant,
@@ -187,7 +187,7 @@ export class NearContract implements ContractClient {
     try {
       return await attempt();
     } catch (e) {
-      if (e instanceof ContractPanic) throw e;
+      if (isContractPanic(e)) throw e;
       if (/nonce/i.test(e instanceof Error ? e.message : "")) return attempt(); // one retry on a stale nonce
       throw e;
     }

@@ -4,7 +4,7 @@
 // no OAuth. Selected with SERVER_BACKEND=dev; refuses to start in production or outside PLAY mode.
 
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { FakeContract } from "./contract/fake";
 import { createPgliteDb } from "./db/pglite";
@@ -56,6 +56,14 @@ export async function createDevBackend(opts: DevBackendOptions = {}): Promise<De
     if (!existsSync(join(dataDir, ".gitignore"))) writeFileSync(join(dataDir, ".gitignore"), "*\n");
     snapshotFile = join(dataDir, "dev-contract.json");
     dbDir = join(dataDir, "dev-db");
+  }
+
+  if (dataDir && env.DEV_RESET === "1") {
+    // DEV_RESET=1: start from a fresh world (database and contract snapshot). Accounts and the dev secrets are kept
+    // out of this: they are recreated on demand. Unset DEV_RESET afterwards or every restart wipes the world.
+    rmSync(dbDir!, { recursive: true, force: true });
+    rmSync(snapshotFile!, { force: true });
+    log.warn("DEV_RESET=1: the dev world was reset");
   }
 
   const db = await createPgliteDb(dbDir);

@@ -4,7 +4,7 @@
 //   relayer pays gas) -> map panic text to ErrorCode.
 // The signing and submission details live in contract/near.ts (NearContract) or contract/fake.ts.
 
-import { ApiError, ContractPanic, mapPanic } from "../errors";
+import { ApiError, mapPanic, isApiError, isContractPanic } from "../errors";
 import { PLAYER_METHODS, type ContractClient, type PlayerArgs, type PlayerMethod, type TxOutcome } from "../contract/types";
 import type { Repo, UserRow } from "../db/repo";
 import { LIMITS, type RateLimiter } from "../guards/rateLimit";
@@ -71,8 +71,8 @@ export function createRelayer(deps: {
           deps.custody.withKey(user.id, row.public_key, row, (key) => deps.contract.playerCall(account, method, args, key)),
         );
       } catch (e) {
-        if (e instanceof ApiError) throw e;
-        if (e instanceof ContractPanic) {
+        if (isApiError(e)) throw e;
+        if (isContractPanic(e)) {
           const m = mapPanic(e.message);
           deps.log.warn(`contract panic mapped to ${m.code}:`, m.raw); // raw text is redacted by the logger, never sent to clients
           throw new ApiError(m.code, m.message);

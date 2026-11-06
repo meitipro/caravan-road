@@ -57,6 +57,7 @@ export async function tickOnce(contract: FakeContract, svc: TickerServices): Pro
   try {
     await contract.worldTick();
     await runNpcStandIn(contract);
+    contract.devKeepAlive(); // dev-only: keep a long-lived local world playable (not a contract rule)
     await svc.repo.setHeartbeat("dev-ticker", svc.now());
     svc.worldCache.invalidate();
   } catch (e) {

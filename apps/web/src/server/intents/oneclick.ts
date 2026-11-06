@@ -26,7 +26,7 @@
 //  - Money safety: nothing is trusted before it passes zod AND our own cross-checks (the echoed request must
 //    equal what we sent; amounts must match; a memo, a missing deadline or an unknown status fails closed).
 
-import { ApiError } from "../errors";
+import { ApiError, isApiError } from "../errors";
 import { log as defaultLog, type Logger } from "../log";
 import { DEFAULT_BASE_URL, OneClickError, OneClickHttp, type FetchLike } from "./http";
 import {
@@ -248,7 +248,7 @@ export class OneClickIntents implements IntentsClient {
 
   /** Maps provider failures to errors that are safe to show; details go to the (redacting) log. */
   private asApiError(e: unknown, what: string): ApiError {
-    if (e instanceof ApiError) return e;
+    if (isApiError(e)) return e;
     if (e instanceof OneClickError) {
       this.log.error(`1Click ${what} failed: kind=${e.kind} status=${e.status ?? "-"}`);
       if (e.kind === "http" && e.status === 400) {

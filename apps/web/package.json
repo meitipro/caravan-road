@@ -10,7 +10,8 @@
     "lint": "eslint src",
     "test": "vitest run --passWithNoTests",
     "db:migrate": "tsx src/server/db/run-migrate.ts",
-    "smoke:testnet": "tsx src/server/scripts/smoke-testnet.ts"
+    "smoke:testnet": "tsx src/server/scripts/smoke-testnet.ts",
+    "dev:reset": "node -e \"require('node:fs').rmSync('.data',{recursive:true,force:true});console.log('dev world reset (.data removed)')\""
   },
   "dependencies": {
     "@caravan/shared": "workspace:*",

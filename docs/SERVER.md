@@ -96,6 +96,12 @@ Optional `DEV_TICK_SECONDS=5` makes the world tick faster (default 60).
   `GAME_MODE=PLAY` and the request host is `localhost`, `127.0.0.1` or `[::1]`. **It cannot be enabled in production:**
   `getServices()`, the production wiring and the route modules throw at startup if `DEV_LOGIN=1` or
   `SERVER_BACKEND=dev` is set with `NODE_ENV=production` (or outside PLAY). Tests cover every refusal path.
+* **Reset the world:** `pnpm --filter @caravan/web dev:reset` deletes `apps/web/.data` (stop the dev server first), or start
+  once with `DEV_RESET=1` (wipes the database and contract snapshot, keeps the dev secrets; unset it afterwards or every
+  restart wipes the world). **The market is kept playable:** after each tick the dev ticker calls
+  `FakeContract.devKeepAlive()`, which lifts a good below 15% of its target to 30% and tops up a merchant treasury below
+  20% of the initial one (minted, so the money audit still balances). This is a dev convenience, not a contract rule: the
+  real tick, pricing and shipping rules are unchanged and nothing else calls it.
 * PLAY closes the money routes, so deposit/withdraw answer `MODE_NOT_ALLOWED` here; the 1Click path is tested with
   `FakeIntents`.
 
@@ -137,6 +143,15 @@ A `FINALIZING` row whose run died is taken over after 5 minutes. The provider's 
 
 Environment: `ONECLICK_JWT` and `ONECLICK_USDC_ASSET_ID` are optional in PLAY and required together in LIVE
 (`loadEnv()`); the asset id must look like `nep141:<contract>`.
+
+## Error identity across module copies
+
+`ApiError` and `ContractPanic` are recognised by a `Symbol.for(...)` brand (`isApiError`, `isContractPanic` in
+`errors.ts`), never by `instanceof`. `next dev` bundles each route with its own copy of the server modules, so a
+container created by one route throws classes that another route's `instanceof` does not recognise; that turned every
+mapped contract rejection into HTTP 500 `INTERNAL` (stalls walkthrough). A contract `UNAUTHENTICATED` panic (for
+example "not your stall") is mapped to `BAD_REQUEST`, because only the server issues `UNAUTHENTICATED` for a missing
+session.
 
 ## Known limitation: the relayer key is a full-access key on the parent account (finding 8)
 

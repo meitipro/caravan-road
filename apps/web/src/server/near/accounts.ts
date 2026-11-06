@@ -8,7 +8,7 @@
 
 import { randomBytes } from "node:crypto";
 import type { Mode } from "@caravan/shared";
-import { ApiError } from "../errors";
+import { ApiError, isApiError } from "../errors";
 import { LIMITS, type RateLimiter } from "../guards/rateLimit";
 import { isPaused } from "../guards/mode";
 import type { ContractClient } from "../contract/types";
@@ -78,7 +78,7 @@ export function createAccountService(deps: {
         u = { ...u, account_status: "REGISTERED" };
       }
     } catch (e) {
-      if (e instanceof ApiError) throw e;
+      if (isApiError(e)) throw e;
       deps.log.error("account provisioning failed:", e);
       throw new ApiError("INTERNAL", "Something went wrong. Please try again.");
     }

@@ -7,7 +7,7 @@ import {
   DepositQuoteRequestSchema, DepositStatusQuerySchema, PARAMS, WithdrawRequestSchema,
   type DepositQuoteData, type DepositStatusData, type WithdrawData,
 } from "@caravan/shared";
-import { ApiError } from "../errors";
+import { ApiError, isApiError } from "../errors";
 import { assertContractMode, checkMode } from "../guards/mode";
 import type { GetCtx, PostSpec } from "../http";
 import type { IntentQuote } from "../intents/types";
@@ -103,7 +103,7 @@ export const withdrawSpec: PostSpec<z.infer<typeof WithdrawRequestSchema>, Withd
     } catch (e) {
       // A definite rejection (contract panic, rate limit) means nothing was debited: release the reservation.
       // INTERNAL is ambiguous (the transaction may have executed): keep the reservation for reconciliation.
-      if (e instanceof ApiError && e.code !== "INTERNAL") await svc.repo.cancelWithdrawal(row.id, svc.now());
+      if (isApiError(e) && e.code !== "INTERNAL") await svc.repo.cancelWithdrawal(row.id, svc.now());
       throw e;
     }
     noteTx(out);
