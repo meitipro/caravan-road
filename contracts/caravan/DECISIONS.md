@@ -4,6 +4,11 @@ Decisions the contract had to take where `spec/` (spec-v1) is open or silent. `s
 edited. Items marked **PROPOSAL** need the owner's decision; if accepted they go into
 `spec-v1.1` (announce in `PROGRESS.md`).
 
+> **Status note, 2026-11-05.** The items marked PROPOSAL below were adopted as `spec-v1.1` (`spec/CHANGELOG.md`).
+> The price sensitivity `MULT_K_BP` changed from 4000 to **3000** in `spec-v1.2` (merged 2026-11-03, tag
+> `spec-v1.2`, PROGRESS D5): see D27 at the end of the decision list. Simulation figures in the next section
+> are given for both values, each labelled with its K and each re-run on 2026-11-05.
+
 ## Open questions resolved in the contract
 
 ### D1. OPEN_QUESTIONS #6: ambush loss rounding — **PROPOSAL for spec-v1.1**
@@ -31,8 +36,11 @@ reference). The automatic step 4 (`auto_ship`) follows the reference exactly; me
 
 ### Effect of D1-D3 on the section 2.9 simulation numbers
 
-`scripts/ref/economy_sim.py` copied to a scratch file with each decision toggled (seed 7, 240
-ticks, house caravans automatic as in the reference). Baseline reproduces the published table.
+**Table 1: K = 4000 (spec-v1.1, the value when these decisions were taken).** `scripts/ref/economy_sim.py`
+copied to a scratch file with each decision toggled (seed 7, 240 ticks, house caravans automatic as in
+the reference). Baseline reproduces the published table. Re-run on 2026-11-05 with
+`scripts/analysis/econ_variant.py` at `mult_k=4000` (which `validate.py` checks against the real reference
+script with K patched in memory): every cell below reproduced exactly.
 
 | Variant | 2 bots: trips / median / broke | 5 bots | 10 bots | Money conserved |
 |---|---|---|---|---|
@@ -48,6 +56,26 @@ profitable, "merchant broke" events grow with player count and stay in the same 
 lowers them because recycling reaches the poorest merchant before caravans spend its treasury).
 Recommendation: accept D1-D3 as spec-v1.1 and update `packages/shared/src/sim.ts` + the 2.9 table
 together, or keep spec-v1 numbers as "reference model" and note the contract's three differences.
+(Outcome: D1-D3 were adopted in spec-v1.1; `sim.ts` kept the Appendix B rules as the reference.)
+
+**Table 2: K = 3000 (spec-v1.2, current).** Same method and seed, run on 2026-11-05 with
+`scripts/analysis/econ_variant.py` at its default `mult_k=3000` (`D1+D2+D3` is `contract_d123()`). The
+first row is exactly what `pnpm sim --bots N --ticks 240 --seed 7` prints today (run on 2026-11-05) and what the
+now K = 3000 `scripts/ref/economy_sim.py` prints; the last row is the contract-rule variant that
+`spec/CHANGELOG.md` quotes for spec-v1.2. `python scripts/analysis/validate.py` reproduces the first and last rows.
+
+| Variant | 2 bots: trips / median / broke | 5 bots | 10 bots | Money conserved |
+|---|---|---|---|---|
+| spec-v1.2 table (Appendix B, `pnpm sim`) | 53 / 5,795 / 10 | 190 / 1,392 / 47 | 329 / 689 / 72 | yes |
+| D1 only (floor loss) | 52 / 5,759 / 12 | 171 / 1,121 / 47 | 286 / 995 / 67 | yes |
+| D2 only (2.8 order) | 63 / 2,654 / 22 | 179 / 1,128 / 26 | 320 / 804 / 51 | yes |
+| D3 only (integer gap) | 53 / 5,795 / 10 | 190 / 1,392 / 47 | 329 / 689 / 72 | yes |
+| D1 + D2 + D3 (contract) | 53 / 8,175 / 16 | 182 / 739 / 28 | 314 / 704 / 66 | yes |
+
+Reading: the same caveats hold (chaotic sim, single seed; use the ten-seed means in `docs/ECONOMY_TUNING.md`
+for any comparison). At K = 3000 D3 alone changes nothing in these three runs. Money is conserved in every row.
+The contract rules are D1 + D2 + D3 plus the contract-only rules D25 (merchant `ship` limits) and the warehouse
+cap, which `docs/ECONOMY_TUNING.md` rule set C models in addition.
 
 ## Other choices (spec silent or plan detail)
 
@@ -142,6 +170,19 @@ together, or keep spec-v1 numbers as "reference model" and note the contract's t
   by cargo-near); `.cargo/config.toml` adds `--cfg near` (and `-C link-arg=-s`) for the wasm target
   so a plain `cargo build --target wasm32-unknown-unknown --release` matches cargo-near. The wasm
   built before commit `da30d32` lacked this flag and must not be deployed.
+- **D27. `MULT_K_BP` = 3000 (spec-v1.2, 2026-11-03).** `math::MULT_K_BP` was 4000 and is now 3000 (the
+  only contract change of spec-v1.2: the constant and the price-dependent test expectations; no rule, method or
+  storage layout changed, so D1-D26 stand). The multiplier is `clamp(10000 + 3000 x (target - stock) / target,
+  7500, 13500)`: its maximum is 13,000 (stock 0), so the 13,500 ceiling cannot be reached, and the 7,500 floor
+  binds from 183.3% of target stock. For every real target (30, 40, 100, 120, 200) the product divides exactly,
+  so `mult_bp` no longer truncates for real goods (the truncation rule still applies to `mid`, `ask`, `bid` and
+  to synthetic targets in the tests). New golden vectors: `spec/ECONOMY.md` 2.7 and
+  `contracts/caravan/src/tests/math_tests.rs`. Reason and evidence: `docs/ECONOMY_TUNING.md` (spice and silk at a
+  price clamp 17-24% of the time instead of 66-89%, with nearly the same median profit per trip).
+  Checked on 2026-11-05 on the merged tree: `cargo test` = 68 passed (CARGO_TARGET_DIR unset), `cargo clippy
+  --all-targets` and `cargo fmt --check` clean, `cargo build --target wasm32-unknown-unknown --release` =
+  389,493 bytes (a local Windows build with Rust 1.99.1; no reproducible-build claim, so no hash is recorded here and the
+  deployed artifact's hash is a `TODO(owner)` in `docs/deployments.md`). Simulation figures with the contract rules at K = 3000: Table 2 above (last row).
 
 ## Audit findings (independent review) and how each was handled
 

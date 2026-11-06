@@ -20,6 +20,38 @@ Sources: [OpenAPI](https://1click.chaindefuser.com/docs/v0/openapi.yaml),
 [Authentication](https://docs.near-intents.org/integration/distribution-channels/1click-api/authentication.md),
 [Swap types](https://docs.near-intents.org/integration/distribution-channels/1click-api/swap-types.md).
 
+## Fees and authentication (read on 2026-11-05)
+
+Read directly (HTTP 200, plain Markdown) on 2026-11-05. None of the three pages states a last-updated date, so check
+them again before relying on any figure.
+
+| Source | What it says about the 1Click fee |
+|---|---|
+| NEAR Intents docs, [Fees](https://docs.near-intents.org/resources/fees.md), section "1Click Swap API Fees" (3,980 bytes) | Platform fees are charged **in addition to** the 0.0001% on-chain protocol fee and are not applied to `ANY_INPUT` quotes. **Without an API key:** an additional **0.25% (25 bps)** on every non-`ANY_INPUT` quote (any `appFees` you submit are kept and the 25 bps is added on top). **With an API key and no `appFees`:** **0.20% (20 bps)** normally, **0.01% (1 bp)** for stablecoin pairs (USDC, USDT, DAI) and same-asset multichain routes. **With a key and `appFees`:** split 50/50, 1Click keeping at least 20 bps (1 bp on those stablecoin / same-asset routes), subject to partner-specific configuration. A tip on the page says to apply for an API key to get the authenticated schedule rather than the extra 25 bps |
+| NEAR Intents docs, [API Keys](https://docs.near-intents.org/integration/distribution-channels/1click-api/authentication.md) (4,504 bytes) | Unauthenticated requests pay an additional 0.25% (25 bps) platform fee on every non-`ANY_INPUT` quote; authenticated requests use the partner fee schedule (typically 20 bps, or 1 bp on stablecoin and same-asset multichain routes). The JWT comes from the [Partner Dashboard](https://partners.near-intents.org/home) and is sent as the `X-API-Key` header (`Authorization: Bearer` is also accepted for the same JWT) |
+| Hackathon rules, [HACKATHON.md](https://nearhackathon.com/HACKATHON.md), Q-006 (21,697 bytes) | The JWT is **not required**; "without it, 0.2% fee"; register at https://partners.near-intents.org |
+
+**Do they agree? No, on the no-JWT number.** The docs say the no-JWT case costs an additional 0.25%; the hackathon file says
+0.2%. Two readings, both shown:
+
+1. *The docs' reading (the primary source for the API):* **no JWT = an additional 0.25% (25 bps)** on every non-`ANY_INPUT`
+   quote. The docs do not say whether the 25 bps replaces or is added to the 0.20% schedule; the table row ("additional", with appFees kept and 25 bps added on top) and the tip ("instead of" the extra 25 bps) can be read either way, so the total without a key is either
+   0.25% or 0.45%, plus the 0.0001% protocol fee. Only a real (or `dry: true`) quote can show which; that was not done.
+2. *The hackathon file's reading:* **no JWT = 0.2%**. That equals the docs' fee **with** a key (20 bps), not their no-key
+   surcharge. The fees page also lists a separate 0.2% fee for swaps made through the near-intents.org web app, which is a
+   different product from the 1Click API (a possible origin of the 0.2%; my inference, not stated anywhere).
+
+**With a JWT the docs apply, and they are the only source that covers it:** 0.20% (20 bps) per quote, and 0.01% (1 bp) when
+the route is a stablecoin pair or a same-asset multichain route, plus the 0.0001% protocol fee. The hackathon file says
+nothing about the with-JWT case, so it does not conflict there. For Caravan Road that would mean 1 bp for a USDC deposit
+from another chain to USDC on NEAR if 1Click classifies that as a same-asset or stablecoin route, and 20 bps for a swap
+from another asset (for example NEAR or ETH) into USDC; whether a given route counts as same-asset was not checked. The
+fee actually charged is whatever the quote response says. Either way the cost is small, and a JWT is not required for the
+hackathon (Q-006), but it changes the fee and the header the server must send. The code sends the JWT as the `x-api-key`
+header by default and as `Authorization: Bearer` only if configured (`authHeader` in `apps/web/src/server/intents/http.ts`);
+that matches the page as read today (nothing was sent to the API to test it).
+`PROGRESS.md` D4 says this file "should read 0.2%": that is the hackathon file's no-JWT figure, which the docs contradict.
+
 ### Deposit (any supported asset in, USDC on NEAR to the treasury)
 
 `POST /v0/quote` with `dry:false`, `swapType: EXACT_INPUT`, `depositType: ORIGIN_CHAIN`, `originAsset` = the asset
@@ -90,13 +122,10 @@ All of these are his actions; nothing here has been done.
 
 1. **Get the JWT.** Request an API key in the partner dashboard (<https://partners.near-intents.org/home>, per the
    [authentication page](https://docs.near-intents.org/integration/distribution-channels/1click-api/authentication.md)).
-   The fee wording differs between sources, so check it again before relying on it (read 2026-11-01): the NEAR Intents
-   docs say that without a JWT or API key a quote pays an additional 0.25% (25 bps) platform fee, and that with a key and no
-   `appFees` the default fee is 0.20% (20 bps), or 0.01% for stablecoin pairs such as USDC, USDT and DAI
-   (<https://docs.near-intents.org/resources/fees.md> and the authentication page linked above). The hackathon rules
-   (`https://nearhackathon.com/HACKATHON.md`, Q-006, as summarised in `docs/SUBMISSION.md`) say 0.2% without the JWT and that a
-   JWT is not required. The 0.2% figure matches the docs' fee with a key, not the no-key surcharge, so the two readings are
-   unresolved; either way the amount is small. Put the JWT in the host's secret store as `ONECLICK_JWT`; never paste it in chat.
+   The fee wording differs between sources: see "Fees and authentication (read on 2026-11-05)" above, which shows both readings
+   (docs: an additional 0.25% without a key, 0.20% or 0.01% for stablecoin routes with one; hackathon file Q-006: 0.2% without
+   the JWT, JWT not required) and which applies with a JWT (the docs). Either way the amount is small. Put the JWT in the
+   host's secret store as `ONECLICK_JWT`; never paste it in chat.
 2. **Treasury account.** Create a separate mainnet NEAR account for the treasury (not the prize account, not the
    relayer). Register it with the USDC contract (`storage_deposit`) so it can receive USDC, and give it a few cents of
    NEAR for gas. Fund it with a **few USDC** only (it is a hot wallet; its balance is also what withdrawals can pay).

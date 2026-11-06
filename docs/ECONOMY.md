@@ -5,10 +5,11 @@ Audience: a judge or a developer who wants to check the numbers. Everything here
 `spec/ECONOMY.md`, `spec/GAME.md`, `spec/CHANGELOG.md` and `contracts/caravan/DECISIONS.md`, or was
 produced by a command listed in the section where it appears.
 
-> **spec-v1.2 PROPOSAL (branch `proposal/spec-v1.2-mult-k-3000`).** This file shows `MULT_K_BP = 3000` (spec-v1.1: 4000).
-> Prices, golden vectors, the mid-price ranges and the `pnpm sim` numbers were recomputed from real runs; the Appendix B
-> figures of spec-v1.1 (64 / 5,944 / 23, 177 / 1,088 / 43, 342 / 1,099 / 86) no longer apply to the shared sim.
-> Figures that were not re-run are labelled "spec-v1.1, K = 4000". See `spec/CHANGELOG.md`.
+> **spec-v1.2 (adopted: merged 2026-11-03, tag `spec-v1.2`).** This file shows `MULT_K_BP = 3000` (spec-v1.1: 4000).
+> Prices, golden vectors, the mid-price ranges and the `pnpm sim` numbers were recomputed from real runs (re-run again on
+> 2026-11-05); the Appendix B figures of spec-v1.1 (64 / 5,944 / 23, 177 / 1,088 / 43, 342 / 1,099 / 86) no longer apply to the
+> shared sim or to `scripts/ref/economy_sim.py`, which both use K = 3000 now. Figures from spec-v1.1 are labelled
+> "spec-v1.1, K = 4000". See `spec/CHANGELOG.md` (its heading may still say PROPOSAL: `spec/` is not edited by documentation work).
 
 ## 1. Which numbers are which
 
@@ -20,11 +21,10 @@ Three kinds of numbers appear in this repository. Do not mix them.
 | **Appendix B reference** | The Python reference simulation of the master plan and its published table (spec section 2.9). Its rules differ from the contract in three places (section 8.2) | `scripts/ref/economy_sim.py`, ported to `packages/shared/src/sim.ts` | `pnpm sim --bots N --ticks 240 --seed 7` |
 | **Worker evaluation** | The NPC loop against its own in-memory world, with a scripted FAKE model | `apps/worker/src/sim-world.ts`, `docs/NPC_EVAL.md` | `pnpm --filter @caravan/worker eval` |
 
-`pnpm sim` prints the Appendix B reference rules, not the contract's, with `MULT_K_BP = 3000` on this branch. The
-unchanged `scripts/ref/economy_sim.py` still has K = 4000 and prints the spec-v1.1 numbers until `scripts/ref/world.py` is
-changed by the owner. The contract-rule figures in section 8.2 come from `contracts/caravan/DECISIONS.md` and
-`spec/CHANGELOG.md` (spec-v1.1, K = 4000) and from `scripts/analysis/econ_variant.py` (`contract_d123`, K = 3000); no
-`pnpm` command prints them.
+`pnpm sim` prints the Appendix B reference rules, not the contract's, with `MULT_K_BP = 3000`. `scripts/ref/economy_sim.py`
+has K = 3000 too (`scripts/ref/world.py`, commit `083bc34`) and prints the same numbers. The contract-rule figures in section
+8.2 come from `scripts/analysis/econ_variant.py` (`contract_d123`, K = 3000, checked by `python scripts/analysis/validate.py`)
+and, for spec-v1.1 (K = 4000), from `contracts/caravan/DECISIONS.md` and `spec/CHANGELOG.md`; no `pnpm` command prints them.
 
 ## 2. Units
 
@@ -137,7 +137,7 @@ Output of `quote()` for these inputs, run on 2026-11-02 with K = 3000: `{"bid":"
 | parameter | value | meaning |
 |---|---|---|
 | `TICK_SECONDS` | 60 | world tick length |
-| `MULT_K_BP / MIN / MAX` | 3000 / 7500 / 13500 | price sensitivity and clamp of the multiplier (spec-v1.2 PROPOSAL; spec-v1.1: 4000) |
+| `MULT_K_BP / MIN / MAX` | 3000 / 7500 / 13500 | price sensitivity and clamp of the multiplier (spec-v1.2; spec-v1.1: 4000) |
 | `SPREAD_DEFAULT / MIN / MAX` | 800 / 400 / 2000 | buy/sell spread (bp) |
 | `BIAS_MIN / MAX` | -1500 / +1500 | merchant mid-price bias (bp) |
 | `TRADE_FEE_BP` | 100 | trade fee paid by the player (to `house`) |
@@ -208,9 +208,10 @@ Setup: greedy bots, 240 ticks (4 hours), seed 7, house caravans, rebalancing and
 buys where the price is lowest, travels, sells where it is highest, with no strategy beyond that. This is a
 sanity check that the loop is profitable and money is conserved, not a forecast of player behaviour.
 
-Commands run from the repository root on 2026-11-02, on the spec-v1.2 branch with `MULT_K_BP = 3000`
-(`pnpm sim --bots N --ticks 240 --seed 7`). A local copy of the Python reference with K changed to 3000 (`scripts/ref`
-itself is untouched and still says 4000) printed the same output for all three rows:
+Commands run from the repository root on 2026-11-02 and again on 2026-11-05 (same output), with `MULT_K_BP = 3000`
+(`pnpm sim --bots N --ticks 240 --seed 7`). On 2026-11-02 a local copy of the Python reference with K changed to 3000 printed
+the same output for all three rows; since `083bc34` the repository's own `scripts/ref/economy_sim.py` does, and
+`python scripts/analysis/validate.py` compares them (25 of 25 configurations identical to the shared TypeScript sim):
 
 | Bots | Trips | Median profit per trip (fils) | p10 / p90 profit (fils) | "Merchant broke" events | Money conserved |
 |---|---|---|---|---|---|
@@ -219,8 +220,8 @@ itself is untouched and still says 4000) printed the same output for all three r
 | 10 | 329 | 689 | -15,825 / 14,578 | 72 | yes, every tick |
 
 spec-v1.1 (K = 4000) printed 64 / 5,944 / -15,756 / 19,810 / 23, 177 / 1,088 / -10,531 / 12,948 / 43 and
-342 / 1,099 / -18,487 / 15,775 / 86 for the same rows. Those Appendix B figures are what the unchanged
-`scripts/ref/economy_sim.py` still prints.
+342 / 1,099 / -18,487 / 15,775 / 86 for the same rows (trips, median and broke events reproduced on 2026-11-05 by
+`python scripts/analysis/validate.py --k 4000`, which runs the reference script with K patched to 4000 in memory; p10 and p90 were not re-compared).
 
 Further output for 5 bots (same run): final bot net worth (fils) `[64404, 46522, 30924, 15897, 68025]` (one bot ends
 well ahead of the rest), the mid price range seen for spice (9,000 - 15,600) and silk (15,000 - 26,000) equals the
@@ -250,8 +251,8 @@ The contract differs from Appendix B in three places (`spec/CHANGELOG.md`, spec-
 
 Reference rules with all three decisions on (seed 7, 240 ticks), `MULT_K_BP = 3000`, computed with
 `scripts/analysis/econ_variant.py` (`contract_d123(mult_k=3000)`; the same function reproduces the spec-v1.1
-figures 61/6,714/26, 132/933/44, 344/958/74 at K = 4000, `python scripts/analysis/validate.py` section 3). There is no `pnpm`
-command that prints these:
+figures 61/6,714/26, 132/933/44, 344/958/74 at K = 4000, and `python scripts/analysis/validate.py` checks both against the
+CHANGELOG). There is no `pnpm` command that prints these:
 
 | Bots | Trips | Median profit per trip (fils) | "Merchant broke" events | Money conserved |
 |---|---|---|---|---|
@@ -262,7 +263,7 @@ command that prints these:
 spec-v1.1 (K = 4000), as recorded in `contracts/caravan/DECISIONS.md` and `spec/CHANGELOG.md`: 61 / 6,714 / 26,
 132 / 933 / 44, 344 / 958 / 74.
 
-Each decision on its own (DECISIONS table, spec-v1.1, K = 4000, not re-run for K = 3000): floor loss only 72/5,382/26 (2 bots), 158/1,723/45 (5), 341/1,341/94 (10);
+Each decision on its own at K = 3000 (run 2026-11-05, `contracts/caravan/DECISIONS.md` Table 2): floor loss only 52/5,759/12 (2 bots), 171/1,121/47 (5), 286/995/67 (10); tick order only 63/2,654/22, 179/1,128/26, 320/804/51; integer gap only 53/5,795/10, 190/1,392/47, 329/689/72 (no change at all). At K = 4000 (spec-v1.1, reproduced the same day): floor loss only 72/5,382/26 (2 bots), 158/1,723/45 (5), 341/1,341/94 (10);
 tick order only 52/818/12, 183/1,236/30, 329/710/45; integer gap only 64/5,944/23, 165/1,352/40, 351/1,019/79. The
 qualitative findings of 8.1 hold in every variant (money conserved, trips profitable, broke events grow with bots).
 `packages/shared/src/sim.ts` was not changed to the contract rules: it reproduces Appendix B exactly and is the reference.
@@ -270,19 +271,20 @@ qualitative findings of 8.1 hold in every variant (money conserved, trips profit
 ### 8.3 Economy tuning status
 
 The master plan schedules economy tuning with live play for Day 11 and then a freeze. That has not happened: no
-live play exists, and no parameter was changed after spec-v1 except `MULT_K_BP` in the spec-v1.2 proposal (4000 to 3000, from the offline study in `docs/ECONOMY_TUNING.md`, not from live play). The other parameters above are the initial ones. Known
+live play exists, and no parameter was changed after spec-v1 except `MULT_K_BP` in spec-v1.2 (4000 to 3000, from the offline study in `docs/ECONOMY_TUNING.md`, not from live play). The other parameters above are the initial ones. Known
 observations that tuning should look at:
 
 - A merchant's starting treasury is 500 dinars. One caravan of spice or silk can exceed it, so a sale can end in
   `MERCHANT_BROKE`; the UI caps the quantity to what the merchant can pay and says so
   (`apps/web/src/ui/SHARED_ISSUES.md` item 4). In the UI walkthrough run on 2026-11-01 the journey planner offered an
   estimate that only counted the part of a cargo the merchant could pay for.
-- Spice is expensive: in the UI walkthrough on the mock (run on 2026-11-01 under spec-v1.1 prices, K = 4000; not re-run), 10 spice at Bandar showed "You pay 1,121.80" (about 111 dinars
-  each), more than the 500 dinars a PLAY player gets from the faucet; 500 dinars buy about 4 spice. At K = 3000 the multiplier at that stock is
-  slightly lower, so the same trade costs a little less, but the conclusion holds. Grain, salt and iron
-  are the goods a new player can afford in quantity.
+- Spice is expensive: in the UI walkthrough on the mock under spec-v1.1 prices (run on 2026-11-01, K = 4000; not repeated), 10 spice at Bandar showed "You pay 1,121.80" (about 111 dinars
+  each), more than the 500 dinars a PLAY player gets from the faucet. Re-observed at K = 3000 on 2026-11-06 (mock, a fresh
+  player with 500 dinars): the Spice buy sheet in Bandar offered at most 4 units at 115.44 dinars each ("You pay 466.37",
+  33.63 left), and 3 units cost 114.50 each ("You pay 346.93"). The conclusion holds: 500 dinars buy about 4 spice. Grain,
+  salt and iron are the goods a new player can afford in quantity.
 - Spice and silk prices sat on the clamps in the simulation at K = 4000 (86% of the time with 5 bots). spec-v1.2 lowers
-  `MULT_K_BP` to 3000 (22%) instead of raising it; a higher K makes the clamping worse (`docs/ECONOMY_TUNING.md`
+  `MULT_K_BP` to 3000 (22%, low clamp only) instead of raising it; a higher K makes the clamping worse (`docs/ECONOMY_TUNING.md`
   section 4, section 7 proposal 3).
 
 ### 8.4 NPC evaluation

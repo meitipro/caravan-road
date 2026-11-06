@@ -4,7 +4,7 @@ Status: DRAFT written 2026-11-01. **Nothing has been posted.** The owner publish
 else does. Replace `{REPO_URL}` and `{GAME_URL}` yourself (they are `TODO(owner)`: the repository is not public yet and no
 hosted game exists). The post's own URL then goes into `demoUrl` of the submission (`docs/SUBMISSION.md`).
 
-## What the official rules ask of the post (https://nearhackathon.com/HACKATHON.md, read 2026-11-01)
+## What the official rules ask of the post (https://nearhackathon.com/HACKATHON.md, read 2026-11-01 and again 2026-11-05: the post requirements below are unchanged)
 
 - public, on X, from the team's side; says the project was built at NEAR HACKATHON; tags **@NEARProtocol** and
   **#NEARHackathon** (optional: @NearLegion, @NearBuilders); has the **demo video** (or screenshots) attached. A local-only
@@ -22,13 +22,13 @@ spec, UI on a mock, server, worker, contract). So these drafts say **"started Oc
 deploy), you can honestly add "NEAR integration finished during the hackathon" **only** for what you did. PROGRESS decision
 D1 records that you accepted the risk that the organisers treat pre-window work as a violation; do not paper over it.
 
-## Facts every variant must stay inside (checked 2026-11-01)
+## Facts every variant must stay inside (checked 2026-11-01; counts re-run 2026-11-05)
 
 | Fact | Source |
 |---|---|
 | The loop (buy, route, guards, ambush, sell, leaderboard) runs in the browser against a mock and against a local dev backend | README "Try it in 2 minutes"; `docs/SERVER.md` "Local end-to-end dev mode" |
-| The merchants are "meant to be" AI agents: the worker, validation and fallback are written and tested (177 tests), but it has never called NEAR AI Cloud; the dev backend uses a rule-based stand-in | `docs/WORKER.md`, `docs/NPC_EVAL.md` (fake model), `apps/web/src/server/dev/ticker.ts` |
-| Contract: 68 tests pass, not deployed | `contracts/caravan`, README |
+| The merchants are "meant to be" AI agents: the worker, validation and fallback are written and tested (180 tests), but it has never called NEAR AI Cloud; the dev backend uses a rule-based stand-in | `docs/WORKER.md`, `docs/NPC_EVAL.md` (fake model), `apps/web/src/server/dev/ticker.ts` |
+| Contract: 68 tests pass (run 2026-11-05, price curve `MULT_K_BP` 3000 = spec-v1.2), not deployed | `contracts/caravan`, README |
 | NEAR Intents (1Click) client and meta-transaction relayer: written, tested offline, never run on a network | `docs/INTENTS.md`, `docs/SERVER.md` |
 | TEE attestation is **not** verified; never write "verified" | `docs/WORKER.md` |
 | No hosted demo, no public repository yet | README, PROGRESS |

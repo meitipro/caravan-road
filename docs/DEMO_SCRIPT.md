@@ -1,6 +1,6 @@
 # Demo video script (Phase 10) - shot by shot, under 2:00
 
-Status: DRAFT written 2026-11-01 for the owner (Mahdi) to record. Nothing has been recorded or posted. The video is made
+Status: DRAFT written 2026-11-01 for the owner (Mahdi) to record. Nothing has been recorded or posted. Prices, test counts and dry-run lines were re-checked on 2026-11-05/06 after spec-v1.2 (`MULT_K_BP` 3000); the setup facts dated 2026-11-01 below are unchanged records. The video is made
 only from what actually runs today: the **local dev backend** (real route handlers, simulated contract, no NEAR network),
 the **mock** (fixture merchants), and the **worker's fake-model dry run**. Each of these carries an on-screen badge, so a
 viewer can never mistake it for a live network. Plan 13.1 had a "merchant is an agent on NEAR AI Cloud" shot and a LIVE
@@ -82,8 +82,8 @@ start a practice account." Keep that line readable.
 No wallet, no gas, no seed phrase on screen. This is a local test login.
 ```
 
-Backing: `apps/web/src/ui/vocabulary.test.ts` (chain words only in the Advanced drawer and the evidence page), 294 web
-tests pass. Not claimed: Google or Discord sign-in. It is written (Auth.js, `apps/web/src/server/auth/config.ts`) but
+Backing: `apps/web/src/ui/vocabulary.test.ts` (chain words only in the Advanced drawer and the evidence page), 332 web
+tests pass (clean checkout of `32141a2`, run 2026-11-06). Not claimed: Google or Discord sign-in. It is written (Auth.js, `apps/web/src/server/auth/config.ts`) but
 no OAuth app exists, so the video must not show or name it.
 
 ### Shot 3 (0:18-0:28): free dinars
@@ -102,7 +102,7 @@ player returned `fils: "0"` before claiming.
 ### Shot 4 (0:28-0:46): buy where it is cheap
 
 Screen: "Open Bandar market", Spice row, "Buy", set quantity 3, "Buy for ..."; toast "Bought 3 Spice"; "Cargo 3 of 40 units"
-(README step 6 shows the same flow on the mock; spice costs about 105-111 dinars each).
+(README step 5 shows the same flow on the mock; on 2026-11-05, with 3 units, spice cost 114.50 dinars each plus the 1% fee, "Bought 3 Spice: -346.93 dinars"; on the dev backend the price depends on stock at that moment, so read it off the screen).
 
 <!-- count: caption.4 min=1 max=110 -->
 ```
@@ -115,16 +115,16 @@ Backing: `packages/shared/src/quote.ts` (price curve), golden vectors `packages/
 
 ### Shot 5a (0:46-0:54): merchants decide every minute (terminal)
 
-Screen: the terminal running `pnpm --filter @caravan/worker dry-run -- --ticks 40 --bots 5 --seed 7`; scroll so the lines
-`Captain Nahid llm spread=1000 bias=-474 calm no ship | ...` and the ship line are visible, then the last lines
-(`decisions: 160`, `money conserved on every tick: yes`). Badge "fake".
+Screen: the terminal running `pnpm --filter @caravan/worker dry-run -- --ticks 40 --bots 5 --seed 7`; scroll so lines such as
+`[FAKE] t+  5  Captain Nahid  llm  model=fake-scripted attested=false spread=1000 bias=  -621 calm  ship 4 spice -> shahr | ...` (a ship line) are visible, then the last lines
+(`decisions: 160 (FAKE-model (source=llm) 159, baseline 0, keep 1)`, `money conserved on every tick: yes`, the "=== FAKE MODEL ===" banner; run 2026-11-05). Badge "fake".
 
 <!-- count: caption.5a min=1 max=110 -->
 ```
 Each merchant picks a spread and a price bias every minute, inside hard limits.
 ```
 
-Backing: `apps/worker/src/` (features, validation, clamps, baseline fallback); run 2026-11-01: 160 decisions, money conserved
+Backing: `apps/worker/src/` (features, validation, clamps, baseline fallback); run 2026-11-01 and again 2026-11-05: 160 decisions, money conserved
 on every tick; `docs/WORKER.md`, `spec/NPC.md`. The word "llm" in that output is the label of the **fake scripted model**
 (`docs/NPC_EVAL.md`); the badge says so.
 
@@ -145,8 +145,8 @@ rows, which is why this one drawer comes from the mock.
 ### Shot 6 (1:00-1:14): plan the route
 
 Screen: back on the dev backend: "Plan a journey", cargo 3 spice, destination Shahr (3:00), choose 1 guard. The summary
-shows "Ambush risk 5.2%", "Travel time 3:00", "Guards 1 - 7.20 dinars" (README step 8, observed on the mock; the numbers
-come from the shared formulas, so they should match on the dev backend; confirm on screen when recording). Click "Send
+shows "Ambush risk 5.2%", "Travel time 3:00", "Guards 1 - 7.20 dinars" (README step 6, observed on the mock on 2026-11-05 and 2026-11-06, with "est. profit" for Shahr +11.10 dinars; the risk, time and guard numbers
+come from the shared formulas, so they should match on the dev backend; the profit estimate depends on stock, so confirm on screen when recording). Click "Send
 caravan to Shahr".
 
 <!-- count: caption.6 min=1 max=110 -->
@@ -216,8 +216,8 @@ Not live yet: contract deploy, NEAR AI Cloud, NEAR Intents. All written, tested 
 Open source. Try it locally: README, "Try it in 2 minutes". Repo: TODO(owner)
 ```
 
-Backing: README "What is real and what is not"; test counts run 2026-11-01: shared 35, web 294, worker 177 (one timing test
-failed once under CPU load and passed alone), contract 68 (`cargo test`, about 65 s). The repository URL is
+Backing: README "What is real and what is not"; test counts run 2026-11-05: shared 35, web 332 (`32141a2`, 2026-11-06), worker 180, contract 68
+(`cargo test`, 33 s warm), tools/art 25 (on 2026-11-01 one worker timing test failed once under CPU load and passed alone; it passed in the 2026-11-05 run). The repository URL is
 `TODO(owner)`: it does not exist yet; replace the placeholder in the caption before burning it in (the count stays well
 under the limit). If a hosted PLAY demo exists by then, add its URL (`TODO(owner)`) and change "Try it locally" to the
 hosted link; otherwise leave the sentence as it is.

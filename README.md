@@ -19,7 +19,10 @@ NEAR AI Cloud.** See "What is real and what is not".
 - Demo video / X post: TODO(owner). Drafts: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md), [`docs/X_POST.md`](docs/X_POST.md).
 - Team statement and submission text: TODO(owner). Draft and the official-rules comparison: [`docs/SUBMISSION.md`](docs/SUBMISSION.md).
 - An independent run-through of this README by a fresh reader, with the problems it found:
-  [`docs/JUDGE_REHEARSAL.md`](docs/JUDGE_REHEARSAL.md).
+  [`docs/JUDGE_REHEARSAL.md`](docs/JUDGE_REHEARSAL.md) (a 2026-11-01 record; see its 2026-11-05/06 update).
+- What a judge can check in this repository, with the commands, and what is not verified:
+  [`docs/PROOF.md`](docs/PROOF.md). Deployment record (all `TODO(owner)`, nothing is deployed):
+  [`docs/deployments.md`](docs/deployments.md).
 
 ## Try it in 2 minutes (no wallet, no account, no money, no network services)
 
@@ -32,12 +35,12 @@ three UI fonts from Google Fonts (not tested offline).
 | 2 | `pnpm dev:mock` | `Next.js 15.5.28`, `Local: http://localhost:3000`, `Ready` |
 | 3 | Open http://localhost:3000. The first visit compiles the page: it can sit on "Loading the caravan" for a few seconds | a login card: "PLAY: Practice with free dinars", "Continue with Google", "Continue with Discord", and "Demo mode: this login is simulated" |
 | 4 | Click "Continue with Google", then "Next" twice, then "Claim 500.00 dinars", then "Start trading" | a toast "+500.00 dinars added", 1,000.00 in the top bar, then the "Silk Road" map: "You are in Bandar" |
-| 5 | On the Bandar card click "Trade here". Click "Buy" on Spice, press the "−" button until the quantity is **3**, click "Buy for ..." | a toast like "Bought 3 Spice: -328.96 dinars" (about 105-111 dinars each plus a 1% fee); "Cargo 3 of 40 units" |
-| 6 | Click "Plan a journey". Cargo is already the 3 spice. Pick **Shahr** (3:00) and **1 guard** | "Ambush risk 5.2%", "Travel time 3:00", "Guards 1 · 7.20 dinars", and a positive "est. profit" for Shahr (+47.40 in my last run, +61.78 to +69.27 in earlier ones) |
+| 5 | On the Bandar card click "Trade here". Click "Buy" on Spice, press the "−" button until the quantity is **3**, click "Buy for ..." | a toast like "Bought 3 Spice: -346.93 dinars" (114.50 dinars each plus a 1% fee in my run); "Cargo 3 of 40 units" |
+| 6 | Click "Plan a journey". Cargo is already the 3 spice. Pick **Shahr** (3:00) and **1 guard** | "Ambush risk 5.2%", "Travel time 3:00", "Guards 1 · 7.20 dinars", and an "est. profit" for Shahr (+11.10 dinars with the guard in my run, +18.30 with no guard; Dasht and Madan showed -1.73 and -22.26) |
 | 7 | Click "Send caravan to Shahr" | "On the road", a 3:00 countdown, "Aboard: Spice 3". You have dispatched a caravan; that is the 2 minutes |
-| 8 | Optional, 3 minutes later: "Claim your caravan", "Go to the market", "Sell" on Spice | "Safe arrival in Shahr"; a toast like "Sold 3 Spice: +400.30 dinars (+71.34 profit)" (my last run; earlier runs gave +77.00 and +103.82). "Ranks" then shows your row among fixture players |
+| 8 | Optional, 3 minutes later: "Claim your caravan", "Go to the market", "Sell" on Spice | "Safe arrival in Shahr"; a toast like "Sold 3 Spice: +398.58 dinars (+51.65 profit)" (my run, before the 7.20 guard fee). "Ranks" then shows your row among fixture players (rank #2 with 1,051.65 dinars in my no-guard runs, behind Silk Baron 1,824.00 and ahead of Salt Queen 971.50; with the guard the balance was 1,044.45) |
 
-> The dinar amounts in steps 5-8 (and in `docs/screens/`) were observed under the spec-v1.1 price curve (`MULT_K_BP` 4000). On the spec-v1.2 proposal branch (`MULT_K_BP` 3000) they differ a little as soon as stock moves away from its target; a fresh world opens at the same prices. They were not re-observed.
+> **Re-observed on 2026-11-05 and 2026-11-06 under spec-v1.2 (`MULT_K_BP` 3000).** The dinar amounts in steps 5-8 come from a headless-Chrome run of exactly these steps against `NEXT_PUBLIC_MOCK=1 next dev` (the server `pnpm dev:mock` starts), run from a clean checkout of commit `72684c2`; the clock of the page was advanced by 400 s for step 8 instead of waiting 3 minutes. Five completed runs (three on a working tree on 2026-11-05, two on the clean checkout on 2026-11-06) gave identical amounts. The mock moves prices on a 5 s tick, so what you see depends on how long the page has been open; expect the same order of magnitude, not the same digits. Under spec-v1.1 (`MULT_K_BP` 4000) the same steps gave -328.96 for the purchase and +71.34 / +77.00 / +103.82 profit in earlier runs. The mock-mode and local-backend screenshots in `docs/screens/` (all but the `stalls-*` ones) were regenerated on 2026-11-06 from the same clean checkout of `72684c2` (which is before the stalls screen of `32141a2`, so the market screens lack its link) with `node apps/web/src/ui/shoot/shoot.mjs http://localhost:PORT docs/screens` and `node apps/web/src/ui/shoot/live.mjs` (their buy and sell amounts are the maximum affordable quantity, not the 3 units of the table: 115.44 dinars each for spice at 5 in the buy sheet, for example).
 
 Also try "Why this price?" on a market: a drawer with the merchant's mood and last decisions. In mock mode this is fixture text
 ("Fixture decision: ...", tag "Rule-based", "No AI evidence yet"); the fixture for Dasht carries the placeholder model
@@ -54,7 +57,7 @@ form and what each switch does are in `docs/SERVER.md` ("Local end-to-end dev mo
 and a new player starts with 0 dinars and claims 500 (the contract rule; the mock starts with 500 and lets you claim 500 more).
 Wait about a minute after starting before you trade: the world ticks every 5 s (`DEV_TICK_SECONDS=5`; the contract's real
 tick is 60 s), and at tick 0 every city has identical prices so every trip loses the spread. Then buy 3 spice in Bandar and pick
-the destination whose "est. profit" in the planner is highest. In my run (about a minute after start) 3 spice cost about 291 dinars, the planner showed Dasht (4:30) at about +202 and Shahr at a loss, and after the 4:30 trip the 3 spice sold for 488.42 (+196 before the guard fee). Journeys are not sped up: they take their real 3 to 6 minutes
+the destination whose "est. profit" in the planner is highest. In my run on 2026-11-06 (spec-v1.2, a clean checkout of `72684c2`, about a minute after start, no guard) 3 spice cost 266.57 dinars (the 2026-11-01 run under spec-v1.1 had about 291), the planner showed Dasht (4:30) at +116.18, Madan at +107.27 and Shahr at +21.74, and after the 4:30 trip to Dasht the 3 spice sold for 475.09 (+208.52 profit). The 10% ambush roll fired on that trip; with 3 units nothing is lost, although the result sheet's headline still reads "Ambushed on the road!" (the sheet itself says the cargo was delivered). The sale beat the planner's estimate because prices keep moving while you travel (5 s ticks). Journeys are not sped up: they take their real 3 to 6 minutes
 (`DEV_TICK_SECONDS` only affects the market ticks, and the mock has no speed-up either).
 
 ### Caveats (read after you have played)
@@ -72,16 +75,16 @@ the destination whose "est. profit" in the planner is highest. In my run (about 
 - If you ran `dev` earlier and then `build` (or the other way round) and the page misbehaves, delete `apps/web/.next` and start
   again.
 
-### Checks without a browser (all run on 2026-11-01)
+### Checks without a browser (re-run on 2026-11-05 unless noted)
 
 | Command (from the repository root) | Result seen |
 |---|---|
-| `pnpm install --frozen-lockfile` | completes in seconds |
+| `pnpm install --frozen-lockfile` | completes in seconds (run 2026-11-01, not repeated) |
 | `pnpm typecheck` | `packages/shared`, `apps/web`, `apps/worker`: Done |
-| `pnpm test` | all three packages pass (counts in "Economy and tests"); the worker's abort test was flaky once and was fixed in `610eaa6` |
-| `pnpm sim` | 5 bots, 240 ticks (spec-v1.2 proposal, `MULT_K_BP` 3000): `trips: 190 \| median profit/trip (fils): 1392`, `merchant-broke events: 47`, `money conserved on every tick: yes` (spec-v1.1, K = 4000: 177 / 1088 / 43) |
-| `pnpm --filter @caravan/worker dry-run -- --ticks 40 --bots 5 --seed 7` | 160 decisions from a FAKE scripted model against an in-memory world, money conserved, and a closing "=== FAKE MODEL ===" banner |
-| `cd contracts/caravan && cargo test` | `68 passed` (Rust 1.95+; the first, cold build takes minutes) |
+| `pnpm test` | all three packages pass (counts in "Economy and tests"); the worker's abort test was flaky once on 2026-11-01 and was fixed in `610eaa6` (the three packages were run separately on 2026-11-05) |
+| `pnpm sim` | 5 bots, 240 ticks (spec-v1.2, `MULT_K_BP` 3000): `trips: 190 \| median profit/trip (fils): 1392`, `merchant-broke events: 47`, `money conserved on every tick: yes` (spec-v1.1, K = 4000: 177 / 1088 / 43) |
+| `pnpm --filter @caravan/worker dry-run -- --ticks 40 --bots 5 --seed 7` | 160 decisions from a FAKE scripted model (159 "llm"-labelled, 1 keep) against an in-memory world, money conserved on every tick, and a closing "=== FAKE MODEL ===" banner |
+| `cd contracts/caravan && cargo test` | `68 passed` (Rust 1.99.1 here; 33 s warm on 2026-11-05; the first, cold build takes minutes) |
 
 ### LIVE mode (real money): not tried, cannot be tried yet
 
@@ -106,8 +109,8 @@ the build window of 2026-11-01 to 2026-11-14, so it is separated here by a git t
 
 | Area | At the baseline (`pre-hackathon-baseline`, before 2026-11-01) | Built after it (from 2026-11-01; `git log` dates, commits named) |
 |---|---|---|
-| Specification (`spec/`), shared package, mock, TypeScript simulation | all of it (`spec-v1`, `spec-v1.1`) | nothing changed (`git diff pre-hackathon-baseline HEAD -- spec packages` is empty) |
-| Smart contract (`contracts/caravan`, 68 tests, audit fixes) | all of it | nothing changed (`git diff pre-hackathon-baseline HEAD -- contracts` is empty) |
+| Specification (`spec/`), shared package, mock, TypeScript simulation | all of it (`spec-v1`, `spec-v1.1`) | one parameter: `spec-v1.2` (`MULT_K_BP` 4000 to 3000, merged 2026-11-03, `f5dd8e2`, `6222645`, `771d086`): `spec/ECONOMY.md`, `spec/GAME.md`, `spec/CHANGELOG.md`, `packages/shared` constant, golden vectors, sim expectations, regenerated `fixtures/world.json`. Nothing else (`git diff --stat pre-hackathon-baseline HEAD -- spec packages` lists those files only) |
+| Smart contract (`contracts/caravan`, 68 tests, audit fixes) | all of it | the same one-parameter change (`005f94e`): the `MULT_K_BP` constant in `math.rs` and the price-dependent test expectations (`math_tests.rs`, `tick_tests.rs`, `trade_tests.rs`); no rule, method or storage change |
 | Server (`apps/web/src/server`): routes, custody, relayer, cron, caps, 17 review fixes | all of it | NEAR Intents (1Click) client `c3fb765`; withdrawal follow-up `f98782d`; local end-to-end dev backend and dev login `5b5d134`, `3f0a4a9` |
 | AI worker (`apps/worker`): brain, baseline, validation, evaluation harness | all of it | abort-test fix and fake-model labelling `610eaa6` |
 | UI (`apps/web/src/app/play`, `components`, `ui`) on the mock | all of it | font digit fix `d5fd7df`, regenerated screens, dev login screen `3f0a4a9`, later UI changes (see `git log`) |
@@ -115,8 +118,8 @@ the build window of 2026-11-01 to 2026-11-14, so it is separated here by a git t
 | Documentation | spec, `docs/SERVER.md`, `WORKER.md`, `NPC_EVAL.md`, `CREDITS.md`, contract README and DECISIONS | this README, `ARCHITECTURE.md`, `ECONOMY.md`, `DEPLOY.md`, `INTENTS.md`, font credits, `DEMO_SCRIPT.md`, `X_POST.md`, `SUBMISSION.md`, `JUDGE_REHEARSAL.md`, helper scripts in `scripts/` |
 | Anything running on a NEAR network | nothing | nothing |
 
-Measured on 2026-11-01: `git diff --shortstat pre-hackathon-baseline HEAD` reports about 164 changed files, most of them
-documentation and screenshots (`git diff --shortstat ... -- apps/web/src/server` alone is about 3,300 added lines). Libraries and
+Measured on 2026-11-05 at commit `72684c2`: `git log pre-hackathon-baseline..72684c2` lists 27 commits and `git diff --shortstat pre-hackathon-baseline 72684c2` reports 215 changed files (10,314 insertions, 294 deletions), most of them
+documentation and screenshots (`git diff --shortstat ... -- apps/web/src/server` alone is 35 files, 3,291 insertions; the `spec packages contracts` change above is 12 files, 221 insertions, 142 deletions). Libraries and
 tools are listed in `docs/CREDITS.md` and the `package.json` files. Most code, tests, art and documentation were written by
 Claude Code (an AI coding assistant) in sessions directed by the project owner, with separate agent sessions used for reviews;
 `PROGRESS.md` records the order of work.
@@ -205,7 +208,7 @@ network yet.
 | Item | Status |
 |---|---|
 | 1. Haggling | Cut: not implemented (no `grant_discount`, no player text ever reaches the model) |
-| 2. Player stalls | Contract and server API implemented and tested; no UI screen |
+| 2. Player stalls | Contract and server API implemented and tested; a UI screen at `/play/city/<id>/stalls` was added in `32141a2` (helper and mock-flow tests; walkthrough screenshots `docs/screens/stalls-*`), never run on a network |
 | 3. LIVE withdrawals | Server flow, 1Click client and the cron follow-up of sent withdrawals (mark done, or refund on chain) written and tested offline; never run |
 | 4. Mainnet | Not deployed |
 
@@ -226,7 +229,7 @@ meta-transactions are written and tested offline but have never run live; this R
 - Cron routes need an external scheduler; none is configured.
 - A new player's first `/api/state` call blocks while the server creates the account (expected to take a few seconds on a
   real network; never measured against a network).
-- No root `LICENSE` file yet.
+- Licensing: a root `LICENSE` (MIT, "Caravan Road contributors") was added in `ff17cc3`; the owner should confirm the license text and the copyright holder before the repository goes public (TODO(owner)).
 
 ## Run it locally
 
@@ -271,8 +274,8 @@ Deploying: `docs/DEPLOY.md`.
 - Formulas, parameters, golden vectors, and which numbers come from the reference simulation versus the contract:
   `docs/ECONOMY.md`. NPC evaluation (fake model): `docs/NPC_EVAL.md`.
 - `pnpm sim` (greedy bots, 240 ticks, seed 7; the Appendix B reference rules, which differ from the contract in three rules).
-  This branch carries the **spec-v1.2 proposal `MULT_K_BP` 3000** (spec-v1.1: 4000), so the Appendix B figures changed;
-  the unchanged `scripts/ref/economy_sim.py` still prints the old ones (64 / 5,944 / 23, 177 / 1,088 / 43, 342 / 1,099 / 86):
+  The current spec is **spec-v1.2 (`MULT_K_BP` 3000)**, merged 2026-11-03; spec-v1.1 had 4000), so the Appendix B figures changed;
+  `scripts/ref/economy_sim.py` (K = 3000 since `083bc34`) and `pnpm sim` agree. The spec-v1.1 figures were 64 / 5,944 / 23, 177 / 1,088 / 43, 342 / 1,099 / 86; table below re-run on 2026-11-05:
 
   | Bots | Trips | Median profit per trip (fils) | "Merchant broke" events | Money conserved |
   |---|---|---|---|---|
@@ -283,18 +286,19 @@ Deploying: `docs/DEPLOY.md`.
   The same simulation with the contract's rules (`scripts/analysis/econ_variant.py`, `contract_d123(mult_k=3000)`; no `pnpm`
   command prints it): 53 / 8,175 / 16, 182 / 739 / 28, 314 / 704 / 66. At K = 4000 (spec-v1.1, recorded in
   `contracts/caravan/DECISIONS.md` and `spec/CHANGELOG.md`): 61 / 6,714 / 26, 132 / 933 / 44, 344 / 958 / 74.
-- Test counts: run on 2026-11-01 (the web count changes as tests are added):
+- Test counts: run on 2026-11-05/06 (the web count changes as tests are added; the web figure is from a clean checkout of `32141a2`, which includes the stalls screen's tests; the others were unaffected by that commit):
 
   | Package | Command | Result |
   |---|---|---|
   | `packages/shared` | `pnpm --filter @caravan/shared test` | 35 passed (4 files) |
-  | `apps/web` | `pnpm --filter @caravan/web test` | 298 passed (15 files) |
+  | `apps/web` | `pnpm --filter @caravan/web test` | 332 passed (17 files) |
   | `apps/worker` | `pnpm --filter @caravan/worker test` | 180 passed (10 files) |
   | `contracts/caravan` | `cargo test` | 68 passed |
   | `tools/art` | `python -m pytest -q` | 25 passed |
 
-  Typecheck passes for all three TypeScript packages and `pnpm --filter @caravan/web lint` passes; clippy and rustfmt on the
-  contract were not re-run today. If a second folder with the same package name `@caravan/web` exists in `apps/`, the filter
+  Typecheck passes for all three TypeScript packages, `pnpm --filter @caravan/web lint` and `pnpm --filter @caravan/worker lint`
+  pass, and on the contract `cargo clippy --all-targets` and `cargo fmt --check` are clean (all run 2026-11-05); the wasm build
+  (`cargo build --target wasm32-unknown-unknown --release`) is 389,493 bytes. If a second folder with the same package name `@caravan/web` exists in `apps/`, the filter
   runs both; use `--filter ./apps/web`.
 
 ## Security notes
@@ -323,10 +327,11 @@ Deploying: `docs/DEPLOY.md`.
 
 ## License / credits
 
-- No root `LICENSE` file exists yet: TODO(owner) (the owner chooses the license). For information only, the contract crate
-  declares `license = "MIT"` in `contracts/caravan/Cargo.toml`.
+- `LICENSE` at the repository root: MIT, added in `ff17cc3` (the contract crate declares `license = "MIT"` in
+  `contracts/caravan/Cargo.toml`). TODO(owner): confirm the license and the copyright line before publishing.
 - Credits and provenance (generated art, the three OFL-licensed UI fonts Pixelify Sans, Inter and Vazirmatn, build-time
   libraries): `docs/CREDITS.md`.
-- Documents: `spec/` (the locked specification, `spec-v1` and `spec-v1.1` tags), `docs/ARCHITECTURE.md`, `docs/ECONOMY.md`,
+- Documents: `spec/` (the locked specification, tags `spec-v1`, `spec-v1.1`, `spec-v1.2`), `docs/PROOF.md` (what a judge can verify and how),
+  `docs/deployments.md` (empty record of deployments), `docs/ECONOMY_TUNING.md`, `docs/ARCHITECTURE.md`, `docs/ECONOMY.md`,
   `docs/SERVER.md`, `docs/WORKER.md`, `docs/NPC_EVAL.md`, `docs/INTENTS.md`, `docs/DEPLOY.md`, `docs/DEMO_SCRIPT.md`,
   `docs/X_POST.md`, `docs/SUBMISSION.md`, `docs/JUDGE_REHEARSAL.md`, `PROGRESS.md`.

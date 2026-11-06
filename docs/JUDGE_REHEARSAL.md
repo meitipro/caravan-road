@@ -6,10 +6,39 @@ pane. Date of the run: 2026-11-01. README last changed in commit `dc649e3`; HEAD
 README was not modified in between. Nothing was deployed, no account or secret was used, no tracked file was edited.
 The dev server was started from the README command and stopped at the end.
 
-> **Pre-v1.2 record.** This rehearsal was run on spec-v1.1 (`MULT_K_BP` 4000). Rows below that quote `pnpm sim` figures (177 / 1,088 / 43 and the 2- and 10-bot rows 64 / 5,944 / 23, 342 / 1,099 / 86) or Rust test counts are not changed; on the spec-v1.2 proposal branch `pnpm sim` prints 2 bots 53 / 5,795 / 10, 5 bots 190 / 1,392 / 47, 10 bots 329 / 689 / 72.
+> **Pre-v1.2 record.** This rehearsal was run on spec-v1.1 (`MULT_K_BP` 4000) against the README of commit `dc649e3`. Rows below that quote `pnpm sim` figures (177 / 1,088 / 43 and the 2- and 10-bot rows 64 / 5,944 / 23, 342 / 1,099 / 86), prices, test counts or README step amounts are a **dated record and are not edited**; section 0 gives the current figures. spec-v1.2 (`MULT_K_BP` 3000) was merged on 2026-11-03.
 
 Method note: the browser pane starts with leftover localStorage from an earlier session (login flag set, "Tick 42"). I
 cleared it first so the run starts at the login screen like a new visitor's would. A real judge's browser would be fresh.
+
+## 0. Update on 2026-11-05/06 (a re-check of numbers, not a new rehearsal)
+
+**No new fresh-reader rehearsal has been run.** The 6 / 10 score and the confusion list below were written about the README of
+2026-11-01. The README was rewritten afterwards (`f07a855`: fast path first, screenshots, `pnpm dev:mock`, the local backend,
+a baseline-vs-hackathon table) and UI fixes followed (`84bf900`), so several items in section 2 (stale README, no screenshot, long
+command, no dev-backend mention, no LICENSE) no longer describe the current README. Whether a stranger now finds it clearer is
+untested; run a fresh rehearsal once the live demo exists.
+
+The numbers the rehearsal checked, re-run by the documentation maintainer on 2026-11-05 (HEAD `72684c2`, spec-v1.2):
+
+| Rehearsal row | Then (2026-11-01, K = 4000) | Now (2026-11-05/06, K = 3000) |
+|---|---|---|
+| `pnpm sim` 2 / 5 / 10 bots, trips / median / broke | 64 / 5,944 / 23, 177 / 1,088 / 43, 342 / 1,099 / 86 | 53 / 5,795 / 10, 190 / 1,392 / 47, 329 / 689 / 72, money conserved |
+| shared tests | 35 (4 files) | 35 (4 files) |
+| web tests | 294 (14 files) | 332 (17 files, clean checkout of `32141a2`, which added the stalls screen's tests) |
+| worker tests | 177 (10 files) | 180 (10 files) |
+| `cargo test` | 68 passed, 40 s warm | 68 passed, 33 s warm; `cargo clippy --all-targets` and `cargo fmt --check` clean (not run then) |
+| wasm size | 389,493 bytes | 389,493 bytes |
+| `tools/art` tests | 25 | 25 |
+| typecheck, web lint, worker lint | Done / clean | Done / clean |
+| README step 5 purchase (3 spice, Bandar) | "Bought 5 Spice: -529.39" (5 units, README of that day) | "Bought 3 Spice: -346.93 dinars" (3 units; 114.50 each plus 1% fee) |
+| README steps 6-8 | Shahr estimate +61.78; sold +400.30 (+77.00 profit) | Shahr estimate +11.10 with one guard (+18.30 with none); sold +398.58 (+51.65 profit); Ranks: #2, Silk Baron 1,824.00 ahead, Salt Queen 971.50 behind |
+| `worker dry-run` | 160 decisions, "llm"-labelled, conserved | 160 decisions (159 "llm"-labelled, 1 keep), conserved, "=== FAKE MODEL ===" banner |
+
+The 2026-11-05/06 purchase and sale amounts come from a headless-Chrome run of the README steps (5 completed runs, identical
+amounts; the page clock was advanced by 400 s for the 3-minute wait). The rehearsal's other findings (the 3-minute wait, the
+loss at 5 spice, the no-op ambush at 3 units, the flaky worker abort test) were not re-tested; the worker suites passed in the
+2026-11-05 run.
 
 ## 1. Step-by-step table
 
