@@ -183,11 +183,7 @@ export class NearContract implements ContractClient {
         blockHeightTtl: META_TX_TTL_BLOCKS,
       });
       const out = this.extract((await this.relayer.relayMetaTransaction(signedDelegate)) as unknown as RawOutcome);
-      // The contract returns its JourneyView (status string, no `claimed` flag); the server works with ContractJourney.
-      if ((method === "start_journey" || method === "claim_journey") && out.returnValue && typeof out.returnValue === "object") {
-        return { ...out, returnValue: normJourney(out.returnValue as Raw) };
-      }
-      return out;
+      return { ...out, returnValue: normalizeReturn(method, out.returnValue) };
     };
     try {
       return await attempt();
@@ -230,6 +226,28 @@ export class NearContract implements ContractClient {
     if (this.events.length > MAX_EVENTS) this.events.splice(0, this.events.length - MAX_EVENTS);
     return out;
   }
+}
+
+/**
+ * Return values of player calls -> the server's types. The contract returns a JourneyView (status string, no
+ * `claimed` flag) from start_journey / claim_journey; everything else is used as returned
+ * (contracts/caravan/fixtures/contract-json.json, checked by contract-json-parity.test.ts).
+ */
+export function normalizeReturn(method: string, value: unknown): unknown {
+  if ((method === "start_journey" || method === "claim_journey") && value && typeof value === "object") return normJourney(value as Raw);
+  return value;
+}
+
+/**
+ * Contract event data -> the field names the server and the API use (the same names FakeContract emits):
+ * `account` -> `account_id`, stall events' `id` -> `stall_id`, ship's `merchant` -> `from`. Original keys are kept.
+ */
+export function normEventData(event: string, d: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...d };
+  if (out.account_id === undefined && out.account !== undefined) out.account_id = out.account;
+  if (event.startsWith("stall_") && out.stall_id === undefined && out.id !== undefined) out.stall_id = out.id;
+  if (event === "ship" && out.from === undefined && out.merchant !== undefined) out.from = out.merchant;
+  return out;
 }
 
 function decodeJson(b64: string | undefined): unknown {
@@ -275,7 +293,7 @@ export function parseOutcome(res: RawOutcome, contractId: string, nextId: () => 
         const d = (Array.isArray(j.data) ? j.data[0] : j.data) as Record<string, unknown> | undefined;
         if (typeof j.event !== "string" || !d) continue;
         const ts = typeof d.ts === "number" ? d.ts : Math.floor(Date.now() / 1000);
-        events.push({ id: nextId(), event: j.event, data: { ...d, tx_hash: txHash || undefined }, at_ns: secToNs(ts) });
+        events.push({ id: nextId(), event: j.event, data: { ...normEventData(j.event, d), tx_hash: txHash || undefined }, at_ns: secToNs(ts) });
       } catch {
         /* ignore a malformed log line */
       }
