@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vitest run --passWithNoTests",
+    "test:sandbox": "vitest run --config vitest.sandbox.config.ts",
     "db:migrate": "tsx src/server/db/run-migrate.ts",
     "smoke:testnet": "tsx src/server/scripts/smoke-testnet.ts",
     "dev:reset": "node -e \"require('node:fs').rmSync('.data',{recursive:true,force:true});console.log('dev world reset (.data removed)')\""
@@ -33,6 +34,7 @@
     "@types/react": "^19.0.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.5.28",
+    "near-sandbox": "0.3.4",
     "puppeteer-core": "^25.16.0",
     "tsx": "^4.23.15",
     "typescript": "^5.6.0",

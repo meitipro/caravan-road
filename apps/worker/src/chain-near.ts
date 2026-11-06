@@ -42,7 +42,14 @@ export function parseWorldView(raw: unknown, nowSeconds: () => number): WorldSna
   return { tick: w.tick, now: nowNs !== null ? Number(nowNs / 1_000_000_000n) : nowSeconds(), merchants };
 }
 
-const TICK_TOO_EARLY = /too early|too soon|min.*interval|tick/i;
+// The contract answers an early tick with { ticks: 0 } (no panic); the text match is only a fallback.
+const TICK_TOO_EARLY = /too early|too soon|min.*interval/i;
+
+function decodeReturn(status: unknown): unknown {
+  const v = status && typeof status === "object" ? (status as { SuccessValue?: string }).SuccessValue : undefined;
+  if (!v) return undefined;
+  try { return JSON.parse(Buffer.from(v, "base64").toString("utf8")); } catch { return undefined; }
+}
 
 export class NearChain implements ChainPort {
   private readonly provider: JsonRpcProvider;
@@ -63,7 +70,7 @@ export class NearChain implements ChainPort {
     return parseWorldView(raw, this.nowSeconds);
   }
 
-  private async call(city: CityId, methodName: string, args: Record<string, unknown>): Promise<TxResult> {
+  private async call(city: CityId, methodName: string, args: Record<string, unknown>): Promise<TxResult & { returned?: unknown }> {
     const account = this.accounts.get(city);
     if (!account) throw new Error(`no account for ${city}`);
     const out = (await account.callFunctionRaw({
@@ -82,7 +89,7 @@ export class NearChain implements ChainPort {
     if (status && typeof status === "object" && "Failure" in (status as object)) {
       throw new Error(`${methodName} failed on chain: ${JSON.stringify((status as { Failure: unknown }).Failure).slice(0, 200)}`);
     }
-    return { txHash: out.transaction_outcome?.id ?? out.transaction?.hash ?? null };
+    return { txHash: out.transaction_outcome?.id ?? out.transaction?.hash ?? null, returned: decodeReturn(status) };
   }
 
   setPolicy(city: CityId, spreadBp: number, biasBp: number): Promise<TxResult> {
@@ -95,7 +102,9 @@ export class NearChain implements ChainPort {
 
   async worldTick(): Promise<TxResult & { skipped?: boolean }> {
     try {
-      return await this.call("shahr", "world_tick", {});
+      const r = await this.call("shahr", "world_tick", {});
+      if (r.returned && typeof r.returned === "object" && (r.returned as { ticks?: number }).ticks === 0) return { txHash: null, skipped: true };
+      return { txHash: r.txHash };
     } catch (e) {
       // the contract rejects ticks closer than 55 s; that is expected, not an error
       if (TICK_TOO_EARLY.test((e as Error).message)) return { txHash: null, skipped: true };

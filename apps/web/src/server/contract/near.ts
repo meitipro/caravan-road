@@ -182,7 +182,12 @@ export class NearContract implements ContractClient {
         actions: [actions.functionCall(method, args as object, CALL_GAS, 0n)],
         blockHeightTtl: META_TX_TTL_BLOCKS,
       });
-      return this.extract((await this.relayer.relayMetaTransaction(signedDelegate)) as unknown as RawOutcome);
+      const out = this.extract((await this.relayer.relayMetaTransaction(signedDelegate)) as unknown as RawOutcome);
+      // The contract returns its JourneyView (status string, no `claimed` flag); the server works with ContractJourney.
+      if ((method === "start_journey" || method === "claim_journey") && out.returnValue && typeof out.returnValue === "object") {
+        return { ...out, returnValue: normJourney(out.returnValue as Raw) };
+      }
+      return out;
     };
     try {
       return await attempt();
@@ -194,13 +199,27 @@ export class NearContract implements ContractClient {
   }
 
   async operatorCall<M extends OperatorMethod>(method: M, args: OperatorArgs[M]): Promise<TxOutcome> {
-    const res = await this.operator.callFunctionRaw({ contractId: this.cfg.contractId, methodName: method, args: args as Record<string, unknown>, deposit: 0n, gas: CALL_GAS });
-    return this.extract(res as unknown as RawOutcome);
+    return this.direct(this.operator, method, args as Record<string, unknown>);
   }
 
   async worldTick(): Promise<TxOutcome> {
-    const res = await this.relayer.callFunctionRaw({ contractId: this.cfg.contractId, methodName: "world_tick", args: {}, deposit: 0n, gas: CALL_GAS });
-    return this.extract(res as unknown as RawOutcome);
+    return this.direct(this.relayer, "world_tick", {});
+  }
+
+  /**
+   * A transaction the account signs itself (no delegate). near-api-js throws on a failed outcome, so a contract panic
+   * arrives as its own error type: turn it into ContractPanic so callers can tell permanent failures from transient ones.
+   */
+  private async direct(account: Account, methodName: string, args: Record<string, unknown>): Promise<TxOutcome> {
+    let res: unknown;
+    try {
+      res = await account.callFunctionRaw({ contractId: this.cfg.contractId, methodName, args, deposit: 0n, gas: CALL_GAS });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/panicked|ExecutionError/.test(msg)) throw new ContractPanic(msg.replace(/^.*?panicked:?\s*/i, "").slice(0, 300) || msg);
+      throw e;
+    }
+    return this.extract(res as RawOutcome);
   }
 
   // ------------------------------------------------------------------ outcome parsing
@@ -277,7 +296,7 @@ function normMerchant(m: Raw): ContractMerchant {
   };
 }
 
-function normJourney(j: Raw): ContractJourney {
+export function normJourney(j: Raw): ContractJourney {
   return {
     id: Number(j.id), from: j.from as CityId, to: j.to as CityId, cargo: (j.cargo ?? {}) as ContractJourney["cargo"],
     guards: Number(j.guards), started_at_ns: String(j.started_at_ns), arrives_at_ns: String(j.arrives_at_ns),

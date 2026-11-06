@@ -17,3 +17,34 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @caravan/shared typecheck
       - run: pnpm --filter @caravan/shared test
+
+  # End-to-end against a local NEAR sandbox node (near-sandbox has Linux/macOS binaries only). It builds the real
+  # wasm, runs scripts/setup-testnet.mjs against the sandbox, then the server routes and the worker adapter.
+  # It downloads the sandbox node (about 36 MB) from the NEAR build bucket on first run.
+  sandbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contracts/caravan/target
+          key: wasm-${{ hashFiles('contracts/caravan/Cargo.lock') }}
+      - run: pnpm install --frozen-lockfile
+      - run: cargo build --target wasm32-unknown-unknown --release
+        working-directory: contracts/caravan
+      - run: pnpm --filter @caravan/web test:sandbox
+        env:
+          NEAR_RPC_TIMEOUT_SECS: "90"
+          NEAR_ENABLE_SANDBOX_LOG: "1"

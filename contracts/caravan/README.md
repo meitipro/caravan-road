@@ -86,5 +86,9 @@ VRF (e.g. OutLayer's, to be verified in its docs).
 | Money conservation / solvency | `players + treasuries + house + pending = seed + deposits + faucet - withdrawn` | `random_sequences_*` (49 seeds x 400 random actions), `simulation_240_ticks_*` |
 | Keys | merchant accounts get function-call keys for `set_policy`/`ship` only; operator daily cap | deploy step (not in this folder) |
 
-Not covered by unit tests (needs the `near-workspaces` sandbox, plan 5.5 task 6): the `#[private]`
-check on `init`, function-call key restrictions, real gas and storage costs.
+Not covered by unit tests: the `#[private]` check on `init`, function-call key restrictions, real gas and storage
+costs. These are what the sandbox suite targets: `apps/web/src/server/__sandbox__/chain.sandbox.test.ts` runs the real
+wasm on a local NEAR node (`near-sandbox`, which has Linux and macOS arm64 binaries only, none for Windows) through
+`scripts/setup-testnet.mjs`, the server's routes and the worker adapter. **It has never been executed**: write-up and
+review only, the CI job `sandbox` (`.github/workflows/ci.yml`) or `pnpm --filter @caravan/web test:sandbox` on Linux/WSL
+is the first run. Skipped automatically on Windows.
