@@ -7,3 +7,6 @@ dist
 *.tsbuildinfo
 __pycache__/
 *.pyc
+
+# Claude Code local worktrees
+.claude/
