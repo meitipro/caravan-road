@@ -1,6 +1,6 @@
 # Spec changelog
 
-## spec-v1.2 (PROPOSAL, 2026-11-02; not adopted, awaiting the owner's decision)
+## spec-v1.2 (ADOPTED 2026-11-03; prepared as a proposal on 2026-11-02, merged on owner delegation, tag `spec-v1.2`)
 
 Branch `proposal/spec-v1.2-mult-k-3000`, one parameter only: **`MULT_K_BP` 4000 -> 3000** (price sensitivity). Everything else in sections 2.5-2.8 is unchanged (clamps stay 7500 / 13500, spreads, bias, fees, treasuries).
 
