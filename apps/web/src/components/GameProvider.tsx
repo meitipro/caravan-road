@@ -10,10 +10,11 @@ import useSWR from "swr";
 import {
   CITY_IDS, GOOD_IDS,
   type ApiClient, type ApiResult, type CityId, type ErrorCode, type Event, type GoodId, type Journey,
-  type Mode, type Player, type Side, type StateData, type WorldState,
+  type Mode, type Player, type Side, type Stall, type StateData, type WorldState,
 } from "@caravan/shared";
 import { ApiError, getApi, unwrap } from "../ui/api";
 import { addBuy, basisCost, loadBasis, persistBasis, removeUnits, type Basis } from "../ui/basis";
+import { stallErrorText } from "../ui/stall-math";
 import { type Cargo } from "../ui/trade-math";
 import { useToast } from "./Toast";
 
@@ -177,8 +178,9 @@ export function useActions() {
   const { applyPlayer, refresh, updateBasis } = game;
 
   const fail = useCallback(
-    (r: Extract<ApiResult<unknown>, { ok: false }>) => {
-      toast.error(r.error);
+    (r: Extract<ApiResult<unknown>, { ok: false }>, text?: string) => {
+      if (text) toast.push("error", text);
+      else toast.error(r.error);
       void refresh();
     },
     [toast, refresh],
@@ -226,6 +228,37 @@ export function useActions() {
         const r = await game.api.faucet();
         if (!r.ok) {
           fail(r);
+          return r;
+        }
+        applyPlayer(r.data.player);
+        return r;
+      },
+      /** Open a stall in the player's city with goods they hold (they leave the inventory until sold or closed). */
+      async stallCreate(args: { good: GoodId; qty: number; unit_price: string }): Promise<ApiResult<{ stall: Stall }>> {
+        const r = await game.api.stallCreate(args);
+        if (!r.ok) {
+          fail(r, stallErrorText("create", r.error.code));
+          return r;
+        }
+        await refresh(); // the response carries the stall only; the new list and inventory come from the state
+        return r;
+      },
+      /** Buy from a stall. The price is fixed, so the limit is the exact price (the buyer never pays a fee). */
+      async stallBuy(args: { stall_id: number; qty: number; good: GoodId; price: bigint }): Promise<ApiResult<{ player: Player }>> {
+        const r = await game.api.stallBuy({ stall_id: args.stall_id, qty: args.qty, limit_total: args.price.toString() });
+        if (!r.ok) {
+          fail(r, stallErrorText("buy", r.error.code));
+          return r;
+        }
+        applyPlayer(r.data.player);
+        updateBasis((b) => addBuy(b, args.good, args.qty, args.price));
+        return r;
+      },
+      /** Close a stall: the goods return to the inventory. The cost basis is left alone (creating a stall never changed it). */
+      async stallCancel(args: { stall_id: number }): Promise<ApiResult<{ player: Player }>> {
+        const r = await game.api.stallCancel(args);
+        if (!r.ok) {
+          fail(r, stallErrorText("cancel", r.error.code));
           return r;
         }
         applyPlayer(r.data.player);

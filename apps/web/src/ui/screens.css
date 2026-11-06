@@ -183,3 +183,25 @@
 .decision-reason { font-size: 15px; }
 .decision-line { font-style: italic; color: var(--text-muted); }
 .decision-line[lang="fa"] { font-style: normal; }
+
+/* ---------- player stalls ---------- */
+.stalls { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.stall-row {
+  display: grid; gap: var(--s-2) var(--s-3); padding: var(--s-2) var(--s-3); box-shadow: var(--shadow-sm);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "main price" "qty actions" "note note";
+  align-items: center;
+}
+.stall-row.stall-mine { background: var(--panel-dim); }
+.stall-main { grid-area: main; display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.stall-name { min-width: 0; }
+.stall-name p { overflow-wrap: anywhere; }
+.stall-qty { grid-area: qty; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.stall-price { grid-area: price; display: flex; flex-direction: column; gap: 2px; align-items: flex-end; text-align: right; }
+.stall-actions { grid-area: actions; display: flex; justify-content: flex-end; }
+.stall-note { grid-area: note; }
+@media (min-width: 900px) {
+  .stall-row { grid-template-columns: 220px 1fr 240px 160px; grid-template-areas: "main qty price actions" "note note note note"; }
+}
+.pill-good { flex-direction: column; gap: 2px; padding: var(--s-2); min-width: 88px; text-align: center; }
+.panel-dim.small { margin: 0; }
+.sheet-foot .sheet-alert { flex-basis: 100%; margin: 0; }

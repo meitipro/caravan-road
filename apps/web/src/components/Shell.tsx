@@ -75,7 +75,7 @@ function MenuSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const mind = useMind();
   const { logout } = useMockSession();
   const dev = useDevLoginAvailable();
-  const { mode } = useGame();
+  const { mode, me } = useGame();
   const { lang, toggle } = useLang();
   return (
     <Sheet open={open} onClose={onClose} title="Menu" variant="drawer">
@@ -87,6 +87,7 @@ function MenuSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         <nav className="stack-sm" aria-label="Menu">
           <Link className="btn btn-block" href="/play" onClick={onClose}>Map</Link>
           <Link className="btn btn-block" href="/play/journey" onClick={onClose}>Caravan</Link>
+          <Link className="btn btn-block" href={`/play/city/${me?.location ?? "bandar"}/stalls`} onClick={onClose}>Stalls</Link>
           <Link className="btn btn-block" href="/play/cash" onClick={onClose}>Cash</Link>
           <Link className="btn btn-block" href="/play/ranks" onClick={onClose}>Ranks</Link>
         </nav>

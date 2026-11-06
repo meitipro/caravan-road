@@ -6,6 +6,7 @@ import { GOODS, GOOD_IDS, PARAMS, findRoute, type CityId, type GoodId, type Merc
 import { basisCost } from "../ui/basis";
 import { formatBp, formatDinar, formatDinarDelta, formatEta } from "../ui/format";
 import { CITY_META, GOOD_META } from "../ui/game-meta";
+import { stallsForSale } from "../ui/stall-math";
 import {
   cargoUnits, limitWithSlippage, maxBuyQty, maxSellQty, previewTrade, priceBand, riskWithGuards,
 } from "../ui/trade-math";
@@ -35,15 +36,21 @@ export function CityScreen({ id }: { id: CityId }) {
   const here = !traveling && me.location === id;
   const route = findRoute(me.location, id);
   const line = m.last_line ? (lang === "fa" ? m.last_line.fa : m.last_line.en) : null;
+  const stallCount = stallsForSale(world.stalls, id, me.account_id).length;
 
   return (
     <Page
       title={meta.name}
       subtitle={`${meta.role}. Merchant ${meta.merchant}.`}
       actions={
-        <Link className="btn" href="/play/journey">
-          {traveling ? "See caravan" : "Plan a journey"}
-        </Link>
+        <div className="row">
+          <Link className="btn" href={`/play/city/${id}/stalls`}>
+            Player stalls{stallCount > 0 ? ` (${stallCount})` : ""}
+          </Link>
+          <Link className="btn" href="/play/journey">
+            {traveling ? "See caravan" : "Plan a journey"}
+          </Link>
+        </div>
       }
     >
       {!here && (
