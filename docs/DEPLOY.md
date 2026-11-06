@@ -38,9 +38,202 @@ bash scripts/secret-scan.sh                # exit 0 = nothing suspicious (file:l
 Run `bash scripts/secret-scan.sh` before every push; add `--history` once before making the repository public.
 `node scripts/check-env.mjs` (section 7) checks that the required variable names are set.
 
+## 1b. Testnet in one script (recommended): `scripts/setup-testnet.mjs`
+
+One repeatable tool that does sections 2 to 4 for you: the sub-accounts and their keys, the merchants' function-call keys,
+the contract build, deploy plus `init` in one transaction, and the read-only checks. Sections 2 to 4 stay below as the
+manual equivalent. **Status: tested offline with a fake chain only (`node --test scripts/__tests__/setup-testnet.test.mjs`,
+41 tests); it has never been run against a live network.** The first live run may find problems, so start with `plan`
+and `--dry-run`. API names were checked against the installed near-api-js 7.4.0 and docs.near.org/tools/near-api.
+
+What it guarantees (each point has a test):
+
+- It never creates or invents the root account, never asks for a seed phrase or key, and takes **no key on the command
+  line** (a key-shaped argument or a flag like `--private-key` is refused without echoing it). The root key is read only
+  from the local file named by `ROOT_KEY_FILE`, or from the near-cli credentials directory.
+- It never prints key material: only account ids, public keys, balances and transaction hashes. Generated private keys are
+  written only to `.env.local` (git-ignored; checked before every write), created with restrictive permissions (mode 600; on
+  Windows `icacls` removes inherited access), replaced atomically, and saved **before** the first on-chain change that uses them.
+- Every account id is derived from `ROOT_ACCOUNT_ID` as `<role>.<root>`. Testnet only: a `.near` root or `NEAR_NETWORK=mainnet` is refused.
+- Re-running is safe: existing accounts and keys are skipped, existing secrets are never regenerated, a differing value in
+  `.env.local` is refused unless `--force`, and the root balance is checked before any write and again before every transfer.
+- `--dry-run` changes nothing and writes no file (it reads the chain, so it shows what exists and the root balance);
+  `plan` is fully offline.
+
+### What you do by hand
+
+1. **Create the root testnet account yourself** (the name is yours). It is the only account you create.
+   - Faucet, with the key saved where this script can read it **[interactive]**: run `near`, then `account`, then
+     `create-account`, then `sponsor-by-faucet-service`, enter the name, `autogenerate-new-keypair`, and choose
+     **`save-to-legacy-keychain`** (not `save-to-keychain`), network `testnet`. The legacy keychain is a directory under
+     `~/.near-credentials/testnet/` (near-cli-rs GUIDE, "legacy keychain"). That option name was not on the docs.near.org page I read:
+     confirm it with `near --help`. The one-line `save-to-keychain` form in section 2 stores the key in the OS keychain,
+     which this script cannot read.
+   - Or export the private key from the wallet you created the account in, into a file **outside the repository**
+     (for example `C:\secure\root-key.txt` or `~/secure/root-key.txt`). Accepted: the bare `ed25519:...` string, or JSON with a
+     `private_key` field. Set `ROOT_KEY_FILE` to that path. Never paste the key into chat; a seed phrase is refused.
+2. **Fund the root** from the testnet faucet. With the default sizing the root needs about **18.6 NEAR** (accounts 12.5, gas
+   reserve 0.07, and 6 kept on the root for the contract's code storage, see "Where the contract lives"). `accounts --dry-run`
+   prints the exact need next to the root's balance; lower the `FUND_*_NEAR` values if the faucet gives you less.
+3. **Set the two inputs** in your shell (values are yours; nothing is stored by the shell commands below):
+
+   ```bash
+   export ROOT_ACCOUNT_ID=<root>.testnet
+   export ROOT_KEY_FILE=~/secure/root-key.txt        # omit if the key is in ~/.near-credentials/testnet/
+   ```
+
+   ```powershell
+   $env:ROOT_ACCOUNT_ID = "<root>.testnet"
+   $env:ROOT_KEY_FILE = "C:\secure\root-key.txt"      # omit if the key is in ~/.near-credentials/testnet/
+   ```
+
+   (You can also put `ROOT_ACCOUNT_ID=` and `ROOT_KEY_FILE=` lines into `.env.local` yourself; the process environment wins.)
+
+### Commands, in order (same in bash and PowerShell; run from the repository root)
+
+```bash
+node scripts/setup-testnet.mjs plan                  # offline: names, funding, secrets, init arguments. Nothing is done.
+node scripts/setup-testnet.mjs accounts --dry-run    # reads the chain: what exists, root balance vs. need. Nothing is changed.
+node scripts/setup-testnet.mjs accounts              # creates the 7 sub-accounts, writes .env.local
+node scripts/setup-testnet.mjs keys                  # function-call keys on the four merchants
+node scripts/setup-testnet.mjs deploy                # cargo build, then deploy + init in ONE transaction
+node scripts/setup-testnet.mjs verify                # read-only checks, exit 1 if any FAIL
+# or everything in order (add --dry-run first to preview the whole flow):
+node scripts/setup-testnet.mjs all --dry-run
+node scripts/setup-testnet.mjs all
+```
+
+Options: `--env-file <path>` (default `.env.local` in the repository root; use `--env-file apps/web/.env.local` if you want the one
+file where the smoke test and `next dev` read it, also git-ignored), `--allowance <NEAR>`, `--max-players <n>` (default 1000),
+`--operator-daily-cap <fils>` (default 200000, DECISIONS D15), `--wasm <path>`, `--skip-build`, `--force`, `--rotate <roles>`.
+
+### What gets created
+
+| Role | Account | Key in `.env.local` | Notes |
+|---|---|---|---|
+| root | `<root>` | none (your key file) | you create it; pays for everything; by default also hosts the contract |
+| owner | `owner.<root>` | `OWNER_PRIVATE_KEY` full access | **stays on this machine, never on a host**; also the full-access key on the merchants and on a contract sub-account |
+| operator | `operator.<root>` | `OPERATOR_PRIVATE_KEY` full access | server (section 6); a restricted key may be enough, untested (see "Operator key") |
+| relayer | `relayer.<root>` | `RELAYER_PRIVATE_KEY` full access | server; parent of the player accounts `p<8hex>.relayer.<root>` (known limitation, `docs/SERVER.md` finding 8) |
+| dasht, madan, bandar, shahr | `<city>.<root>` | `KEY_DASHT`, `KEY_MADAN`, `KEY_BANDAR`, `KEY_SHAHR` function-call | worker; receiver = the contract, methods `set_policy`, `ship`; **shahr also `world_tick`** because the worker sends `world_tick` from that key (`docs/WORKER.md`), a small addition to "set_policy and ship" |
+
+Other values written (names only): `ROOT_ACCOUNT_ID`, `NEAR_NETWORK=testnet`, `NEAR_RPC_URL` (the docs.near.org example endpoint unless you set
+your own, https only), `GAME_MODE=PLAY`, `CARAVAN_CONTRACT_ID`, `OWNER_ACCOUNT_ID`, `OPERATOR_ACCOUNT_ID`, `RELAYER_ACCOUNT_ID`,
+`MERCHANT_ACCOUNT_DASHT/MADAN/BANDAR/SHAHR`, and three generated 64-hex secrets: `KEY_ENC_SECRET` (**back it up**: if lost, every stored
+player key is unreadable), `AUTH_SECRET`, `CRON_SECRET`. The merchants are created with the owner's public key as their full-access key
+(that is what lets `keys` and `--rotate` change their keys); the key the worker holds is only ever the function-call key.
+
+Default funding in NEAR (override with `FUND_OWNER_NEAR`, `FUND_OPERATOR_NEAR`, `FUND_RELAYER_NEAR`, `FUND_MERCHANT_NEAR`,
+`FUND_CONTRACT_NEAR`; allowance with `KEY_ALLOWANCE_NEAR` or `--allowance`):
+
+| Item | Default | Why |
+|---|---|---|
+| owner / operator | 0.5 / 1 | gas for admin calls and `credit_deposit` and friends |
+| relayer | 3 | 0.01 per new player plus gas; `/api/cron/health` alerts below 2 |
+| each merchant | 2 | gas for its function-call key (the key's allowance and the account balance are two separate limits) |
+| function-call key allowance | 1.5 each | pays gas for `set_policy`, `ship`, `world_tick`; the key stops working when it is used up |
+| contract reserve | 6 | code storage (389,493 bytes, about 3.9 NEAR) plus state; only counted while the contract has no code |
+
+I have **not measured** the gas of the merchant calls on testnet. A merchant acting every minute for two weeks may use more than the defaults:
+`verify` prints each key's remaining allowance (WARN below 0.05 NEAR) and each account's balance (WARN for the relayer below 2 NEAR). A used-up allowance cannot be topped up: run
+`keys --rotate <city>` to get a fresh key with a fresh allowance, and add balance to the account with an ordinary transfer.
+
+### Where the contract lives
+
+By default the contract is deployed **on the root account itself** (the master plan's "root `caravan-road.testnet`"): the root's key signs the
+deploy and `init`. To keep the contract on its own account instead, set `CARAVAN_CONTRACT_ID=<name>.<root>` before `accounts`: it must be a
+sub-account of the root; `accounts` creates it (6 NEAR), and the owner key signs for it. Either way `verify` checks the same things.
+
+### Expected output (shape)
+
+Taken from the offline test run with a fake chain, so ids, hashes and balances on testnet will differ; `ed25519:...` below are public keys only.
+
+```
+== accounts: sub-accounts of example.testnet
+env file .env.local: git-ignored
+root example.testnet: balance 100 NEAR, available 100 NEAR
+root key: read from ROOT_KEY_FILE (<path>); public key ed25519:<public> is a full-access key of example.testnet
+  will create  owner.example.testnet                    fund 0.5 NEAR
+  ...
+root balance needed: 18.57 NEAR   available: 100 NEAR
+env file .env.local: writing 22 value(s): ROOT_ACCOUNT_ID, ..., KEY_ENC_SECRET, AUTH_SECRET, CRON_SECRET
+created owner.example.testnet with 0.5 NEAR; full-access public key ed25519:<public>; tx <hash>
+...
+accounts done: 7 created, 0 already existed.
+== keys: function-call keys on the merchants, receiver example.testnet
+  will add     shahr.example.testnet     key ed25519:<public>  methods set_policy,ship,world_tick  allowance 1.5 NEAR
+== deploy: example.testnet
+init args (scripts/init-args.mjs): {"owner":"owner.example.testnet", ... ,"player_suffix":".relayer.example.testnet","operator_daily_cap":"200000", ...}
+deployed and initialised example.testnet; tx <hash>
+get_config: mode PLAY, paused false, owner owner.example.testnet, operator operator.example.testnet, player_suffix relayer.example.testnet, ...
+== verify: example.testnet
+  PASS wasm hash matches: <code hash>
+  PASS config.mode: PLAY
+  PASS merchant key shahr: function-call, set_policy,ship,world_tick, allowance left 1.5 NEAR
+  PASS world.merchants: 4 merchants
+verify: 26 passed, 0 warning(s), 0 failed.
+```
+
+A second run of any command prints `exists` / `already present` / `already deployed and initialised` and changes nothing.
+`init` arguments come from `scripts/init-args.mjs` (so its checks apply) with `--mode PLAY`, `--relayer relayer.<root>` (this becomes `player_suffix`, which
+must equal `RELAYER_ACCOUNT_ID`), `--max-players` and `--operator-daily-cap`. `deploy` refuses a wasm that does not import the NEAR host functions
+(built without `--cfg near`, DECISIONS D26) and a `.cargo/config.toml` that lost those flags. Deploy and `init` are one transaction: if `init` fails, the deploy is rolled back.
+
+### After the script
+
+```bash
+node scripts/check-env.mjs --target web --mode PLAY --env-file .env.local     # names only
+node scripts/check-env.mjs --target worker --env-file .env.local
+```
+
+Then set values **one by one in each host dashboard** (section 6 server: `RELAYER_*`, `OPERATOR_*`, `KEY_ENC_SECRET`, `AUTH_SECRET`, `CRON_SECRET`, ids; section 7
+worker: `KEY_*`, `MERCHANT_ACCOUNT_*`, `CARAVAN_CONTRACT_ID`, `NEAR_RPC_URL`). Do not upload `.env.local` itself and never set `OWNER_PRIVATE_KEY` on a host.
+Still yours by hand: `DATABASE_URL`, OAuth ids, `NEAR_AI_*` (sections 5 to 7). The root key file is only needed again for top-ups and `accounts`; keep it
+outside the repository (when the contract is on the root it is also the contract's full-access key).
+
+### Troubleshooting
+
+| Message (starts with) | Meaning and fix |
+|---|---|
+| `ROOT_ACCOUNT_ID is not set` | set it (step 3). `must end with .testnet` / `looks like a mainnet account` / `NEAR_NETWORK must be testnet`: the script is testnet-only |
+| `no usable root key found` / `ROOT_KEY_FILE points to a file that does not exist` | set `ROOT_KEY_FILE`, or save the key as `~/.near-credentials/testnet/<root>.json`. A key only in the OS keychain cannot be read |
+| `... does not contain a private key` | the file needs the bare key string or JSON with `private_key`; a seed phrase is never read |
+| `the key read from ... is not a full-access key of <root>` | wrong key file for that account (or the key was deleted) |
+| `root account <root> does not exist on testnet` | create it first (step 1) |
+| `the root balance is too low` | fund the root from the faucet or lower `FUND_*_NEAR`; nothing was created or written. A `dropped below ... needed for <id>` message means the balance fell mid-run: keys are saved, fund and re-run |
+| `refusing to overwrite existing values in .env.local: NAMES` | those names hold a different value (usually ids from another root). Fix by hand, or `--force` to replace them. Existing secrets are never regenerated, even with `--force` |
+| `<file> is not git-ignored` | add it to `.gitignore` (the default `.env.local` is ignored by `.env*`) |
+| `<id> already exists but <VAR> is not set` | an account from an earlier attempt without its key in `.env.local`. The script cannot recover a key it does not have: restore the key into that variable, or delete that account with its own key and re-run |
+| `... is not one of its full-access keys` | the key in `.env.local` does not belong to that account |
+| `has a different receiver or method list` | a key with that public key exists with other permissions: `keys --force` (delete, then add) or `keys --rotate <city>` |
+| `already runs a different initialised contract` | refused so live state is not replaced silently. A new contract account (`CARAVAN_CONTRACT_ID`) is the clean way; `--force` deploys the new code without `init` and without any state migration |
+| `does not import the NEAR host functions` | the wasm was built without `--cfg near`; delete it and let `deploy` rebuild with the repository's `.cargo/config.toml` |
+| `the contract build failed` | run `cargo build --target wasm32-unknown-unknown --release` in `contracts/caravan` yourself (section 0 tools, `rustup target add wasm32-unknown-unknown`) |
+| `needs ... NEAR for the code storage` | fund the contract account (the root, or `CARAVAN_CONTRACT_ID`) and re-run `deploy` |
+| `FAIL get_config` / `FAIL contract has code` | not deployed or `init` not done: run `deploy` (it calls `init` alone if the code is already there) |
+| `WARN account relayer...` | below the 2 NEAR alert of `/api/cron/health`: transfer more NEAR to the relayer |
+| `WARN merchant key ...` / low allowance | `keys --rotate <city>` for a fresh allowance, and top up the account balance |
+| `unexpected failure: ...` (fetch failed, timeout, RPC error) | transient: re-run, every step is idempotent. If it persists, set `NEAR_RPC_URL` to another https endpoint from docs.near.org (RPC providers) |
+| `could not restrict the permissions of .env.local` (warning) | bash: `chmod 600 .env.local`; PowerShell: `icacls .env.local /inheritance:r /grant:r "$($env:USERNAME):F"` |
+
+### Rotating keys
+
+```bash
+node scripts/setup-testnet.mjs keys --rotate dasht,shahr --dry-run    # preview
+node scripts/setup-testnet.mjs keys --rotate dasht,shahr              # merchants: new function-call key, fresh allowance
+node scripts/setup-testnet.mjs keys --rotate relayer                  # also: operator, madan, bandar
+```
+
+Order, safe at every point: the new key is added on chain, saved to `.env.local` (the file is probed as writable first), and only then is the old
+key deleted. If saving fails, the old key still works and the new one is an unused extra key; the message says so. After a rotation, **copy the new
+value of that variable into the host dashboard that uses it and restart that service** (worker for `KEY_*`, server for `RELAYER_*`/`OPERATOR_*`);
+the old key stops working as soon as it is deleted. Not covered by the script: the owner key (rotate by hand with near-cli), `KEY_ENC_SECRET` (no rotation
+procedure exists, `docs/SERVER.md`), `AUTH_SECRET` and `CRON_SECRET` (replace the line by hand with a new `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` value and update the host;
+sessions and cron callers need the new value). If the operator key leaks, rotate it here and also consider the contract's owner-only `set_operator` method (DECISIONS D17).
+
 ## 2. Testnet accounts
 
-Roles (names are your choice; I never invent them). All must be different accounts:
+Roles (names are your choice; I never invent them). All must be different accounts. (The script in section 1b creates these for you from one root account.)
 
 | Role | Used for | Key that must exist | Where the key lives |
 |---|---|---|---|
@@ -82,6 +275,8 @@ off-chain fallbacks instead of host functions, so a wasm built without it must n
 anything built before commit `da30d32` has this problem). Rebuild from a clean commit rather than reusing an old file.
 
 ## 4. Deploy and initialise on testnet
+
+(`node scripts/setup-testnet.mjs deploy` and `keys` from section 1b do this whole section; what follows is the manual form.)
 
 `init` is `#[private]`: only the contract account can call it, and it can be called once. Deploy without init, then
 call `init` signed by the contract account itself. **[verified in docs]** forms:
@@ -274,4 +469,5 @@ rewriting history is not enough once something is public.
 | `scripts/check-env.mjs` | `--target web\|worker\|all [--mode PLAY\|LIVE] [--env-file <path>]`: prints each required variable name as set or MISSING, never a value; exit 1 if something required is missing | yes: with a file of placeholder values and with exported variables; a sentinel string in the file never appears in the output |
 | `scripts/secret-scan.sh` | `[--all\|--history]`: `git grep` for key-shaped strings, assigned secret literals, token shapes and tracked `.env` files; prints `FILE:LINE` only | yes: clean tree exits 0; a planted fake key and a planted assignment exit 1 |
 | `scripts/init-args.mjs` | builds the contract `init` JSON from account ids you pass and validates the contract's own rules | yes: valid and invalid input |
+| `scripts/setup-testnet.mjs` | `plan\|accounts\|keys\|deploy\|verify\|all [--dry-run] [--force] [--env-file <path>] [--rotate <roles>]`: creates the sub-accounts and keys, writes `.env.local`, deploys and initialises, verifies (section 1b); uses `scripts/init-args.mjs`; code in `scripts/lib/` | yes, offline: `node --test scripts/__tests__/setup-testnet.test.mjs` runs the real script against a fake chain (action order, idempotency, refusal to overwrite, balance checks, no secret in any output or child-process argument); `plan` run for real. **Never run against a live network** |
 | `scripts/call-cron.mjs` | calls one cron route with `Bearer $CRON_SECRET`, https only (localhost excepted), token redacted from output | yes: against a local test server (200, 401, missing secret, http refused) |
