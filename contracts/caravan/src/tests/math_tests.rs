@@ -1,4 +1,4 @@
-//! Golden vectors (spec/ECONOMY.md 2.7; spec-v1.2 PROPOSAL values, MULT_K_BP = 3000) and price math parity with
+//! Golden vectors (spec/ECONOMY.md 2.7; spec-v1.2 values, MULT_K_BP = 3000) and price math parity with
 //! packages/shared/src/quote.ts.
 
 use crate::math::*;
@@ -47,7 +47,7 @@ fn mult_bp_truncates_toward_zero() {
 
 #[test]
 fn trade_cost_matches_reference_vectors() {
-    // Generated from a LOCAL copy of scripts/ref/world.py quote() with MULT_K_BP = 3000 (spec-v1.2 PROPOSAL; scripts/ref itself
+    // Generated from a LOCAL copy of scripts/ref/world.py quote() with MULT_K_BP = 3000 (spec-v1.2; scripts/ref itself
     // still says 4000) and cross-checked with tradeCost() in packages/shared: same inputs as spec-v1.1, new prices.
     // good, side, qty, merchant stock, spread, bias, unit, total, fee
     let rows: [TradeVector; 24] = [

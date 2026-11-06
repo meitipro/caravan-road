@@ -3,7 +3,7 @@ import { multBp, quote, quoteBig, tradeCost } from "./quote.js";
 import { CITIES, GOODS, GOOD_IDS, PARAMS, ROUTES } from "./world.js";
 import type { GoodId } from "./types.js";
 
-// spec/ECONOMY.md section 2.7: golden vectors table, row by row (spec-v1.2 PROPOSAL, MULT_K_BP = 3000).
+// spec/ECONOMY.md section 2.7: golden vectors table, row by row (spec-v1.2, MULT_K_BP = 3000).
 // Hand-checked with integer math; K=3000 values were also produced by a local copy of the Python reference.
 // The spec-v1.1 table (K=4000) differed in rows 1, 4, 5, 6 (grain 0: 1296/1350/1404, iron 37: 4807/5008/5208,
 // spice 55: 9827/10455/11082, silk 12: 21873/22320/22766).

@@ -13,7 +13,7 @@ pub const BP_U: u128 = 10_000;
 pub const TICK_SECONDS: u64 = 60;
 pub const TICK_MIN_INTERVAL_SECONDS: u64 = 55;
 pub const MAX_MISSED_TICKS: u64 = 10;
-// spec-v1.2 (PROPOSAL): 3000. spec-v1.1 was 4000. Keep in step with PARAMS.MULT_K_BP in packages/shared/src/world.ts.
+// spec-v1.2: 3000. spec-v1.1 was 4000. Keep in step with PARAMS.MULT_K_BP in packages/shared/src/world.ts.
 pub const MULT_K_BP: i128 = 3000;
 pub const MULT_MIN_BP: i128 = 7500;
 pub const MULT_MAX_BP: i128 = 13_500;

@@ -17,7 +17,7 @@ describe("PyRandom matches CPython", () => {
   });
 });
 
-// spec-v1.2 (PROPOSAL, MULT_K_BP = 3000): these numbers come from real `pnpm sim --bots N --ticks 240 --seed 7` runs and
+// spec-v1.2, MULT_K_BP = 3000: these numbers come from real `pnpm sim --bots N --ticks 240 --seed 7` runs and
 // were cross-checked against a LOCAL copy of scripts/ref/economy_sim.py with MULT_K_BP changed to 3000 (the full
 // printed output is identical). They REPLACE the Appendix B figures of spec-v1.1 (K=4000), which `scripts/ref` still
 // produces and which no longer match this sim:

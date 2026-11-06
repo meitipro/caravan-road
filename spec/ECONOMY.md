@@ -2,7 +2,7 @@
 
 > Source: CARAVAN_ROAD_MASTER_PLAN.md, spec-v1, sections 2.1 and 2.5-2.10 (verbatim). Golden vectors are in 2.7.
 >
-> **spec-v1.2 (PROPOSAL, not adopted):** this file shows `MULT_K_BP = 3000` (spec-v1.1: 4000) in 2.5, 2.6, 2.7 and 2.9. See `spec/CHANGELOG.md` and `docs/ECONOMY_TUNING.md` section 7, proposal 3.
+> **spec-v1.2 (ADOPTED 2026-11-03):** this file shows `MULT_K_BP = 3000` (spec-v1.1: 4000) in 2.5, 2.6, 2.7 and 2.9. See `spec/CHANGELOG.md` and `docs/ECONOMY_TUNING.md` section 7, proposal 3.
 
 ### 2.1 Money
 
@@ -63,7 +63,7 @@ Trade rules:
 | `silk` | 12 | 400 | -1000 | 20815 | 21240 | 21664 |
 | `silk` | 60 | 2000 | 1500 | 15525 | 17250 | 18975 |
 
-Values for `MULT_K_BP = 3000` (spec-v1.2 PROPOSAL). The seven `(good, stock, spread, bias)` inputs are the same as in spec-v1.1; rows 1, 4, 5 and 6 change, rows 2, 3 and 7 do not (spec-v1.1 table at K = 4000: `grain` 0: 1296 / 1350 / 1404; `iron` 37: 4807 / 5008 / 5208; `spice` 55: 9827 / 10455 / 11082; `silk` 12: 21873 / 22320 / 22766). They were produced with a local copy of `scripts/ref` (K changed to 3000, `scripts/ref` itself untouched), which at K = 4000 reproduces the old table exactly, checked against `tradeCost()` in `packages/shared`, and verified by hand (integer math, every division truncated):
+Values for `MULT_K_BP = 3000` (spec-v1.2). The seven `(good, stock, spread, bias)` inputs are the same as in spec-v1.1; rows 1, 4, 5 and 6 change, rows 2, 3 and 7 do not (spec-v1.1 table at K = 4000: `grain` 0: 1296 / 1350 / 1404; `iron` 37: 4807 / 5008 / 5208; `spice` 55: 9827 / 10455 / 11082; `silk` 12: 21873 / 22320 / 22766). They were produced with a local copy of `scripts/ref` (K changed to 3000, `scripts/ref` itself untouched), which at K = 4000 reproduces the old table exactly, checked against `tradeCost()` in `packages/shared`, and verified by hand (integer math, every division truncated):
 
 ```
 grain 0:    mult = 10000 + 3000*(200-0)/200   = 13000   (below the 13500 clamp: NOT clamped any more; K=4000 gave 14000 -> 13500)
@@ -97,7 +97,7 @@ Player stall: a player in a city lists a good at their own price; another player
 
 ### 2.9 Simulation facts (reference `economy_sim.py`, Appendix B; healthy-sanity check, not a forecast)
 
-Greedy bots, 240 ticks (4 hours), seed 7, house caravans + rebalancing + recycling on. Figures for `MULT_K_BP = 3000` (spec-v1.2 PROPOSAL), from real `pnpm sim` runs and identical to a local copy of `scripts/ref/economy_sim.py` with K = 3000:
+Greedy bots, 240 ticks (4 hours), seed 7, house caravans + rebalancing + recycling on. Figures for `MULT_K_BP = 3000` (spec-v1.2), from real `pnpm sim` runs and identical to a local copy of `scripts/ref/economy_sim.py` with K = 3000:
 
 | Bots | Trips | Median profit per trip (fils) | "Merchant broke" events | Money conserved |
 |---|---|---|---|---|

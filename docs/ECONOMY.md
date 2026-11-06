@@ -9,7 +9,7 @@ produced by a command listed in the section where it appears.
 > Prices, golden vectors, the mid-price ranges and the `pnpm sim` numbers were recomputed from real runs (re-run again on
 > 2026-11-05); the Appendix B figures of spec-v1.1 (64 / 5,944 / 23, 177 / 1,088 / 43, 342 / 1,099 / 86) no longer apply to the
 > shared sim or to `scripts/ref/economy_sim.py`, which both use K = 3000 now. Figures from spec-v1.1 are labelled
-> "spec-v1.1, K = 4000". See `spec/CHANGELOG.md` (its heading may still say PROPOSAL: `spec/` is not edited by documentation work).
+> "spec-v1.1, K = 4000". See `spec/CHANGELOG.md`.
 
 ## 1. Which numbers are which
 

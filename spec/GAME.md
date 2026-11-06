@@ -28,7 +28,7 @@ Design principles: the chain is invisible (words like wallet, gas, sign, hash on
 | `spice` | 12,000 | 120 | 40 | 80 | 9,000 – 15,600 |
 | `silk` | 20,000 | 200 | 30 | 60 | 15,000 – 26,000 |
 
-Mid-price range at `MULT_K_BP = 3000` (spec-v1.2 PROPOSAL): base x 7,500 / 10,000 (stock at the cap) to base x 13,000 / 10,000 (stock 0). The lower bounds are unchanged from spec-v1.1; the upper bounds were base x 13,500 / 10,000 (grain 1,350, salt 2,025, iron 5,400, spice 16,200, silk 27,000) at K = 4000. The clamps (7,500 and 13,500) are unchanged, but at K = 3000 only the lower one can bind.
+Mid-price range at `MULT_K_BP = 3000` (spec-v1.2): base x 7,500 / 10,000 (stock at the cap) to base x 13,000 / 10,000 (stock 0). The lower bounds are unchanged from spec-v1.1; the upper bounds were base x 13,500 / 10,000 (grain 1,350, salt 2,025, iron 5,400, spice 16,200, silk 27,000) at K = 4000. The clamps (7,500 and 13,500) are unchanged, but at K = 3000 only the lower one can bind.
 
 ### 2.3 Cities (net production/consumption per tick; one tick = 60 s)
 
