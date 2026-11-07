@@ -57,6 +57,8 @@ export interface Services {
   worldCache: TtlCache<unknown>;
   leaderboardCache: TtlCache<unknown>;
   configCache: TtlCache<unknown>;
+  /** GET /api/tokens (the asset list changes rarely). */
+  tokensCache: TtlCache<unknown>;
 }
 
 export interface ServiceDeps {
@@ -89,6 +91,7 @@ export function buildServices(d: ServiceDeps): Services {
     intents: d.intents, session: d.session, relayerAccountId: d.relayerAccountId,
     treasuryAccountId: d.treasuryAccountId ?? null,
     worldCache: new TtlCache(1, now), leaderboardCache: new TtlCache(5, now), configCache: new TtlCache(30, now),
+    tokensCache: new TtlCache(60, now),
   };
 }
 

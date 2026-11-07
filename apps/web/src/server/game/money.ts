@@ -10,13 +10,58 @@ import {
 import { ApiError, isApiError } from "../errors";
 import { assertContractMode, checkMode } from "../guards/mode";
 import type { GetCtx, PostSpec } from "../http";
+import type { Services } from "../services";
 import type { IntentQuote } from "../intents/types";
 import type { z } from "zod";
 
 const QUOTE_MAX_VALIDITY_SECONDS = 24 * 3600;
 const POS_INT = /^[1-9][0-9]*$/;
 
+const MIN_WITHDRAW_MESSAGE = "The minimum withdrawal is 1,000 fils (10 dinars).";
+const OPEN_WITHDRAW_MESSAGE = "You already have a withdrawal in progress. Wait until it finishes before requesting another.";
+const DAILY_CAP_MESSAGE = "Daily withdrawal limit reached (10 USDC per UTC day, refunded withdrawals included). It resets at 00:00 UTC.";
+
 const unavailable = (): ApiError => new ApiError("PAUSED", "Deposits and withdrawals are not available right now.");
+
+/**
+ * The UI sends asset ids that 1Click may not know. Both money routes check the id against the provider's list BEFORE
+ * anything moves (for a withdrawal that means before the reservation row and before request_withdraw, which debits the
+ * player first). If the list cannot be read the route fails closed.
+ */
+export async function assertSupportedAsset(svc: Services, assetId: string): Promise<void> {
+  let tokens;
+  try {
+    tokens = await svc.intents.listTokens();
+  } catch {
+    svc.log.error("asset list unavailable; refusing a money route");
+    throw unavailable();
+  }
+  if (!tokens.some((t) => t.assetId === assetId)) throw new ApiError("BAD_REQUEST", "That asset is not supported");
+}
+
+export interface TokensData {
+  assets: Array<{ id: string; symbol: string; chain: string; decimals: number }>;
+}
+
+/** GET /api/tokens: the assets a deposit can come from or a withdrawal can go to. LIVE only, public, cached. */
+export async function supportedAssets(ctx: GetCtx): Promise<TokensData> {
+  const { svc } = ctx;
+  checkMode(svc.mode, "LIVE_ONLY");
+  if (!svc.intents.configured) throw unavailable();
+  return (await svc.tokensCache.get(async () => {
+    let tokens;
+    try {
+      tokens = await svc.intents.listTokens();
+    } catch {
+      svc.log.error("asset list unavailable for /api/tokens");
+      throw unavailable();
+    }
+    const assets = tokens
+      .map((t) => ({ id: t.assetId, symbol: t.symbol, chain: t.blockchain, decimals: t.decimals }))
+      .sort((a, b) => a.symbol.localeCompare(b.symbol) || a.chain.localeCompare(b.chain) || a.id.localeCompare(b.id));
+    return { assets } satisfies TokensData;
+  })) as TokensData;
+}
 
 export function validateQuote(q: IntentQuote, amountIn: string, now: number): void {
   const bad = (why: string): never => {
@@ -45,6 +90,7 @@ export const depositQuoteSpec: PostSpec<z.infer<typeof DepositQuoteRequestSchema
   mode: "LIVE_ONLY",
   async run({ svc, user, body }) {
     if (!svc.intents.configured) throw unavailable();
+    await assertSupportedAsset(svc, body.origin_asset);
     const now = svc.now();
     const cap = BigInt(PARAMS.MAX_DEPOSIT_FILS);
     const totals = await svc.repo.depositTotals(user.id);
@@ -83,6 +129,15 @@ export const withdrawSpec: PostSpec<z.infer<typeof WithdrawRequestSchema>, Withd
     if (!svc.intents.configured) throw unavailable();
     const fils = BigInt(body.fils);
     if (fils <= 0n) throw new ApiError("BAD_REQUEST", "Amount must be positive.");
+    // The contract's own rules, checked first so the player gets a clear message instead of a generic contract refusal
+    // after a reservation (contracts/caravan/src/game.rs try_request_withdraw).
+    if (fils < BigInt(PARAMS.MIN_WITHDRAW_FILS)) throw new ApiError("BAD_REQUEST", MIN_WITHDRAW_MESSAGE);
+    await assertSupportedAsset(svc, body.dest_asset);
+    // A FAILED row is waiting for a human; it still blocks the player only while the contract holds its withdrawal open.
+    for (const failed of await svc.repo.listFailedWithdrawals(user.id)) {
+      const chain = failed.contract_withdraw_id === null ? null : await svc.contract.getWithdraw(failed.contract_withdraw_id);
+      if (chain && (chain.status === "PENDING" || chain.status === "SENT")) throw new ApiError("BAD_REQUEST", OPEN_WITHDRAW_MESSAGE);
+    }
     const available = BigInt(await svc.intents.treasuryBalanceFils());
     if (available < (await svc.repo.outstandingWithdrawalFils()) + fils) {
       svc.log.error("ALERT: treasury cannot cover a withdrawal; refusing");
@@ -95,15 +150,17 @@ export const withdrawSpec: PostSpec<z.infer<typeof WithdrawRequestSchema>, Withd
       { userId: user.id, fils: body.fils, destAsset: body.dest_asset, destAddress: body.dest_address, now },
       BigInt(PARAMS.DAILY_WITHDRAW_CAP_FILS),
     );
-    if (!row) throw new ApiError("BAD_REQUEST", "Daily withdrawal limit reached.");
+    if (row === "OPEN") throw new ApiError("BAD_REQUEST", OPEN_WITHDRAW_MESSAGE);
+    if (row === "CAP") throw new ApiError("BAD_REQUEST", DAILY_CAP_MESSAGE);
 
     let out;
     try {
       out = await svc.relayer.submit(user, "request_withdraw", { fils: body.fils, dest_asset: body.dest_asset, dest_address: body.dest_address });
     } catch (e) {
-      // A definite rejection (contract panic, rate limit) means nothing was debited: release the reservation.
-      // INTERNAL is ambiguous (the transaction may have executed): keep the reservation for reconciliation.
-      if (isApiError(e) && e.code !== "INTERNAL") await svc.repo.cancelWithdrawal(row.id, svc.now());
+      // A definite rejection (contract panic, rate limit, a delegate rejected before it ran) means nothing was debited:
+      // release the reservation now. A plain INTERNAL is ambiguous (the transaction may have executed): keep the
+      // reservation for reconciliation.
+      if (isApiError(e) && (e.code !== "INTERNAL" || e.notExecuted)) await svc.repo.cancelWithdrawal(row.id, svc.now());
       throw e;
     }
     noteTx(out);

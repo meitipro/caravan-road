@@ -38,12 +38,22 @@ export async function getStateData(svc: Services, user: UserRow | null): Promise
 
 const LEADERBOARD_ROWS = 50;
 const PAGE = 100;
-const MAX_PLAYERS_SCANNED = 1000;
+/** Never scan more than this many players, whatever get_world says (a request-time bound, not the contract's max_players). */
+const ABSOLUTE_PLAYER_CAP = 5000;
 
 export async function getLeaderboard(svc: Services): Promise<LeaderboardData> {
   return (await svc.leaderboardCache.get(async () => {
+    // Walk every page until a short one. player_count (plus two pages of slack for players who join mid-scan) bounds
+    // the loop so a misbehaving view cannot spin it; ABSOLUTE_PLAYER_CAP bounds it when the count itself is absurd.
+    let count = ABSOLUTE_PLAYER_CAP;
+    try {
+      count = await svc.contract.getPlayerCount();
+    } catch {
+      svc.log.warn("leaderboard: player_count unavailable; scanning to the absolute cap");
+    }
+    const limit = Math.min(ABSOLUTE_PLAYER_CAP, Math.max(0, count) + 2 * PAGE);
     const all = [];
-    for (let from = 0; from < MAX_PLAYERS_SCANNED; from += PAGE) {
+    for (let from = 0; from < limit; from += PAGE) {
       const page = await svc.contract.getPlayers(from, PAGE);
       all.push(...page);
       if (page.length < PAGE) break;

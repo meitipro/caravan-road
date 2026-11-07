@@ -26,7 +26,7 @@ export interface FakeContractOptions {
   /**
    * Follow contracts/caravan/DECISIONS.md instead of the provisional rules of packages/shared/src/mock.ts:
    * faucet needs net worth < 5,000 fils with a 1 h cooldown (D4), the stall SELLER pays a ceil 2% fee and must be
-   * in the city (D5, D6), max 5 open stalls, withdrawals of at least 1,000 fils with one open per player (D14),
+   * in the city (D5, D6), max 5 open stalls, withdrawals of at least 1,000 fils with one open per player (D14, enforced in every mode of the fake),
    * tick order production -> rebalancing -> recycling without automatic shipping, merchants ship themselves (D2, D25),
    * policy steps of at most 300 bp (D24), tick schedule that advances by whole ticks (D13), a hash-based ambush roll (D12).
    * Off by default so the older tests keep their rules.
@@ -180,9 +180,10 @@ export class FakeContract implements ContractClient {
     return {
       tick: this.tick, now_ns: secToNs(this.clock()), mode: this.mode, paused: this.paused, house: this.house.toString(),
       merchants: CITY_IDS.map((c) => this.viewMerchant(this.merchants.get(c)!)),
-      stalls: structuredClone(this.stalls),
+      stalls: structuredClone(this.stalls), player_count: this.players.size, stall_count: this.stalls.length,
     };
   }
+  async getPlayerCount(): Promise<number> { return this.players.size; }
   async getPlayer(accountId: string): Promise<ContractPlayer | null> {
     const p = this.players.get(accountId);
     return p ? this.viewPlayer(p) : null;
@@ -667,23 +668,23 @@ export class FakeContract implements ContractClient {
     return null;
   }
 
+  /** Mirrors contracts/caravan/src/game.rs try_request_withdraw: same checks, same order, same codes. */
   private requestWithdraw(p: FPlayer, a: PlayerArgs["request_withdraw"]): number {
     if (this.mode !== "LIVE") panic("MODE_NOT_ALLOWED", "withdrawals are only available in LIVE mode");
     const fils = BigInt(a.fils);
-    if (fils <= 0n) panic("BAD_REQUEST", "amount must be positive");
-    if (this.strict) {
-      if (fils < 1000n) panic("BAD_REQUEST", "minimum withdrawal is 1,000 fils");
-      for (const w of this.withdraws.values()) {
-        if (w.account_id === p.account_id && (w.status === "PENDING" || w.status === "SENT")) panic("RATE_LIMIT", "one open withdrawal at a time");
-      }
+    if (fils < BigInt(PARAMS.MIN_WITHDRAW_FILS)) panic("BAD_REQUEST", "minimum withdrawal is 10 dinars");
+    for (const w of this.withdraws.values()) {
+      if (w.account_id === p.account_id && (w.status === "PENDING" || w.status === "SENT")) panic("RATE_LIMIT", "a withdrawal is already in progress");
     }
-    if (fils > p.fils) panic("INSUFFICIENT_FUNDS", "not enough dinar");
+    if (!a.dest_asset || !a.dest_address) panic("BAD_REQUEST", "bad destination");
+    // The cap is per UTC calendar day and a refund does NOT give it back (withdrawn_today is never decremented).
     const day = Math.floor(this.clock() / DAY);
     let today = 0n;
     for (const w of this.withdraws.values()) {
-      if (w.account_id === p.account_id && w.day === day && w.status !== "REFUNDED") today += w.fils;
+      if (w.account_id === p.account_id && w.day === day) today += w.fils;
     }
-    if (today + fils > BigInt(PARAMS.DAILY_WITHDRAW_CAP_FILS)) panic("BAD_REQUEST", "daily withdraw cap reached");
+    if (today + fils > BigInt(PARAMS.DAILY_WITHDRAW_CAP_FILS)) panic("RATE_LIMIT", "daily withdraw cap reached");
+    if (fils > p.fils) panic("INSUFFICIENT_FUNDS", "not enough dinar");
     p.fils -= fils;
     const id = this.nextWithdrawId++;
     this.withdraws.set(id, { id, account_id: p.account_id, fils, dest_asset: a.dest_asset, dest_address: a.dest_address, status: "PENDING", day });
@@ -696,7 +697,7 @@ export class FakeContract implements ContractClient {
     if (this.depositRefs.has(a.reference)) return { credited: false }; // duplicate reference ignored
     const p = this.mustPlayer(a.account_id);
     const fils = BigInt(a.fils);
-    if (p.total_deposited + fils > BigInt(PARAMS.MAX_DEPOSIT_FILS)) panic("BAD_REQUEST", "deposit cap reached");
+    if (p.total_deposited + fils > BigInt(PARAMS.MAX_DEPOSIT_FILS)) panic("RATE_LIMIT", "player deposit cap reached");
     this.depositRefs.add(a.reference);
     p.total_deposited += fils;
     p.fils += fils;

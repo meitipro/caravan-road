@@ -16,10 +16,10 @@
 // the top-level status) is written defensively and must be confirmed in the testnet smoke run.
 
 import {
-  Account, JsonRpcProvider, PublicKey, Signer, actions, teraToGas, type KeyPairString,
+  Account, JsonRpcProvider, PublicKey, Signer, actions, teraToGas, type KeyPairString, type SignedDelegate,
 } from "near-api-js";
 import type { CityId, GoodId, Mode } from "@caravan/shared";
-import { ContractPanic, isContractPanic } from "../errors";
+import { ContractPanic, isContractPanic, markNotExecuted } from "../errors";
 import {
   secToNs,
   type ContractClient, type ContractConfig, type ContractEvent, type ContractJourney, type ContractMerchant,
@@ -37,6 +37,8 @@ export interface NearContractConfig {
   operatorPrivateKey: string;
   /** Test seam. */
   provider?: JsonRpcProvider;
+  /** Pause before re-signing after a stale delegate (lets the player's key nonce settle on chain). Default 1500 ms. */
+  staleRetryDelayMs?: number;
 }
 
 const TESTNET_RPC = "https://test.rpc.fastnear.com"; // from the docs example above
@@ -45,6 +47,11 @@ const META_TX_TTL_BLOCKS = 100;
 const ACCOUNT_FUNDING_YOCTO = 10n ** 22n; // 0.01 NEAR, VERIFY on the testnet smoke run
 const EVENT_PREFIX = "EVENT_JSON:";
 const MAX_EVENTS = 100;
+const STALE_RETRY_DELAY_MS = 1500;
+/** get_stalls / get_players scan at most this many entries per call (contracts/caravan/src/math.rs MAX_PAGE). */
+const VIEW_PAGE = 100;
+/** Hard stop for a stall scan (50,000 stalls); real worlds are far smaller (max_players x 5 stalls). */
+const MAX_STALL_PAGES = 500;
 
 /** Adapts a PlayerKey (in-memory seed) to near-api-js' Signer. */
 class PlayerKeySigner extends Signer {
@@ -77,14 +84,75 @@ function findFailure(res: RawOutcome): unknown | null {
   return null;
 }
 
-function panicText(failure: unknown): string {
+/**
+ * Both the strings AND the object keys of a failure, in document order. NEAR reports protocol-level failures as
+ * `{ActionError:{index:0,kind:{DelegateActionInvalidNonce:{ak_nonce:12,delegate_nonce:11}}}}`: the information is in the
+ * keys and the values are numbers, so a strings-only walk sees nothing.
+ */
+function failureTokens(failure: unknown): { strings: string[]; keys: string[] } {
   const strings: string[] = [];
-  const walk = (v: unknown): void => {
+  const keys: string[] = [];
+  const walk = (v: unknown, depth: number): void => {
+    if (depth > 12) return;
     if (typeof v === "string") strings.push(v);
-    else if (v && typeof v === "object") Object.values(v).forEach(walk);
+    else if (v && typeof v === "object") {
+      for (const [k, child] of Object.entries(v)) {
+        keys.push(k);
+        walk(child, depth + 1);
+      }
+    }
   };
-  walk(failure);
-  return strings.find((s) => /panicked/i.test(s)) ?? strings[0] ?? "INTERNAL: transaction failed";
+  walk(failure, 0);
+  return { strings, keys };
+}
+
+/** The delegate-action failures that mean "this signature is no longer usable, nothing was executed". */
+export type StaleDelegateKind = "DelegateActionInvalidNonce" | "DelegateActionExpired";
+const STALE_DELEGATE_KINDS: readonly StaleDelegateKind[] = ["DelegateActionInvalidNonce", "DelegateActionExpired"];
+
+/**
+ * Detects a stale / expired delegate from a failure. Only a KEY or a whole string value equal to the kind counts
+ * (nearcore serialises the unit variant `DelegateActionExpired` as a bare string): a panic message that merely
+ * mentions the word is not a stale delegate.
+ */
+export function staleDelegateKind(failure: unknown): StaleDelegateKind | null {
+  const { strings, keys } = failureTokens(failure);
+  for (const kind of STALE_DELEGATE_KINDS) if (keys.includes(kind) || strings.includes(kind)) return kind;
+  return null;
+}
+
+/** The relayed delegate action was rejected before it ran (old nonce or past max_block_height): safe to re-sign and retry. */
+export class StaleDelegateError extends Error {
+  constructor(readonly kind: StaleDelegateKind) {
+    super(`relayed delegate action rejected: ${kind}`);
+    this.name = "StaleDelegateError";
+    markNotExecuted(this); // the delegate was rejected before its inner call ran
+  }
+}
+
+function panicText(failure: unknown): string {
+  const { strings, keys } = failureTokens(failure);
+  const found = strings.find((s) => /panicked/i.test(s)) ?? strings[0];
+  if (found) return found;
+  // Numbers/objects only: keep the key path in the text so the (redacted) log says what failed. mapPanic -> INTERNAL.
+  return `INTERNAL: transaction failed${keys.length ? ` (${keys.join("/").slice(0, 200)})` : ""}`;
+}
+
+/**
+ * near-api-js throws when the final status of a relayed transaction is a failure; the error carries the whole outcome in
+ * `transactionResult`. Run it through the same parser as a returned outcome so contract panics become ContractPanic
+ * and stale delegates become StaleDelegateError. Anything else (network errors...) is returned unchanged.
+ */
+function classifyRelayError(e: unknown): unknown {
+  const result = (e as { transactionResult?: RawOutcome } | null)?.transactionResult;
+  if (result && typeof result === "object") {
+    const failure = findFailure(result);
+    if (failure) {
+      const stale = staleDelegateKind(failure);
+      return stale ? new StaleDelegateError(stale) : new ContractPanic(panicText(failure));
+    }
+  }
+  return e;
 }
 
 type Raw = Record<string, unknown>;
@@ -115,7 +183,12 @@ export class NearContract implements ContractClient {
     return {
       tick: Number(w.tick), now_ns: String(w.now_ns), mode: w.mode as Mode, paused: Boolean(w.paused), house: String(w.house),
       merchants: (w.merchants as Raw[]).map(normMerchant), stalls,
+      player_count: w.player_count === undefined ? undefined : Number(w.player_count),
+      stall_count: w.stall_count === undefined ? undefined : Number(w.stall_count),
     };
+  }
+  async getPlayerCount(): Promise<number> {
+    return Number((await this.view<Raw>("get_world")).player_count ?? 0);
   }
   async getPlayer(accountId: string): Promise<ContractPlayer | null> {
     const p = await this.view<Raw | null>("get_player", { account_id: accountId });
@@ -127,10 +200,25 @@ export class NearContract implements ContractClient {
   async getMerchant(city: CityId): Promise<ContractMerchant> {
     return normMerchant(await this.view<Raw>("get_merchant", { city }));
   }
+  /**
+   * All stalls. The contract scans at most VIEW_PAGE stalls per call and applies its `city` filter INSIDE that page, so a
+   * city filter on the contract would silently drop stalls beyond the first page: page by from_index until a short page,
+   * never pass `city`, and filter here. Stalls are deduplicated by id (the list can shift between page calls).
+   */
   async getStalls(city?: CityId): Promise<ContractStall[]> {
-    return (await this.view<Raw[]>("get_stalls", city ? { city } : {})).map((s) => ({
-      id: Number(s.id), seller: String(s.seller), city: s.city as CityId, good: s.good as GoodId, qty: Number(s.qty), unit_price: String(s.unit_price),
-    }));
+    const byId = new Map<number, ContractStall>();
+    for (let page = 0; page < MAX_STALL_PAGES; page++) {
+      const rows = await this.view<Raw[]>("get_stalls", { from_index: page * VIEW_PAGE, limit: VIEW_PAGE });
+      for (const s of rows) {
+        const stall: ContractStall = {
+          id: Number(s.id), seller: String(s.seller), city: s.city as CityId, good: s.good as GoodId, qty: Number(s.qty), unit_price: String(s.unit_price),
+        };
+        byId.set(stall.id, stall);
+      }
+      if (rows.length < VIEW_PAGE) break;
+    }
+    const all = [...byId.values()];
+    return city ? all.filter((s) => s.city === city) : all;
   }
   async getJourney(accountId: string): Promise<ContractJourney | null> {
     const j = await this.view<Raw | null>("get_journey", { account_id: accountId });
@@ -173,23 +261,46 @@ export class NearContract implements ContractClient {
     return { txHash: this.extract(res as unknown as RawOutcome).txHash };
   }
 
-  async playerCall<M extends PlayerMethod>(accountId: string, method: M, args: PlayerArgs[M], key: PlayerKey): Promise<TxOutcome> {
+  /** Zero deposit, one function call per delegate action (NEP-366), expires after META_TX_TTL_BLOCKS. Test seam. */
+  private async signDelegate(accountId: string, method: string, args: object, key: PlayerKey): Promise<SignedDelegate> {
+    // A fresh Account per signature: nonce and block height are read from the chain every time.
     const player = new Account(accountId, this.provider, new PlayerKeySigner(key));
+    const { signedDelegate } = await player.createSignedMetaTransaction({
+      receiverId: this.cfg.contractId,
+      actions: [actions.functionCall(method, args, CALL_GAS, 0n)],
+      blockHeightTtl: META_TX_TTL_BLOCKS,
+    });
+    return signedDelegate;
+  }
+
+  async playerCall<M extends PlayerMethod>(accountId: string, method: M, args: PlayerArgs[M], key: PlayerKey): Promise<TxOutcome> {
     const attempt = async (): Promise<TxOutcome> => {
-      // Zero deposit, one function call per delegate action (NEP-366), expires after META_TX_TTL_BLOCKS.
-      const { signedDelegate } = await player.createSignedMetaTransaction({
-        receiverId: this.cfg.contractId,
-        actions: [actions.functionCall(method, args as object, CALL_GAS, 0n)],
-        blockHeightTtl: META_TX_TTL_BLOCKS,
-      });
-      const out = this.extract((await this.relayer.relayMetaTransaction(signedDelegate)) as unknown as RawOutcome);
+      let signedDelegate: SignedDelegate;
+      try {
+        signedDelegate = await this.signDelegate(accountId, method, args as object, key);
+      } catch (e) {
+        throw markNotExecuted(e instanceof Error ? e : new Error(String(e))); // nothing has been sent yet
+      }
+      let raw: RawOutcome;
+      try {
+        raw = (await this.relayer.relayMetaTransaction(signedDelegate)) as unknown as RawOutcome;
+      } catch (e) {
+        throw classifyRelayError(e); // near-api-js throws a failed outcome (throwOnFailure defaults to true)
+      }
+      const out = this.extract(raw);
       return { ...out, returnValue: normalizeReturn(method, out.returnValue) };
     };
     try {
       return await attempt();
     } catch (e) {
       if (isContractPanic(e)) throw e;
-      if (/nonce/i.test(e instanceof Error ? e.message : "")) return attempt(); // one retry on a stale nonce
+      // A stale nonce / expired delegate was rejected BEFORE the call ran, so signing again and relaying once more
+      // cannot execute the action twice. The second signature reads a fresh nonce and block height.
+      if (e instanceof StaleDelegateError || /nonce/i.test(e instanceof Error ? e.message : "")) {
+        const wait = this.cfg.staleRetryDelayMs ?? STALE_RETRY_DELAY_MS;
+        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+        return attempt();
+      }
       throw e;
     }
   }
@@ -267,7 +378,11 @@ function decodeJson(b64: string | undefined): unknown {
  */
 export function parseOutcome(res: RawOutcome, contractId: string, nextId: () => number): TxOutcome {
   const failure = findFailure(res);
-  if (failure) throw new ContractPanic(panicText(failure));
+  if (failure) {
+    const stale = staleDelegateKind(failure);
+    if (stale) throw new StaleDelegateError(stale);
+    throw new ContractPanic(panicText(failure));
+  }
   const txHash = res.transaction?.hash ?? res.transaction_outcome?.id ?? "";
   let returnValue: unknown = null;
   const top = res.status;

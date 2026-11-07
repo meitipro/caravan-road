@@ -4,7 +4,7 @@
 //   relayer pays gas) -> map panic text to ErrorCode.
 // The signing and submission details live in contract/near.ts (NearContract) or contract/fake.ts.
 
-import { ApiError, mapPanic, isApiError, isContractPanic } from "../errors";
+import { ApiError, mapPanic, isApiError, isContractPanic, isNotExecuted } from "../errors";
 import { PLAYER_METHODS, type ContractClient, type PlayerArgs, type PlayerMethod, type TxOutcome } from "../contract/types";
 import type { Repo, UserRow } from "../db/repo";
 import { LIMITS, type RateLimiter } from "../guards/rateLimit";
@@ -75,10 +75,13 @@ export function createRelayer(deps: {
         if (isContractPanic(e)) {
           const m = mapPanic(e.message);
           deps.log.warn(`contract panic mapped to ${m.code}:`, m.raw); // raw text is redacted by the logger, never sent to clients
-          throw new ApiError(m.code, m.message);
+          // A contract panic reverted the call. Mapped codes are definite already; an unmapped one (INTERNAL) is definite only
+          // when it is the contract's own 'panicked' text, not a numeric protocol failure whose effect we cannot read.
+          throw new ApiError(m.code, m.message, { notExecuted: m.code !== "INTERNAL" || /panicked/i.test(e.message) });
         }
         deps.log.error("relayer failure:", e);
-        throw new ApiError("INTERNAL", "Something went wrong. Please try again.");
+        // A stale delegate that was rejected twice, or a failure before the transaction was sent: nothing ran on chain.
+        throw new ApiError("INTERNAL", "Something went wrong. Please try again.", { notExecuted: isNotExecuted(e) });
       }
     },
   };
