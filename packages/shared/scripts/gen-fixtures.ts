@@ -24,11 +24,11 @@ const NUDGE: Record<CityId, Partial<Record<GoodId, number>>> = {
   shahr: { grain: -10, salt: -30, iron: 5, spice: -10, silk: -8 },
 };
 
-const LINES: Record<CityId, { en: string; fa: string }> = {
-  dasht: { en: "Harvest is in. Grain is cheap today.", fa: "برداشت تمام شد. غله امروز ارزان است." },
-  madan: { en: "Iron by the cartload, but we are short on grain.", fa: "آهن فراوان است، اما غله کم داریم." },
-  bandar: { en: "Ships are late. Spice and silk will not stay cheap.", fa: "کشتی‌ها دیر کرده‌اند. ادویه و ابریشم ارزان نمی‌ماند." },
-  shahr: { en: "The capital pays well for salt.", fa: "پایتخت برای نمک خوب پول می‌دهد." },
+const LINES: Record<CityId, string> = {
+  dasht: "Harvest is in. Grain is cheap today.",
+  madan: "Iron by the cartload, but we are short on grain.",
+  bandar: "Ships are late. Spice and silk will not stay cheap.",
+  shahr: "The capital pays well for salt.",
 };
 
 function merchant(id: CityId, i: number): Merchant {

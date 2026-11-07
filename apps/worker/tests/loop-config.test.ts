@@ -206,7 +206,7 @@ describe("PgDecisionStore (mock client)", () => {
   const rec = (over: Partial<DecisionRecord["decision"]> = {}): DecisionRecord => ({
     decision: {
       merchant: "dasht", ts: 5, spread_bp: 900, bias_bp: -10, mood: "calm", ship: null,
-      line: { en: "x", fa: "ی" }, reason: "r", source: "llm", model: "m", request_id: "rid", attested: false, tx_hashes: ["h1"], ...over,
+      line: "x", reason: "r", source: "llm", model: "m", request_id: "rid", attested: false, tx_hashes: ["h1"], ...over,
     },
     input_hash: "f".repeat(64),
     evidence: null,

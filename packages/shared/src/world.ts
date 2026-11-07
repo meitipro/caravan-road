@@ -34,6 +34,17 @@ export const CITIES: Record<CityId, CitySpec> = {
   shahr: { id: "shahr", produces: { iron: 1 }, consumes: { grain: 1, salt: 3, spice: 2, silk: 1 } },
 };
 
+/**
+ * Display names of the cities (text shown to players and given to the language model). The ids above are
+ * internal keys (contract, API, env vars) and never change; always show this name instead of the id.
+ */
+export const CITY_NAMES: Record<CityId, string> = {
+  dasht: "Farmstead",
+  madan: "Minetown",
+  bandar: "Harbor",
+  shahr: "Capital",
+};
+
 export interface RouteSpec {
   a: CityId;
   b: CityId;
@@ -75,7 +86,7 @@ export const PARAMS = {
   MAX_GUARDS: 3,
   AMBUSH_LOSS_BP: 3000,
   MERCHANT_TREASURY_FILS: 50000, // 5 USDC
-  FAUCET_FILS: 50000, // 500 dinar (PLAY only)
+  FAUCET_FILS: 50000, // 500 coin (PLAY only)
   MAX_DEPOSIT_FILS: 200000, // 20 USDC
   DAILY_WITHDRAW_CAP_FILS: 100000, // 10 USDC per UTC calendar day; a refund does not give it back (contract)
   MIN_WITHDRAW_FILS: 1000, // 0.1 USDC, contract MIN_WITHDRAW_FILS
@@ -91,7 +102,7 @@ export const PARAMS = {
 export const TICK_RULES = { MIN_INTERVAL_SECONDS: 55, MAX_MISSED_TICKS: 10 } as const;
 
 /** Section 2.1. */
-export const FILS_PER_DINAR = 100;
+export const FILS_PER_COIN = 100;
 export const FILS_PER_USDC = 10000;
 
 /** 100% in basis points, as bigint for money math. */

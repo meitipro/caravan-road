@@ -6,10 +6,7 @@
     "bias_bp": 0,
     "mood": "calm",
     "ship": null,
-    "line": {
-      "en": "Harvest is in. Grain is cheap today.",
-      "fa": "برداشت تمام شد. غله امروز ارزان است."
-    },
+    "line": "Harvest is in. Grain is cheap today.",
     "reason": "Fixture decision: stock is near target, keep the default policy.",
     "source": "llm",
     "model": "fixture-model",
@@ -24,10 +21,7 @@
     "bias_bp": 0,
     "mood": "greedy",
     "ship": null,
-    "line": {
-      "en": "Iron by the cartload, but we are short on grain.",
-      "fa": "آهن فراوان است، اما غله کم داریم."
-    },
+    "line": "Iron by the cartload, but we are short on grain.",
     "reason": "Fixture decision: stock is near target, keep the default policy.",
     "source": "baseline",
     "model": null,
@@ -42,10 +36,7 @@
     "bias_bp": 0,
     "mood": "worried",
     "ship": null,
-    "line": {
-      "en": "Ships are late. Spice and silk will not stay cheap.",
-      "fa": "کشتی‌ها دیر کرده‌اند. ادویه و ابریشم ارزان نمی‌ماند."
-    },
+    "line": "Ships are late. Spice and silk will not stay cheap.",
     "reason": "Fixture decision: stock is near target, keep the default policy.",
     "source": "baseline",
     "model": null,
@@ -60,10 +51,7 @@
     "bias_bp": 0,
     "mood": "generous",
     "ship": null,
-    "line": {
-      "en": "The capital pays well for salt.",
-      "fa": "پایتخت برای نمک خوب پول می‌دهد."
-    },
+    "line": "The capital pays well for salt.",
     "reason": "Fixture decision: stock is near target, keep the default policy.",
     "source": "baseline",
     "model": null,

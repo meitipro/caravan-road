@@ -101,7 +101,7 @@ export const PUBLIC_MESSAGES: Record<ErrorCode, string> = {
   NOT_IN_CITY: "You are not in that city.",
   IN_TRANSIT: "Your caravan is on the road.",
   NOT_ARRIVED: "The caravan has not arrived yet.",
-  INSUFFICIENT_FUNDS: "Not enough dinar.",
+  INSUFFICIENT_FUNDS: "Not enough coins.",
   INSUFFICIENT_STOCK: "Not enough goods.",
   MERCHANT_BROKE: "The merchant cannot afford that.",
   SLIPPAGE: "The price moved. Please try again.",

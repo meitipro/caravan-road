@@ -82,7 +82,7 @@ describe("cashStatusText is honest", () => {
   it("a FAILED deposit does not say nothing happened to the money", () => {
     const t = cashStatusText("deposit", "failed");
     expect(t.title).not.toMatch(/Nothing was credited/);
-    expect(t.detail).toMatch(/No dinars were added/);
+    expect(t.detail).toMatch(/No coins were added/);
     expect(t.detail).toMatch(/refund|returned/i);
     expect(t.detail).toMatch(/not lost/);
   });
@@ -94,7 +94,7 @@ describe("cashStatusText is honest", () => {
       }
     }
   });
-  it("a refunded withdrawal says the dinars came back", () => {
+  it("a refunded withdrawal says the coins came back", () => {
     expect(cashStatusText("withdraw", "refunded").detail).toMatch(/returned/);
   });
 });

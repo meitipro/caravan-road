@@ -3,7 +3,7 @@ import { worldFixture, type ErrorCode, type Stall } from "@caravan/shared";
 import { ERROR_TEXT } from "./game-meta";
 import {
   MAX_OPEN_STALLS, buyProblem, createBlockReason, createHint, feeNote, maxStallBuyQty, myStalls, parseUnitPrice,
-  plainDinar, priceVsMerchant, qtyDigits, sellerLabel, sellerProceeds, stallErrorText, stallFee, stallPrice, stallsForSale, validateCreate,
+  plainCoins, priceVsMerchant, qtyDigits, sellerLabel, sellerProceeds, stallErrorText, stallFee, stallPrice, stallsForSale, validateCreate,
 } from "./stall-math";
 
 describe("qtyDigits (quantity box typing)", () => {
@@ -45,7 +45,7 @@ describe("stall fee (the seller pays, 2% rounded up, at least 1 fils)", () => {
   it("the fee note tells the buyer that the seller pays it, with the exact amount", () => {
     const note = feeNote(24_000n);
     expect(note).toMatch(/seller pays/i);
-    expect(note).toMatch(/4\.80 dinars/);
+    expect(note).toMatch(/4\.80 coins/);
     expect(note).toMatch(/You pay exactly this price/);
   });
 });
@@ -98,7 +98,7 @@ describe("buying limits", () => {
     expect(buyProblem(stall(), 0, 5_000n, 0)).toMatch(/at least 1/);
     expect(buyProblem(stall(), 13, 999_999n, 0)).toMatch(/only has 12/);
     expect(buyProblem(stall(), 5, 999_999n, 38)).toMatch(/room for 2/);
-    expect(buyProblem(stall(), 3, 5_000n, 0)).toMatch(/Not enough dinars/);
+    expect(buyProblem(stall(), 3, 5_000n, 0)).toMatch(/Not enough coins/);
   });
   it("compares a stall price with the merchant ask", () => {
     expect(priceVsMerchant("1700", { ask: "1800" })).toBe("below");
@@ -108,7 +108,7 @@ describe("buying limits", () => {
 });
 
 describe("unit price input", () => {
-  it("parses dinars to fils with at most two decimals", () => {
+  it("parses coins to fils with at most two decimals", () => {
     expect(parseUnitPrice("17")).toEqual({ ok: true, fils: 1700n });
     expect(parseUnitPrice("17.5")).toEqual({ ok: true, fils: 1750n });
     expect(parseUnitPrice(" 0.01 ")).toEqual({ ok: true, fils: 1n });
@@ -126,10 +126,10 @@ describe("unit price input", () => {
     const huge = parseUnitPrice("10000000.01");
     expect(!huge.ok && huge.reason).toMatch(/highest price is 10,000,000\.00/);
   });
-  it("plainDinar has no thousands separators so it can go back into the box", () => {
-    expect(plainDinar("1700")).toBe("17.00");
-    expect(plainDinar(123_456_789n)).toBe("1234567.89");
-    expect(parseUnitPrice(plainDinar(123_456_789n))).toEqual({ ok: true, fils: 123_456_789n });
+  it("plainCoins has no thousands separators so it can go back into the box", () => {
+    expect(plainCoins("1700")).toBe("17.00");
+    expect(plainCoins(123_456_789n)).toBe("1234567.89");
+    expect(parseUnitPrice(plainCoins(123_456_789n))).toEqual({ ok: true, fils: 123_456_789n });
   });
 });
 
@@ -168,13 +168,13 @@ describe("createHint", () => {
 });
 
 describe("createBlockReason", () => {
-  const ok = { travelling: false, here: true, hereName: "Bandar", hasGoods: true, openStalls: 0 };
+  const ok = { travelling: false, here: true, hereName: "Harbor", hasGoods: true, openStalls: 0 };
   it("is null when the player can open a stall", () => {
     expect(createBlockReason(ok)).toBeNull();
   });
   it("explains travelling, another city, no goods and the stall limit, in that order of priority", () => {
     expect(createBlockReason({ ...ok, travelling: true, here: false })).toMatch(/on the road/);
-    expect(createBlockReason({ ...ok, here: false })).toMatch(/Go to the stalls of Bandar/);
+    expect(createBlockReason({ ...ok, here: false })).toMatch(/Go to the stalls of Harbor/);
     expect(createBlockReason({ ...ok, openStalls: MAX_OPEN_STALLS })).toMatch(/most allowed/);
     expect(createBlockReason({ ...ok, hasGoods: false })).toMatch(/hold no goods/);
   });

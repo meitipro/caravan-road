@@ -12,7 +12,6 @@ import { formatAgo, shortId } from "../ui/format";
 import { CITY_META } from "../ui/game-meta";
 import { EmptyState, ErrorState, LoadingBlock, MoodChip } from "./Bits";
 import { useGame, useNow } from "./GameProvider";
-import { useLang } from "./Lang";
 import { Sheet } from "./Sheet";
 import { PixelImage } from "./PixelImage";
 import { useToast } from "./Toast";
@@ -74,7 +73,6 @@ function sourceLabel(d: Decision): string {
 function MindBody({ city, onNavigate }: { city: CityId; onNavigate: () => void }) {
   const { world } = useGame();
   const now = useNow();
-  const { lang } = useLang();
   const toast = useToast();
   const merchant: Merchant | undefined = world?.merchants.find((m) => m.id === city);
 
@@ -107,7 +105,7 @@ function MindBody({ city, onNavigate }: { city: CityId; onNavigate: () => void }
         <PixelImage slot={`merchants/${CITY_META[city].portrait}`} w={96} h={96} alt={CITY_META[city].merchant} color="var(--dune)" label={CITY_META[city].merchant[0]} />
         <div className="stack-sm">
           <p className="strong">{CITY_META[city].merchant}, merchant of {CITY_META[city].name}</p>
-          {merchant && <MoodChip mood={merchant.mood} lang={lang} />}
+          {merchant && <MoodChip mood={merchant.mood} />}
         </div>
       </div>
 
@@ -146,7 +144,7 @@ function MindBody({ city, onNavigate }: { city: CityId; onNavigate: () => void }
           <li key={`${d.ts}-${d.request_id ?? d.source}`} className="decision">
             <div className="decision-top">
               <span className="muted small">{now ? formatAgo(now, d.ts) : ""}</span>
-              <MoodChip mood={d.mood} lang={lang} />
+              <MoodChip mood={d.mood} />
               <span className="chip">{sourceLabel(d)}</span>
             </div>
             <div className="decision-bars">
@@ -154,8 +152,8 @@ function MindBody({ city, onNavigate }: { city: CityId; onNavigate: () => void }
               <span className="small">Bias</span> <BiasBar bias={d.bias_bp} />
             </div>
             <p className="decision-reason">{d.reason}</p>
-            <p className="decision-line" lang={lang} dir={lang === "fa" ? "rtl" : "ltr"}>
-              “{lang === "fa" ? d.line.fa : d.line.en}”
+            <p className="decision-line">
+              “{d.line}”
             </p>
             {d.ship && (
               <p className="muted small">Shipped {d.ship.qty} {d.ship.good} to {CITY_META[d.ship.to].name}</p>

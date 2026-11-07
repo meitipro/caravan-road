@@ -27,7 +27,7 @@ export const MerchantSchema = z.object({
   policy: z.object({ spread_bp: z.number().int(), bias_bp: z.number().int() }).strict(),
   quotes: goodsRecord(QuoteSchema),
   mood: z.enum(["calm", "greedy", "worried", "generous"]),
-  last_line: z.object({ en: z.string(), fa: z.string() }).strict().nullable(),
+  last_line: z.string().nullable(),
   verified: z
     .object({ model: z.string(), request_id: z.string(), attested: z.boolean(), at: z.number().int() })
     .strict()
@@ -90,7 +90,7 @@ export const DecisionSchema = z.object({
   bias_bp: z.number().int().min(PARAMS.BIAS_MIN_BP).max(PARAMS.BIAS_MAX_BP),
   mood: MerchantSchema.shape.mood,
   ship: z.object({ to: CityIdSchema, good: GoodIdSchema, qty: z.number().int().positive() }).strict().nullable(),
-  line: z.object({ en: z.string().max(120), fa: z.string().max(120) }).strict(),
+  line: z.string().max(120),
   reason: z.string().max(240),
   source: z.enum(["llm", "baseline", "keep"]),
   model: z.string().nullable(),

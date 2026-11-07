@@ -7,7 +7,7 @@ import {
 import { ApiError } from "../errors";
 import type { UserRow } from "../db/repo";
 import type { Services } from "../services";
-import { toApiEvents, toApiPlayer, toApiWorld } from "./views";
+import { lineText, toApiEvents, toApiPlayer, toApiWorld } from "./views";
 
 interface WorldPart { world: WorldState; events: Event[] }
 
@@ -77,7 +77,10 @@ export async function getDecisions(svc: Services, req: Request): Promise<Decisio
   const out: Decision[] = [];
   for (const r of rows) {
     try {
-      const parsed = DecisionSchema.safeParse({ ...(JSON.parse(r.output_json) as object), tx_hashes: r.tx_hashes });
+      const stored = JSON.parse(r.output_json) as { line?: unknown };
+      // Old rows stored the line as {en, fa}: keep the English text only.
+      const line = lineText(stored.line as Parameters<typeof lineText>[0]) ?? undefined;
+      const parsed = DecisionSchema.safeParse({ ...stored, line, tx_hashes: r.tx_hashes });
       if (parsed.success) out.push({ ...parsed.data, tx_hashes: r.tx_hashes });
     } catch {
       /* skip a malformed row */

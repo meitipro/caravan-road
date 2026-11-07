@@ -1,61 +1,61 @@
 import { describe, expect, it } from "vitest";
-import { bpOf, formatAgo, formatBp, formatDinar, formatDinarDelta, formatEta, formatUnits, parseDinar, parseUnits, shortId } from "./format";
+import { bpOf, formatAgo, formatBp, formatCoins, formatCoinsDelta, formatEta, formatUnits, parseCoins, parseUnits, shortId } from "./format";
 
-describe("formatDinar", () => {
+describe("formatCoins", () => {
   it("always shows two decimals", () => {
-    expect(formatDinar("0")).toBe("0.00");
-    expect(formatDinar("5")).toBe("0.05");
-    expect(formatDinar("50")).toBe("0.50");
-    expect(formatDinar("100")).toBe("1.00");
-    expect(formatDinar("1000")).toBe("10.00");
-    expect(formatDinar("50000")).toBe("500.00");
-    expect(formatDinar("12345")).toBe("123.45");
+    expect(formatCoins("0")).toBe("0.00");
+    expect(formatCoins("5")).toBe("0.05");
+    expect(formatCoins("50")).toBe("0.50");
+    expect(formatCoins("100")).toBe("1.00");
+    expect(formatCoins("1000")).toBe("10.00");
+    expect(formatCoins("50000")).toBe("500.00");
+    expect(formatCoins("12345")).toBe("123.45");
   });
   it("groups thousands", () => {
-    expect(formatDinar("123456789")).toBe("1,234,567.89");
-    expect(formatDinar("100000")).toBe("1,000.00");
+    expect(formatCoins("123456789")).toBe("1,234,567.89");
+    expect(formatCoins("100000")).toBe("1,000.00");
   });
   it("accepts bigint and handles negatives", () => {
-    expect(formatDinar(1296n)).toBe("12.96");
-    expect(formatDinar("-250")).toBe("-2.50");
-    expect(formatDinar(-5n)).toBe("-0.05");
+    expect(formatCoins(1296n)).toBe("12.96");
+    expect(formatCoins("-250")).toBe("-2.50");
+    expect(formatCoins(-5n)).toBe("-0.05");
   });
   it("does not lose precision above 2^53", () => {
-    expect(formatDinar("9007199254740993")).toBe("90,071,992,547,409.93");
-    expect(formatDinar("340282366920938463463374607431768211455")).toBe(
+    expect(formatCoins("9007199254740993")).toBe("90,071,992,547,409.93");
+    expect(formatCoins("340282366920938463463374607431768211455")).toBe(
       "3,402,823,669,209,384,634,633,746,074,317,682,114.55",
     );
   });
   it("rejects numbers and non-integer strings", () => {
     // @ts-expect-error numbers are not allowed for money
-    expect(() => formatDinar(100)).toThrow(TypeError);
-    expect(() => formatDinar("1.5")).toThrow(TypeError);
-    expect(() => formatDinar("")).toThrow(TypeError);
-    expect(() => formatDinar("01")).toThrow(TypeError);
-    expect(() => formatDinar("1e3")).toThrow(TypeError);
+    expect(() => formatCoins(100)).toThrow(TypeError);
+    expect(() => formatCoins("1.5")).toThrow(TypeError);
+    expect(() => formatCoins("")).toThrow(TypeError);
+    expect(() => formatCoins("01")).toThrow(TypeError);
+    expect(() => formatCoins("1e3")).toThrow(TypeError);
   });
 });
 
-describe("formatDinarDelta", () => {
+describe("formatCoinsDelta", () => {
   it("prefixes + for gains", () => {
-    expect(formatDinarDelta("120")).toBe("+1.20");
-    expect(formatDinarDelta("-50")).toBe("-0.50");
-    expect(formatDinarDelta("0")).toBe("0.00");
+    expect(formatCoinsDelta("120")).toBe("+1.20");
+    expect(formatCoinsDelta("-50")).toBe("-0.50");
+    expect(formatCoinsDelta("0")).toBe("0.00");
   });
 });
 
-describe("parseDinar", () => {
-  it("parses whole and fractional dinars to fils", () => {
-    expect(parseDinar("12")).toBe(1200n);
-    expect(parseDinar("12.5")).toBe(1250n);
-    expect(parseDinar("12.05")).toBe(1205n);
-    expect(parseDinar("0,5")).toBe(50n);
+describe("parseCoins", () => {
+  it("parses whole and fractional coins to fils", () => {
+    expect(parseCoins("12")).toBe(1200n);
+    expect(parseCoins("12.5")).toBe(1250n);
+    expect(parseCoins("12.05")).toBe(1205n);
+    expect(parseCoins("0,5")).toBe(50n);
   });
   it("rejects junk", () => {
-    expect(parseDinar("")).toBeNull();
-    expect(parseDinar("abc")).toBeNull();
-    expect(parseDinar("1.234")).toBeNull();
-    expect(parseDinar("-1")).toBeNull();
+    expect(parseCoins("")).toBeNull();
+    expect(parseCoins("abc")).toBeNull();
+    expect(parseCoins("1.234")).toBeNull();
+    expect(parseCoins("-1")).toBeNull();
   });
 });
 

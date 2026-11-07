@@ -80,7 +80,7 @@ describe("SimWorld.setPolicy enforces the step and the once-per-tick rule like t
 const drain = (w: SimWorld, c: CityId) => { w.house += w.treasury[c]; w.treasury[c] = 0; };
 
 const answer = (o: Record<string, unknown> = {}) =>
-  JSON.stringify({ spread_bp: 1800, bias_bp: 0, mood: "worried", ship_choice: null, line: { en: "Hard times.", fa: "روزگار سخت است." }, reason: "treasury low", ...o });
+  JSON.stringify({ spread_bp: 1800, bias_bp: 0, mood: "worried", ship_choice: null, line: "Hard times.", reason: "treasury low", ...o });
 
 function setup(model: ModelClient | null) {
   const world = new SimWorld({ bots: 0, seed: 1 });

@@ -169,7 +169,7 @@ def main():
         def fmt(x):
             return "never within 181 ticks" if x is None else f"tick {x[0]} ({x[0]} min): {f0(x[1]['ep'])} fils on {x[1]['o']}>{x[1]['d']} {x[1]['q']} {x[1]['gid']}"
         rows.append([rule, fmt(first_short), fmt(first_any)] + [f"{f0(eps[n][0])} / {f0(eps[n][1])}" for n in (0, 10, 30, 60, 120)])
-    md.append(f"#### 4A. Fresh world (no players, nothing traded yet), {KB}: first tick at which a positive expected-profit trade exists for a 500-dinar player (0 guards)\n")
+    md.append(f"#### 4A. Fresh world (no players, nothing traded yet), {KB}: first tick at which a positive expected-profit trade exists for a 500-coin player (0 guards)\n")
     md.append(table(["rules", "first positive trade, shortest route bandar-shahr", "first positive trade, any route", "best EP at 0 min: short / any (fils)", "10 min", "30 min", "60 min", "120 min"], rows))
     md.append("")
 
@@ -201,7 +201,7 @@ def main():
             top = max(route_a, key=route_a.get)
             rows.append([rule, bots, n_snap, pct(pos_s / n_snap, 0), f"{f0(med(eps_s))} ({pct(med(eps_s) / CASH)})", f"{f0(sum(eps_s) / len(eps_s))}",
                          pct(pos_a / n_snap, 0), f"{f0(med(eps_a))} ({pct(med(eps_a) / CASH)})", f"{f0(sum(eps_a) / len(eps_a))}", f"{top} ({route_a[top]}/{n_snap})", pct(gu / n_snap, 0)])
-    md.append(f"#### 4B. Established worlds ({KB}; state after 60, 80, ..., 240 ticks; seeds 7, 11, 13 pooled): best expected profit of one journey for a 500-dinar newcomer (guards chosen optimally)\n")
+    md.append(f"#### 4B. Established worlds ({KB}; state after 60, 80, ..., 240 ticks; seeds 7, 11, 13 pooled): best expected profit of one journey for a 500-coin newcomer (guards chosen optimally)\n")
     md.append(table(["rules", "bots in world", "snapshots", "short route: positive EP", "short route: median EP (fils, % of 50,000)", "short route: mean EP", "any route: positive EP", "any route: median EP (% of capital)", "any route: mean EP", "most common best route", "snapshots where >= 1 guard is optimal"], rows))
     md.append("")
 

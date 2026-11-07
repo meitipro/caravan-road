@@ -21,7 +21,6 @@ h1, h2, h3, h4, .pixel-font, .placeholder, .empty-title, .entry-line, .table th 
 p { margin: 0; }
 a { color: inherit; }
 code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 0.9em; }
-:lang(fa), [lang="fa"] { font-family: var(--font-fa); }
 
 .pixel { image-rendering: pixelated; image-rendering: crisp-edges; display: inline-block; }
 .placeholder {
@@ -181,7 +180,6 @@ code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-siz
 .topbar .btn { background: var(--cloth); }
 .topbar .badge { font-size: 12px; }
 .topbar :focus-visible { box-shadow: 0 0 0 3px var(--night), 0 0 0 6px var(--cloth); }
-.lang-btn .on { text-decoration: underline; text-underline-offset: 3px; }
 .main { flex: 1; width: 100%; max-width: var(--maxw); margin: 0 auto; padding: var(--s-3); outline: none; }
 
 .tabbar {

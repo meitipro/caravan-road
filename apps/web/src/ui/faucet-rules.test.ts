@@ -14,7 +14,7 @@ const journey = (status: "IN_TRANSIT" | "ARRIVED" | "CLAIMED", cargo: Record<str
   ({ id: 1, from: "bandar", to: "shahr", cargo, guards: 0, started_at: 0, arrives_at: 1, risk_bp: 0, status }) as Player["journey"];
 
 describe("faucetWorthFils (contract faucet_worth)", () => {
-  it("counts dinars and inventory at base prices (grain 1000, silk 20000 fils)", () => {
+  it("counts coins and inventory at base prices (grain 1000, silk 20000 fils)", () => {
     const p = me({ fils: "1200", inventory: { grain: 2, salt: 0, iron: 0, spice: 0, silk: 1 } });
     expect(faucetWorthFils(p, [])).toBe(1200n + 2000n + 20000n);
   });
@@ -41,11 +41,11 @@ describe("faucetWorthFils (contract faucet_worth)", () => {
 });
 
 describe("eligibility", () => {
-  it("is refused at exactly 5000 fils (50 dinars), allowed at 4999", () => {
+  it("is refused at exactly 5000 fils (50 coins), allowed at 4999", () => {
     expect(faucetEligible(4999n)).toBe(true);
     expect(faucetEligible(5000n)).toBe(false);
   });
-  it("3 dinars plus 4 grain in a stall (4300) is eligible, 5 grain (5300) is not", () => {
+  it("3 coins plus 4 grain in a stall (4300) is eligible, 5 grain (5300) is not", () => {
     expect(faucetEligible(faucetWorthFils(me({ fils: "300" }), [stall({ qty: 4 })]))).toBe(true);
     expect(faucetEligible(faucetWorthFils(me({ fils: "300" }), [stall({ qty: 5 })]))).toBe(false);
   });

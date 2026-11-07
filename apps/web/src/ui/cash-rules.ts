@@ -1,7 +1,7 @@
 // Cash rules the screen must follow and the wording for server refusals. Pure functions, tested in cash-rules.test.ts.
 
 import { PARAMS, type ErrorCode } from "@caravan/shared";
-import { formatDinar } from "./format";
+import { formatCoins } from "./format";
 import { ERROR_TEXT } from "./game-meta";
 
 export const MIN_WITHDRAW = BigInt(PARAMS.MIN_WITHDRAW_FILS);
@@ -14,9 +14,9 @@ export const DAILY_WITHDRAW_CAP = BigInt(PARAMS.DAILY_WITHDRAW_CAP_FILS);
 export function withdrawProblem(fils: bigint | null, balance: bigint): string | null {
   if (fils === null) return null;
   if (fils <= 0n) return "Enter an amount above zero.";
-  if (fils < MIN_WITHDRAW) return `The minimum withdrawal is ${formatDinar(MIN_WITHDRAW)} dinars.`;
+  if (fils < MIN_WITHDRAW) return `The minimum withdrawal is ${formatCoins(MIN_WITHDRAW)} coins.`;
   if (fils > balance) return "That is more than your balance.";
-  if (fils > DAILY_WITHDRAW_CAP) return `The daily limit is ${formatDinar(DAILY_WITHDRAW_CAP)} dinars (per UTC day, refunded withdrawals included).`;
+  if (fils > DAILY_WITHDRAW_CAP) return `The daily limit is ${formatCoins(DAILY_WITHDRAW_CAP)} coins (per UTC day, refunded withdrawals included).`;
   return null;
 }
 

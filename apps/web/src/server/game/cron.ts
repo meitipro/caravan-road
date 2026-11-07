@@ -313,7 +313,7 @@ export async function followSentWithdrawals(svc: Services, res: { sent: number; 
         if (await svc.repo.transitionWithdrawal(w.id, "FINALIZING", "DONE", svc.now())) out.done++;
         continue;
       }
-      // REFUNDED or FAILED: return the player's dinars, but only against a verified refund where we can verify it.
+      // REFUNDED or FAILED: return the player's coins, but only against a verified refund where we can verify it.
       if (st.state === "REFUNDED" && st.refundedMicro !== undefined && BigInt(st.refundedMicro) < BigInt(w.fils) * 100n) {
         svc.log.error(`ALERT: withdrawal ${w.id} was only partly refunded by the provider; manual review`);
         await svc.repo.transitionWithdrawal(w.id, "FINALIZING", "FAILED", svc.now());

@@ -10,7 +10,7 @@ const completion = (content: string, extra: Record<string, unknown> = {}) =>
 
 const resp = (body: string, init: ResponseInit = {}) => new Response(body, { status: 200, headers: { "x-request-id": "req-123" }, ...init });
 
-const goodJson = JSON.stringify({ spread_bp: 900, bias_bp: -300, mood: "worried", ship_choice: null, line: { en: "Hello there.", fa: "سلام دوست من." }, reason: "ok" });
+const goodJson = JSON.stringify({ spread_bp: 900, bias_bp: -300, mood: "worried", ship_choice: null, line: "Hello there.", reason: "ok" });
 
 function client(fetchImpl: typeof fetch, extra: Record<string, unknown> = {}) {
   return new NearAiClient({ apiKey: TEST_KEY, model: "configured/model", fetchImpl, timeoutMs: 50, ...extra });

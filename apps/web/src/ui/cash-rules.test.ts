@@ -10,14 +10,14 @@ describe("withdrawProblem", () => {
   });
   it("blocks anything below PARAMS.MIN_WITHDRAW_FILS with a clear message", () => {
     expect(PARAMS.MIN_WITHDRAW_FILS).toBe(1000);
-    expect(withdrawProblem(999n, bal)).toBe("The minimum withdrawal is 10.00 dinars.");
+    expect(withdrawProblem(999n, bal)).toBe("The minimum withdrawal is 10.00 coins.");
     expect(withdrawProblem(1n, bal)).toMatch(/minimum/);
     expect(withdrawProblem(1000n, bal)).toBeNull();
   });
   it("zero, over balance and over the daily cap", () => {
     expect(withdrawProblem(0n, bal)).toBe("Enter an amount above zero.");
     expect(withdrawProblem(bal + 1n, bal)).toBe("That is more than your balance.");
-    expect(withdrawProblem(100_001n, 10_000_000n)).toMatch(/daily limit is 1,000.00 dinars/);
+    expect(withdrawProblem(100_001n, 10_000_000n)).toMatch(/daily limit is 1,000.00 coins/);
     expect(withdrawProblem(100_000n, 10_000_000n)).toBeNull();
   });
   it("the minimum is checked before the balance, so a poor player learns the real rule", () => {
@@ -29,7 +29,7 @@ describe("cashErrorText", () => {
   it("shows the server's reason for the new withdraw rules instead of the generic text", () => {
     const open = "You already have a withdrawal in progress. Wait until it finishes before requesting another.";
     const cap = "Daily withdrawal limit reached (10 USDC per UTC day, refunded withdrawals included). It resets at 00:00 UTC.";
-    const min = "The minimum withdrawal is 1,000 fils (10 dinars).";
+    const min = "The minimum withdrawal is 10 coins.";
     expect(cashErrorText({ code: "BAD_REQUEST", message: open })).toBe(open);
     expect(cashErrorText({ code: "BAD_REQUEST", message: cap })).toBe(cap);
     expect(cashErrorText({ code: "BAD_REQUEST", message: min })).toBe(min);

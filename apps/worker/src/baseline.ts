@@ -19,7 +19,7 @@ export interface BaselineDecision {
   bias_bp: number;
   mood: Mood;
   ship: ShipOption | null;
-  line: { en: string; fa: string };
+  line: string;
   reason: string;
 }
 

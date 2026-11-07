@@ -13,7 +13,7 @@ export interface Merchant {
   policy: { spread_bp: number; bias_bp: number };
   quotes: Record<GoodId, Quote>;
   mood: "calm" | "greedy" | "worried" | "generous";
-  last_line: { en: string; fa: string } | null;
+  last_line: string | null;
   verified: { model: string; request_id: string; attested: boolean; at: number } | null;
 }
 export interface Journey {
@@ -52,7 +52,7 @@ export type Mood = "calm" | "greedy" | "worried" | "generous";
 export interface Decision {
   merchant: CityId; ts: number; spread_bp: number; bias_bp: number; mood: Mood;
   ship: { to: CityId; good: GoodId; qty: number } | null;
-  line: { en: string; fa: string };       // <= 120 chars each
+  line: string;                           // <= 120 chars, English
   reason: string;                         // <= 240 chars, English
   source: "llm" | "baseline" | "keep";
   model: string | null; request_id: string | null; attested: boolean; tx_hashes: string[];

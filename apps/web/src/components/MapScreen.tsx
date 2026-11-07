@@ -8,12 +8,10 @@ import { riskWithGuards, priceBand, cargoUnits } from "../ui/trade-math";
 import { EmptyState, GoodIcon, LoadingBlock, MoodChip, Page } from "./Bits";
 import { FaucetBanner } from "./Faucet";
 import { useGame } from "./GameProvider";
-import { useLang } from "./Lang";
 import { MapView } from "./MapView";
 
 export function MapScreen() {
   const { world, me } = useGame();
-  const { lang } = useLang();
   if (!world || !me) return <LoadingBlock label="Loading the map" rows={5} />;
 
   const traveling = me.journey && me.journey.status !== "CLAIMED";
@@ -74,7 +72,7 @@ export function MapScreen() {
                       <p className="strong">{CITY_META[c].name} <span className="muted small">{CITY_META[c].role}</span></p>
                       <p className="muted small">{CITY_META[c].merchant}</p>
                     </div>
-                    {m && <MoodChip mood={m.mood} lang={lang} />}
+                    {m && <MoodChip mood={m.mood} />}
                   </div>
                   <p className="small">
                     {cheap.length > 0 && <>Cheap: <strong>{cheap.map((g) => GOOD_META[g].name).join(", ")}</strong>. </>}

@@ -5,7 +5,7 @@
 
 import { BP, GOOD_IDS, PARAMS, type CityId, type ErrorCode, type GoodId, type Quote, type Stall } from "@caravan/shared";
 import { ERROR_TEXT } from "./game-meta";
-import { formatDinar, parseDinar, shortId } from "./format";
+import { formatCoins, parseCoins, shortId } from "./format";
 
 /** Contract constants (`MAX_STALLS_PER_PLAYER`, `MAX_STALL_UNIT_PRICE`); the shared PARAMS do not carry them. */
 export const MAX_OPEN_STALLS = 5;
@@ -33,7 +33,7 @@ export function sellerProceeds(price: bigint): bigint {
 
 /** The line shown to the buyer under the exact price. */
 export function feeNote(price: bigint): string {
-  return `You pay exactly this price. The seller pays the 2% market fee (${formatDinar(stallFee(price))} dinars on this purchase), not you.`;
+  return `You pay exactly this price. The seller pays the 2% market fee (${formatCoins(stallFee(price))} coins on this purchase), not you.`;
 }
 
 /** Short friendly name for a seller. The API gives an account id only (no display name), so it is shortened. */
@@ -85,7 +85,7 @@ export function buyProblem(stall: Pick<Stall, "qty" | "unit_price">, qty: number
   if (!Number.isInteger(qty) || qty < 1) return "Choose at least 1 unit.";
   if (qty > stall.qty) return `The stall only has ${stall.qty}.`;
   if (carried + qty > PARAMS.CARGO_CAP) return `Your caravan holds ${PARAMS.CARGO_CAP} units at most. You have room for ${Math.max(0, PARAMS.CARGO_CAP - carried)}.`;
-  if (stallPrice(stall.unit_price, qty) > fils) return "Not enough dinars.";
+  if (stallPrice(stall.unit_price, qty) > fils) return "Not enough coins.";
   return null;
 }
 
@@ -96,20 +96,20 @@ export function priceVsMerchant(unit: string | bigint, quote: Pick<Quote, "ask">
   return u < ask ? "below" : u > ask ? "above" : "same";
 }
 
-/** Plain dinar text for an input box: no thousands separators ("1700" fils -> "17.00"). */
-export function plainDinar(fils: string | bigint): string {
-  return formatDinar(fils).replace(/,/g, "");
+/** Plain coin text for an input box: no thousands separators ("1700" fils -> "17.00"). */
+export function plainCoins(fils: string | bigint): string {
+  return formatCoins(fils).replace(/,/g, "");
 }
 
 export type PriceParse = { ok: true; fils: bigint } | { ok: false; reason: string };
 
-/** Parse the unit price a seller typed (dinars, up to two decimals) and check the contract's range. */
+/** Parse the unit price a seller typed (coins, up to two decimals) and check the contract's range. */
 export function parseUnitPrice(input: string): PriceParse {
   if (input.trim() === "") return { ok: false, reason: "Enter a price for each unit." };
-  const fils = parseDinar(input);
+  const fils = parseCoins(input);
   if (fils === null) return { ok: false, reason: "Use digits with at most two decimals, like 12.50." };
-  if (fils < MIN_UNIT_PRICE_FILS) return { ok: false, reason: `The lowest price is ${formatDinar(MIN_UNIT_PRICE_FILS)} dinars.` };
-  if (fils > MAX_UNIT_PRICE_FILS) return { ok: false, reason: `The highest price is ${formatDinar(MAX_UNIT_PRICE_FILS)} dinars.` };
+  if (fils < MIN_UNIT_PRICE_FILS) return { ok: false, reason: `The lowest price is ${formatCoins(MIN_UNIT_PRICE_FILS)} coins.` };
+  if (fils > MAX_UNIT_PRICE_FILS) return { ok: false, reason: `The highest price is ${formatCoins(MAX_UNIT_PRICE_FILS)} coins.` };
   return { ok: true, fils };
 }
 

@@ -144,13 +144,13 @@ describe("FakeContract strict rules (contracts/caravan/DECISIONS.md)", () => {
   }
   const rejects = (p: Promise<unknown>, code: string) => expect(p).rejects.toThrow(new RegExp(`^${code}:`));
 
-  it("faucet: net worth under 50 dinars and a 1 h cooldown (D4)", async () => {
+  it("faucet: net worth under 50 coins and a 1 h cooldown (D4)", async () => {
     const { c, mk, advance } = setup();
     const key = await mk("a.t");
     await c.playerCall("a.t", "faucet", {}, key);
     await rejects(c.playerCall("a.t", "faucet", {}, key), "RATE_LIMIT");
     advance(3601);
-    await rejects(c.playerCall("a.t", "faucet", {}, key), "BAD_REQUEST"); // 500 dinars is not under 50
+    await rejects(c.playerCall("a.t", "faucet", {}, key), "BAD_REQUEST"); // 500 coins is not under 50
     c.testGrantFils("a.t", -49_000n);
     await c.playerCall("a.t", "faucet", {}, key);
   });

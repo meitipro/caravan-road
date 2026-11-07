@@ -35,7 +35,7 @@ export interface LastLlm {
 
 export interface LastApplied {
   mood: Mood;
-  line: { en: string; fa: string };
+  line: string;
 }
 
 export interface MerchantMemory {

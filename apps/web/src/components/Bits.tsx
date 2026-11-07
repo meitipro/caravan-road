@@ -5,7 +5,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { CityId, GoodId, Mood } from "@caravan/shared";
-import { formatDinar } from "../ui/format";
+import { formatCoins } from "../ui/format";
 import { CITY_META, GOOD_META, MOOD_META } from "../ui/game-meta";
 import { PixelImage } from "./PixelImage";
 
@@ -13,16 +13,16 @@ export function Coin({ size = 16 }: { size?: number }) {
   return <PixelImage slot="ui/coin" w={16} h={16} scale={size / 16} alt="" decorative color="var(--gold)" className="coin" />;
 }
 
-/** Dinar amount with the coin icon. `fils` is a decimal string or bigint; formatting never uses Number. */
+/** Coin amount with the coin icon. `fils` is a decimal string or bigint; formatting never uses Number. */
 export function Money({ fils, className, sign }: { fils: string | bigint; className?: string; sign?: boolean }) {
   const v = typeof fils === "bigint" ? fils : BigInt(fils);
-  const text = formatDinar(v);
+  const text = formatCoins(v);
   const tone = sign ? (v > 0n ? "profit" : v < 0n ? "loss" : "") : "";
   return (
     <span className={`money ${tone} ${className ?? ""}`}>
       <Coin />
       <span className="num">{sign && v > 0n ? "+" : ""}{text}</span>
-      <span className="sr-only"> dinars</span>
+      <span className="sr-only"> coins</span>
     </span>
   );
 }
@@ -81,11 +81,11 @@ export function StockBar({ stock, target, cap, color }: { stock: number; target:
   );
 }
 
-export function MoodChip({ mood, lang = "en" }: { mood: Mood; lang?: "en" | "fa" }) {
+export function MoodChip({ mood }: { mood: Mood }) {
   const m = MOOD_META[mood];
   return (
     <span className={`chip mood mood-${mood}`} title={m.hint}>
-      {lang === "fa" ? m.fa : m.label}
+      {m.label}
     </span>
   );
 }

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // A page load rebuilds the in-memory mock world, so the flags that describe what the player did in it
-// (claimed the free dinars, cost basis) must be dropped with it; login and onboarding flags stay.
+// (claimed the free coins, cost basis) must be dropped with it; login and onboarding flags stay.
 function fakeStorage(initial: Record<string, string>) {
   const m = new Map(Object.entries(initial));
   return {

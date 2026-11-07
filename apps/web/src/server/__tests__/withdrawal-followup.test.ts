@@ -65,7 +65,7 @@ describe("SENT withdrawals are followed to their end", () => {
     expect(kit.contract.audit().total).toBe(kit.contract.audit().expected);
   });
 
-  it("provider REFUNDED -> the player gets the dinars back on chain, exactly once", async () => {
+  it("provider REFUNDED -> the player gets the coins back on chain, exactly once", async () => {
     const { acc, row } = await sentWithdrawal("dave", "6000");
     kit.intents.setWithdrawalState(row.quote_id, "REFUNDED", String(6000 * 100));
     const r = (await cron()).json.data;

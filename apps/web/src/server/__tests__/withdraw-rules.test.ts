@@ -41,7 +41,7 @@ describe("F4: withdraw rules agree with the contract", () => {
     const kit = await live();
     const acc = await signIn(kit, stateGET, "alice");
     kit.contract.testGrantFils(acc, 50000n);
-    expectErr(await withdraw("alice", "999"), "BAD_REQUEST", /minimum withdrawal is 1,000 fils/i);
+    expectErr(await withdraw("alice", "999"), "BAD_REQUEST", /minimum withdrawal is 10 coins/i);
     expect(await kit.db.query("select 1 from withdrawals")).toHaveLength(0);
     expect(requestCalls(kit)).toBe(0);
     expect((await withdraw("alice", "1000")).json.ok).toBe(true);
