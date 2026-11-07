@@ -22,6 +22,25 @@ describe("mock api client", () => {
     expect(s.ok && s.data.world.merchants).toHaveLength(4);
   });
 
+  it("tokens() returns the sample asset list; the http client calls GET /api/tokens", async () => {
+    const { api } = setup();
+    const t = await api.tokens();
+    if (!t.ok) throw new Error(t.error.message);
+    expect(t.data.assets.length).toBeGreaterThan(3);
+    expect(t.data.assets[0]).toEqual({ id: "usdc-near", symbol: "USDC", chain: "near", decimals: 6 });
+
+    const calls: string[] = [];
+    const http = createApiClient({
+      mock: false,
+      fetch: (async (url: string, init?: RequestInit) => {
+        calls.push(`${init?.method} ${url}`);
+        return new Response(JSON.stringify({ ok: true, data: { assets: [] } }));
+      }) as unknown as typeof fetch,
+    });
+    expect(await http.tokens()).toEqual({ ok: true, data: { assets: [] } });
+    expect(calls).toEqual(["GET /api/tokens"]);
+  });
+
   it("runs a tick every 5 seconds and keeps quotes consistent with quote()", async () => {
     const { api, advance } = setup();
     const before = await state(api);

@@ -5,7 +5,7 @@
 
 import type {
   ApiClient, ClaimData, DecisionsData, DepositQuoteData, DepositStatusData, JourneyData, LeaderboardData,
-  PlayerData, StallData, StateData, TradeData, WithdrawData,
+  PlayerData, StallData, StateData, TokenInfo, TokensData, TradeData, WithdrawData,
 } from "./api-client.js";
 import {
   decisionsFixture, eventsFixture, leaderboardFixture, playersFixture, worldFixture,
@@ -31,6 +31,17 @@ export interface MockOptions {
 
 const MOCK_FAUCET_COOLDOWN_SECONDS = 60; // OPEN_QUESTIONS #4: the spec gives no interval.
 const MAX_EVENTS = 100;
+
+/** Sample asset list for the mock and the Cash preview. The ids are made up; the real ones come from GET /api/tokens. */
+export const MOCK_TOKENS: readonly TokenInfo[] = [
+  { id: "usdc-near", symbol: "USDC", chain: "near", decimals: 6 },
+  { id: "usdc-base", symbol: "USDC", chain: "base", decimals: 6 },
+  { id: "usdc-eth", symbol: "USDC", chain: "eth", decimals: 6 },
+  { id: "usdc-sol", symbol: "USDC", chain: "sol", decimals: 6 },
+  { id: "near", symbol: "NEAR", chain: "near", decimals: 24 },
+  { id: "eth", symbol: "ETH", chain: "eth", decimals: 18 },
+  { id: "btc", symbol: "BTC", chain: "btc", decimals: 8 },
+];
 const ME_ACCOUNT = "mock.player";
 
 function mulberry32(seed: number): () => number {
@@ -315,6 +326,8 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
       }),
 
     // Deposits and withdrawals need Intents, which exists only in LIVE; the mock runs PLAY.
+    // Static sample list (the ids are NOT real 1Click ids) so the Cash screen and its ?live=1 preview have something to show.
+    tokens: () => wrap<TokensData>(() => ok({ assets: MOCK_TOKENS.map((t) => ({ ...t })) })),
     depositQuote: () => wrap<DepositQuoteData>(() => fail("MODE_NOT_ALLOWED", "Deposits are only available in LIVE mode.")),
     depositStatus: () => wrap<DepositStatusData>(() => fail("MODE_NOT_ALLOWED", "Deposits are only available in LIVE mode.")),
     withdraw: () => wrap<WithdrawData>(() => fail("MODE_NOT_ALLOWED", "Withdrawals are only available in LIVE mode.")),
