@@ -8,13 +8,14 @@ import { modeBadge } from "../ui/game-meta";
 import { usePersisted } from "../ui/persisted";
 import { devLogin, startLogin, useDevLoginAvailable, useMockSession, type Provider } from "../ui/session";
 import { ErrorState, LoadingBlock, Money } from "./Bits";
+import { useFaucet } from "./Faucet";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { GameProvider, useActions, useGame } from "./GameProvider";
+import { GameProvider, useGame } from "./GameProvider";
 import { LangProvider } from "./Lang";
 import { MindProvider } from "./Mind";
 import { PixelImage } from "./PixelImage";
 import { Shell } from "./Shell";
-import { ToastProvider, useToast } from "./Toast";
+import { ToastProvider } from "./Toast";
 import { PARAMS } from "@caravan/shared";
 import { formatDinar } from "../ui/format";
 
@@ -124,23 +125,12 @@ const CARDS = [
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const [i, setI] = useState(0);
   const { me, mode } = useGame();
-  const actions = useActions();
-  const toast = useToast();
-  const [claimed, setClaimed] = usePersisted("caravan.claimed");
-  const [busy, setBusy] = useState(false);
+  const { claim, busy, eligible, reason } = useFaucet();
+  const [claimed] = usePersisted("caravan.claimed");
   const last = i === CARDS.length - 1;
   const card = CARDS[i]!;
-  const canClaim = mode === "PLAY" && !claimed;
-
-  const claim = async () => {
-    setBusy(true);
-    const r = await actions.faucet();
-    setBusy(false);
-    if (r.ok) {
-      setClaimed("1");
-      toast.success(`+${formatDinar(String(PARAMS.FAUCET_FILS))} dinars added`);
-    }
-  };
+  // Demo: offered once to a new player. Real PLAY game: offered when the contract would pay (worth under 50 dinars).
+  const canClaim = mode === "PLAY" && (IS_MOCK ? !claimed : eligible);
 
   return (
     <div className="entry">
@@ -158,9 +148,12 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           <p className="muted small">You have <Money fils={me.fils} />.</p>
         )}
         {last && canClaim && (
-          <button type="button" className="btn btn-primary btn-lg btn-block" disabled={busy} onClick={claim}>
-            {busy ? "Claiming…" : `Claim ${formatDinar(String(PARAMS.FAUCET_FILS))} dinars`}
-          </button>
+          <>
+            <button type="button" className="btn btn-primary btn-lg btn-block" disabled={busy || reason !== null} onClick={claim}>
+              {busy ? "Claiming…" : `Claim ${formatDinar(String(PARAMS.FAUCET_FILS))} dinars`}
+            </button>
+            {reason && !IS_MOCK && <p className="muted small" role="status">{reason}</p>}
+          </>
         )}
         <div className="row-between">
           <button type="button" className="btn btn-ghost" onClick={() => (i === 0 ? onDone() : setI(i - 1))}>

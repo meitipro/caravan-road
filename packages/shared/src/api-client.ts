@@ -21,6 +21,9 @@ export interface DepositQuoteData {
 }
 export interface DepositStatusData { status: string; fils_credited?: Fils }
 export interface WithdrawData { request_id: string; status: string }
+/** One asset 1Click supports (LIVE only). `id` is what deposit `origin_asset` and withdraw `dest_asset` take. */
+export interface TokenInfo { id: string; symbol: string; chain: string; decimals: number }
+export interface TokensData { assets: TokenInfo[] }
 export interface LeaderboardData { rows: Array<{ name: string; net_worth: Fils }> }
 export interface DecisionsData { rows: Decision[] }
 
@@ -34,6 +37,8 @@ export interface ApiClient {
   stallCancel(body: StallCancelRequest): Promise<ApiResult<PlayerData>>;
   /** PLAY only */
   faucet(): Promise<ApiResult<PlayerData>>;
+  /** LIVE only (PLAY answers MODE_NOT_ALLOWED): the assets a deposit can come from or a withdrawal can go to. */
+  tokens(): Promise<ApiResult<TokensData>>;
   depositQuote(body: DepositQuoteRequest): Promise<ApiResult<DepositQuoteData>>;
   depositStatus(quoteId: string): Promise<ApiResult<DepositStatusData>>;
   withdraw(body: WithdrawRequest): Promise<ApiResult<WithdrawData>>;
@@ -100,6 +105,7 @@ function createHttpApiClient(options: ApiClientOptions): ApiClient {
     stallBuy: (b) => call("POST", "/api/stall/buy", b),
     stallCancel: (b) => call("POST", "/api/stall/cancel", b),
     faucet: () => call("POST", "/api/faucet"),
+    tokens: () => call("GET", "/api/tokens"),
     depositQuote: (b) => call("POST", "/api/deposit/quote", b),
     depositStatus: (quoteId) => call("GET", `/api/deposit/status${q({ quote_id: quoteId })}`),
     withdraw: (b) => call("POST", "/api/withdraw", b),

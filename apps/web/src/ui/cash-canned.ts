@@ -2,7 +2,10 @@
 // (mock mode only, /play/cash?live=1). Statuses advance with time: Waiting, Processing, Credited.
 
 import type { ApiResult, DepositQuoteData, DepositStatusData, WithdrawData } from "@caravan/shared";
-import { assetById } from "./cash-assets";
+import { MOCK_TOKENS } from "@caravan/shared";
+import { assetById, assetsFromTokens } from "./cash-assets";
+
+const SAMPLE_ASSETS = assetsFromTokens(MOCK_TOKENS);
 
 const quotes = new Map<string, { at: number; fils: string }>();
 
@@ -10,7 +13,7 @@ const ok = <T>(data: T): ApiResult<T> => ({ ok: true, data });
 
 export async function cannedDepositQuote(body: { origin_asset: string; amount_in: string; refund_address: string }): Promise<ApiResult<DepositQuoteData>> {
   await new Promise((r) => setTimeout(r, 350));
-  const a = assetById(body.origin_asset);
+  const a = assetById(SAMPLE_ASSETS, body.origin_asset);
   if (!a) return { ok: false, error: { code: "BAD_REQUEST", message: "Unknown asset" } };
   // Sample rate: 1 USDC = 10,000 fils. Other assets use a fixed sample price so the screen has something to show.
   const perUnit = a.symbol === "USDC" ? 10000n : a.symbol === "NEAR" ? 25000n : a.symbol === "ETH" ? 30000000n : 900000000n;

@@ -12,9 +12,10 @@ import {
   type ApiClient, type ApiResult, type CityId, type ErrorCode, type Event, type GoodId, type Journey,
   type Mode, type Player, type Side, type Stall, type StateData, type WorldState,
 } from "@caravan/shared";
-import { ApiError, getApi, unwrap } from "../ui/api";
+import { ApiError, IS_MOCK, getApi, unwrap } from "../ui/api";
 import { addBuy, basisCost, loadBasis, persistBasis, removeUnits, type Basis } from "../ui/basis";
 import { stallErrorText } from "../ui/stall-math";
+import { faucetRefusalText } from "../ui/faucet-rules";
 import { type Cargo } from "../ui/trade-math";
 import { useToast } from "./Toast";
 
@@ -227,7 +228,8 @@ export function useActions() {
       async faucet(): Promise<ApiResult<{ player: Player }>> {
         const r = await game.api.faucet();
         if (!r.ok) {
-          fail(r);
+          // RATE_LIMIT and BAD_REQUEST mean "wait about an hour" and "you own too much": say so, not the generic text.
+          fail(r, faucetRefusalText(r.error.code, IS_MOCK) ?? undefined);
           return r;
         }
         applyPlayer(r.data.player);
