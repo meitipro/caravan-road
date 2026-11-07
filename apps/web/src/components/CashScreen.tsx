@@ -5,14 +5,16 @@ import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import qrcode from "qrcode-generator";
 import { PARAMS, type DepositQuoteData, type Mode } from "@caravan/shared";
-import { CAN_PREVIEW_LIVE, getApi, unwrap } from "../ui/api";
+import { ApiError, CAN_PREVIEW_LIVE, IS_MOCK, getApi, unwrap } from "../ui/api";
 import {
-  CASH_ASSETS, addressHint, assetById, isValidAddress, mapCashStatus, type CashAsset, type CashStatus,
+  addressHint, assetById, assetsFromTokens, cashStatusText, defaultAssetId, isFinalCashStatus, isValidAddress, mapCashStatus,
+  type CashAsset, type CashStatus,
 } from "../ui/cash-assets";
 import { cannedDepositQuote, cannedDepositStatus, cannedWithdraw } from "../ui/cash-canned";
+import { MIN_WITHDRAW, cashErrorText, withdrawProblem } from "../ui/cash-rules";
 import { formatDinar, formatEta, formatUnits, parseDinar, parseUnits, shortId } from "../ui/format";
-import { ErrorState, LoadingBlock, Money, Page } from "./Bits";
-import { useFaucet } from "./Faucet";
+import { EmptyState, ErrorState, LoadingBlock, Money, Page } from "./Bits";
+import { claimLabel, useFaucet } from "./Faucet";
 import { useGame } from "./GameProvider";
 import { AdvancedDrawer } from "./Advanced";
 import { Sheet } from "./Sheet";
@@ -48,15 +50,19 @@ export function CashScreen() {
 }
 
 function PlayCash() {
-  const { claim, busy, left } = useFaucet();
+  const { claim, busy, left, reason } = useFaucet();
   return (
     <>
       <section className="panel stack" aria-labelledby="faucet-h">
         <h2 id="faucet-h" className="h3">Free dinars</h2>
-        <p>Claim {formatDinar(String(PARAMS.FAUCET_FILS))} free dinars any time you run low. A short wait applies between claims.</p>
-        <button type="button" className="btn btn-primary btn-lg" onClick={claim} disabled={busy || left > 0}>
-          {busy ? "Claiming…" : left > 0 ? `Wait ${left}s` : `Claim ${formatDinar(String(PARAMS.FAUCET_FILS))} dinars`}
+        <p>
+          Claim {formatDinar(String(PARAMS.FAUCET_FILS))} free dinars when you run low.{" "}
+          {IS_MOCK ? "A short wait applies between claims." : "You can claim once an hour, and only while everything you own (dinars, goods, stalls and cargo on the road) is worth less than 50 dinars."}
+        </p>
+        <button type="button" className="btn btn-primary btn-lg" onClick={claim} disabled={busy || reason !== null}>
+          {claimLabel(busy, left)}
         </button>
+        {reason && !IS_MOCK && <p className="small" role="status">{reason}</p>}
       </section>
       <section className="panel stack-sm" aria-labelledby="off-h">
         <h2 id="off-h" className="h3">Deposits and withdrawals</h2>
@@ -74,6 +80,25 @@ function PlayCash() {
 
 function LiveCash({ demo }: { demo: boolean }) {
   const [tab, setTab] = useState<"deposit" | "withdraw">("deposit");
+  // The assets 1Click supports (real ids). In the demo the shared client answers with a static sample list.
+  const { data, error, isLoading, mutate } = useSWR(
+    ["tokens", demo],
+    async () => assetsFromTokens(unwrap(await getApi().tokens()).assets),
+    { revalidateOnFocus: false, dedupingInterval: 60_000, shouldRetryOnError: false },
+  );
+  if (isLoading || (!data && !error)) return <LoadingBlock label="Loading the assets you can use" rows={3} />;
+  if (error || !data) {
+    const text = error instanceof ApiError ? cashErrorText({ code: error.code, message: error.message }) : "The list of assets could not be loaded.";
+    return <ErrorState title="Deposits and withdrawals are unavailable" onRetry={() => void mutate()}>{text}</ErrorState>;
+  }
+  if (data.length === 0) {
+    return (
+      <EmptyState title="No assets available right now" action={<button type="button" className="btn" onClick={() => void mutate()}>Check again</button>}>
+        The payment service did not list any asset we can use. Try again in a few minutes.
+      </EmptyState>
+    );
+  }
+  const assets = data;
   return (
     <section className="stack" aria-label="Deposit and withdraw">
       {demo && <p className="panel-dim small">Preview with sample data. Nothing real is happening.</p>}
@@ -85,21 +110,21 @@ function LiveCash({ demo }: { demo: boolean }) {
         ))}
       </div>
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === "deposit" ? <Deposit demo={demo} /> : <Withdraw demo={demo} />}
+        {tab === "deposit" ? <Deposit demo={demo} assets={assets} /> : <Withdraw demo={demo} assets={assets} />}
       </div>
     </section>
   );
 }
 
-function Deposit({ demo }: { demo: boolean }) {
+function Deposit({ demo, assets }: { demo: boolean; assets: CashAsset[] }) {
   const toast = useToast();
   const { refresh } = useGame();
-  const [assetId, setAssetId] = useState(CASH_ASSETS[0]!.id);
+  const [assetId, setAssetId] = useState(() => defaultAssetId(assets));
   const [amount, setAmount] = useState("");
   const [refund, setRefund] = useState("");
   const [busy, setBusy] = useState(false);
   const [quote, setQuote] = useState<DepositQuoteData | null>(null);
-  const asset = assetById(assetId) as CashAsset;
+  const asset = (assetById(assets, assetId) ?? assets[0]) as CashAsset;
   const units = parseUnits(amount, asset.decimals);
   const refundOk = isValidAddress(asset.kind, refund);
   const valid = units !== null && units > 0n && refundOk;
@@ -111,7 +136,7 @@ function Deposit({ demo }: { demo: boolean }) {
     const r = demo ? await cannedDepositQuote(body) : await getApi().depositQuote(body);
     setBusy(false);
     if (r.ok) setQuote(r.data);
-    else toast.error(r.error);
+    else toast.push("error", cashErrorText(r.error));
   };
 
   if (quote) {
@@ -135,7 +160,7 @@ function Deposit({ demo }: { demo: boolean }) {
       <div className="field">
         <label htmlFor="dep-asset" className="strong">Asset to send</label>
         <select id="dep-asset" className="input" value={assetId} onChange={(e) => setAssetId(e.target.value)}>
-          {CASH_ASSETS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+          {assets.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
         </select>
       </div>
       <div className="field">
@@ -195,11 +220,12 @@ function DepositWait({ quote, asset, demo, onDone }: { quote: DepositQuoteData; 
   const { data } = useSWR(
     ["deposit-status", quote.quote_id],
     async () => unwrap(demo ? await cannedDepositStatus(quote.quote_id) : await getApi().depositStatus(quote.quote_id)),
-    { refreshInterval: (d) => (d && ["credited", "expired", "refunded", "failed"].includes(mapCashStatus(d.status)) ? 0 : 3000) },
+    { refreshInterval: (d) => (d && isFinalCashStatus(mapCashStatus(d.status)) ? 0 : 3000) },
   );
   const status: CashStatus = data ? mapCashStatus(data.status) : "waiting";
   const left = quote.deadline - now;
-  const final = status === "credited" || status === "expired" || status === "refunded" || status === "failed";
+  const final = isFinalCashStatus(status);
+  const text = cashStatusText("deposit", status);
 
   const copy = async (t: string, what: string) => {
     try {
@@ -221,33 +247,23 @@ function DepositWait({ quote, asset, demo, onDone }: { quote: DepositQuoteData; 
 
       {status === "credited" && (
         <div className="panel-dim stack-sm" role="status">
-          <p className="strong profit">Credited: {data?.fils_credited ? <Money fils={data.fils_credited} /> : "your dinars are in"}</p>
+          <p className="strong profit">{text.title}: {data?.fils_credited ? <Money fils={data.fils_credited} /> : "your dinars are in"}</p>
           <button type="button" className="btn btn-primary" onClick={onDone}>Done</button>
         </div>
       )}
-      {status === "expired" && (
+      {final && status !== "credited" && (
         <div className="panel-dim stack-sm" role="alert">
-          <p className="strong loss">This quote expired. If you already sent money, it will be refunded to your refund address.</p>
+          <p className={`strong ${status === "refunded" ? "" : "loss"}`}>{text.title}</p>
+          <p className="small">{text.detail}</p>
           <button type="button" className="btn" onClick={onDone}>Start again</button>
         </div>
       )}
-      {status === "refunded" && (
-        <div className="panel-dim stack-sm" role="alert">
-          <p className="strong">Refunded. Your money went back to your refund address.</p>
-          <button type="button" className="btn" onClick={onDone}>Start again</button>
-        </div>
-      )}
-      {status === "failed" && (
-        <div className="panel-dim stack-sm" role="alert">
-          <p className="strong loss">The deposit failed. Nothing was credited.</p>
-          <button type="button" className="btn" onClick={onDone}>Start again</button>
-        </div>
-      )}
+      {status === "unknown" && <p className="muted small" role="status">{text.detail}</p>}
 
       {!final && (
         <>
           <p>
-            Send exactly <strong>{formatUnits(BigInt(quote.amount_in), asset.decimals)} {asset.symbol}</strong> on the <strong>{asset.label}</strong> network to this address.
+            Send exactly <strong>{formatUnits(BigInt(quote.amount_in), asset.decimals)} {asset.symbol}</strong> on the <strong>{asset.chainLabel}</strong> network to this address.
             You will receive about <Money fils={quote.expected_fils} />.
           </p>
           <div className="deposit-grid">
@@ -270,25 +286,25 @@ function DepositWait({ quote, asset, demo, onDone }: { quote: DepositQuoteData; 
   );
 }
 
-function Withdraw({ demo }: { demo: boolean }) {
+function Withdraw({ demo, assets }: { demo: boolean; assets: CashAsset[] }) {
   const toast = useToast();
   const { me, refresh } = useGame();
-  const [assetId, setAssetId] = useState(CASH_ASSETS[0]!.id);
+  const [assetId, setAssetId] = useState(() => defaultAssetId(assets));
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ id: string; status: string } | null>(null);
-  const asset = assetById(assetId) as CashAsset;
+  // The server's reason when it refuses (a withdrawal already open, the daily cap...), kept on the form until the next edit.
+  const [refused, setRefused] = useState<string | null>(null);
+  const asset = (assetById(assets, assetId) ?? assets[0]) as CashAsset;
   const fils = parseDinar(amount);
   const balance = BigInt(me?.fils ?? "0");
   const cap = BigInt(PARAMS.DAILY_WITHDRAW_CAP_FILS);
   const addrOk = isValidAddress(asset.kind, address);
-  let problem: string | null = null;
-  if (fils !== null && fils <= 0n) problem = "Enter an amount above zero.";
-  else if (fils !== null && fils > balance) problem = "That is more than your balance.";
-  else if (fils !== null && fils > cap) problem = `The daily limit is ${formatDinar(cap)} dinars.`;
+  const problem = withdrawProblem(fils, balance);
   const valid = fils !== null && problem === null && addrOk;
+  const tooLittle = balance < MIN_WITHDRAW;
 
   const send = async () => {
     if (!valid || fils === null) return;
@@ -298,18 +314,26 @@ function Withdraw({ demo }: { demo: boolean }) {
     setBusy(false);
     setConfirm(false);
     if (r.ok) {
+      setRefused(null);
       setDone({ id: r.data.request_id, status: r.data.status });
       setAmount("");
       void refresh();
-    } else toast.error(r.error);
+    } else {
+      const text = cashErrorText(r.error);
+      setRefused(text);
+      toast.push("error", text);
+    }
   };
 
   if (done) {
     const st = mapCashStatus(done.status);
+    const text = cashStatusText("withdraw", st);
     return (
       <div className="panel stack" role="status">
-        <p className="strong">{st === "credited" ? "Sent." : "Withdrawal requested."}</p>
-        <p className="muted small">Request {shortId(done.id, 6, 4)} is {st === "credited" ? "complete" : st === "failed" ? "failed" : "being processed"}. It usually takes a few minutes.</p>
+        <p className="strong">{isFinalCashStatus(st) ? text.title : "Withdrawal requested."}</p>
+        <p className="muted small">
+          Request {shortId(done.id, 6, 4)}: {isFinalCashStatus(st) ? text.detail : "your dinars are set aside and the money is being sent. It usually takes a few minutes. You can only have one withdrawal open at a time."}
+        </p>
         <button type="button" className="btn" onClick={() => setDone(null)}>Make another</button>
       </div>
     );
@@ -317,18 +341,21 @@ function Withdraw({ demo }: { demo: boolean }) {
 
   return (
     <div className="panel stack">
-      <p className="muted small">Daily limit {formatDinar(cap)} dinars (10 USDC). Balance <Money fils={balance} />.</p>
+      <p className="muted small">
+        Minimum {formatDinar(MIN_WITHDRAW)} dinars. Daily limit {formatDinar(cap)} dinars (10 USDC) per UTC day, refunded withdrawals included. One withdrawal at a time. Balance <Money fils={balance} />.
+      </p>
+      {tooLittle && <p className="small loss" role="status">You need at least {formatDinar(MIN_WITHDRAW)} dinars to withdraw.</p>}
       <div className="field">
         <label htmlFor="wd-amount" className="strong">Amount (dinars)</label>
-        <input id="wd-amount" className="input" inputMode="decimal" placeholder="100" value={amount} onChange={(e) => setAmount(e.target.value)} aria-invalid={amount !== "" && (fils === null || !!problem)} aria-describedby="wd-amount-h" />
+        <input id="wd-amount" className="input" inputMode="decimal" placeholder="100" value={amount} onChange={(e) => { setAmount(e.target.value); setRefused(null); }} aria-invalid={amount !== "" && (fils === null || !!problem)} aria-describedby="wd-amount-h" />
         <p id="wd-amount-h" className={`small ${amount !== "" && (fils === null || problem) ? "loss" : "muted"}`}>
-          {amount !== "" && fils === null ? "Enter a number with at most 2 decimals." : problem ?? "100 dinars is 1 USDC."}
+          {amount !== "" && fils === null ? "Enter a number with at most 2 decimals." : problem ?? `100 dinars is 1 USDC. At least ${formatDinar(MIN_WITHDRAW)} dinars.`}
         </p>
       </div>
       <div className="field">
         <label htmlFor="wd-asset" className="strong">Receive as</label>
         <select id="wd-asset" className="input" value={assetId} onChange={(e) => setAssetId(e.target.value)}>
-          {CASH_ASSETS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+          {assets.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
         </select>
       </div>
       <div className="field">
@@ -336,6 +363,7 @@ function Withdraw({ demo }: { demo: boolean }) {
         <input id="wd-addr" className="input" value={address} onChange={(e) => setAddress(e.target.value)} autoComplete="off" spellCheck={false} aria-invalid={address !== "" && !addrOk} aria-describedby="wd-addr-h" />
         <p id="wd-addr-h" className={`small ${address !== "" && !addrOk ? "loss" : "muted"}`}>{addressHint(asset.kind)}. Double-check it: transfers cannot be undone.</p>
       </div>
+      {refused && <p className="small loss" role="alert">{refused}</p>}
       <button type="button" className="btn btn-primary btn-lg" disabled={!valid} onClick={() => setConfirm(true)}>Review withdrawal</button>
 
       <Sheet
@@ -354,7 +382,7 @@ function Withdraw({ demo }: { demo: boolean }) {
           <dt>Receive as</dt><dd>{asset.label}</dd>
           <dt>To</dt><dd><code className="addr">{address.trim()}</code></dd>
         </dl>
-        <p className="muted small">Make sure the address is on the {asset.label} network. Mistakes cannot be reversed.</p>
+        <p className="muted small">Make sure the address is on the {asset.chainLabel} network. Mistakes cannot be reversed.</p>
       </Sheet>
     </div>
   );
