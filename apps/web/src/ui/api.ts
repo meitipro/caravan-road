@@ -15,7 +15,7 @@ export const IS_MOCK = process.env.NEXT_PUBLIC_MOCK === "1";
 
 // MOCK only: the simulated world lives in memory and is rebuilt by every page load, but a few flags describing
 // "what this player did in the world" live in localStorage. They are tied to the world instance here: a new
-// page load means a new world, so the flags are dropped with it (otherwise a reload leaves 500 dinars and no
+// page load means a new world, so the flags are dropped with it (otherwise a reload leaves 500 coins and no
 // Claim button). Login and onboarding flags are about the person, not the world, and stay.
 export const WORLD_BOUND_KEYS = ["caravan.claimed", "caravan.basis.v1"] as const;
 

@@ -210,8 +210,8 @@ def q2():
                     a = agg(many(MAKERS[rule], SEEDS10, bots=bots, ticks=ticks, faucet=fa))
                     rows.append([rule, f"{ticks} ({ticks // 60} h)", bots, "faucet on" if fa else "no faucet", f"{a['gini']:.2f}", f"{pct(a['below_end'], 0)}",
                                  pct(a["below_avg"], 1), f1(a["claims"] / bots), f"{a['injected'] / 10000:.1f}", f0(a["bot_total"] / bots), a["cons"]])
-    md.append(f"#### 2A. Gini of final bot net worth and bots under 50 dinars, {KB}, 10-seed means\n")
-    md.append(table(["rules", "ticks", "bots", "PLAY faucet rule", "Gini of final net worth", "bots < 50 dinars at the end", "share of bot-ticks < 50 dinars", "faucet claims per bot", "money injected (USDC-equivalent per run)", "mean bot net worth at end (fils)", "conserved (start + injected)"], rows))
+    md.append(f"#### 2A. Gini of final bot net worth and bots under 50 coins, {KB}, 10-seed means\n")
+    md.append(table(["rules", "ticks", "bots", "PLAY faucet rule", "Gini of final net worth", "bots < 50 coins at the end", "share of bot-ticks < 50 coins", "faucet claims per bot", "money injected (USDC-equivalent per run)", "mean bot net worth at end (fils)", "conserved (start + injected)"], rows))
     md.append("")
     # 2B per-seed detail, 5 bots 240 ticks, A
     rows = []

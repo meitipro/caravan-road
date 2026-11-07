@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { GOODS, GOOD_IDS, PARAMS, findRoute, type CityId, type GoodId, type Merchant, type Player, type Side } from "@caravan/shared";
 import { basisCost } from "../ui/basis";
-import { formatBp, formatDinar, formatDinarDelta, formatEta } from "../ui/format";
+import { formatBp, formatCoins, formatCoinsDelta, formatEta } from "../ui/format";
 import { CITY_META, GOOD_META } from "../ui/game-meta";
 import { stallsForSale } from "../ui/stall-math";
 import {
@@ -86,7 +86,7 @@ export function CityScreen({ id }: { id: CityId }) {
           </div>
         </div>
         <div className="panel stack-sm purse">
-          <p className="muted small">Your dinars</p>
+          <p className="muted small">Your coins</p>
           <p className="purse-amount"><Money fils={me.fils} /></p>
           <p className="muted small">Cargo {cargoUnits(me.inventory)} of {PARAMS.CARGO_CAP} units</p>
           <p className="muted small">Merchant treasury <Money fils={m.treasury} /></p>
@@ -183,7 +183,7 @@ function TradeSheet({ city, merchant, me, trade, onClose }: {
     if (side === "buy") {
       if (merchant.stock[good] < q) problem = "The merchant does not have that much.";
       else if (carried + q > PARAMS.CARGO_CAP) problem = "Your caravan holds 40 units at most.";
-      else if (p.net > fils) problem = "Not enough dinars.";
+      else if (p.net > fils) problem = "Not enough coins.";
     } else if (me.inventory[good] < q) problem = "You do not have that much.";
     else if (merchant.stock[good] + q > GOODS[good].cap) problem = "The merchant's warehouse is full.";
     else if (BigInt(merchant.treasury) < p.total) problem = `${CITY_META[city].merchant} can only pay for ${maxQty} unit${maxQty === 1 ? "" : "s"} right now. Tap Max.`;
@@ -200,11 +200,11 @@ function TradeSheet({ city, merchant, me, trade, onClose }: {
       const total = BigInt(r.data.total);
       const fee = BigInt(r.data.fee);
       if (side === "buy") {
-        toast.success(`Bought ${q} ${GOOD_META[good].name}: ${formatDinarDelta(-(total + fee))} dinars`);
+        toast.success(`Bought ${q} ${GOOD_META[good].name}: ${formatCoinsDelta(-(total + fee))} coins`);
       } else {
         const gain = total - fee;
-        const profit = cost !== null ? ` (${formatDinarDelta(gain - cost)} profit)` : "";
-        toast.success(`Sold ${q} ${GOOD_META[good].name}: ${formatDinarDelta(gain)} dinars${profit}`);
+        const profit = cost !== null ? ` (${formatCoinsDelta(gain - cost)} profit)` : "";
+        toast.success(`Sold ${q} ${GOOD_META[good].name}: ${formatCoinsDelta(gain)} coins${profit}`);
       }
       onClose();
     }
@@ -224,7 +224,7 @@ function TradeSheet({ city, merchant, me, trade, onClose }: {
       footer={
         <>
           <button type="button" className={`btn btn-lg ${side === "buy" ? "btn-good" : "btn-primary"} grow`} disabled={!p || !!problem || busy} onClick={confirm}>
-            {busy ? "Working…" : side === "buy" ? `Buy for ${p ? formatDinar(p.net) : "0.00"}` : `Sell for ${p ? formatDinar(p.net) : "0.00"}`}
+            {busy ? "Working…" : side === "buy" ? `Buy for ${p ? formatCoins(p.net) : "0.00"}` : `Sell for ${p ? formatCoins(p.net) : "0.00"}`}
           </button>
           <button type="button" className="btn btn-lg" onClick={onClose}>Cancel</button>
         </>
@@ -268,7 +268,7 @@ function TradeSheet({ city, merchant, me, trade, onClose }: {
             <dt>Subtotal</dt><dd className="num"><Money fils={p.total} /></dd>
             <dt>Fee (1%)</dt><dd className="num"><Money fils={p.fee} /></dd>
             <dt className="strong">{side === "buy" ? "You pay" : "You receive"}</dt><dd className="num strong"><Money fils={p.net} /></dd>
-            {side === "buy" && (<><dt>Dinars left</dt><dd className="num"><Money fils={p.net > fils ? 0n : fils - p.net} /></dd></>)}
+            {side === "buy" && (<><dt>Coins left</dt><dd className="num"><Money fils={p.net > fils ? 0n : fils - p.net} /></dd></>)}
             {profit !== null && (<><dt>Profit on these units</dt><dd className="num"><Money fils={profit} sign /></dd></>)}
           </dl>
         )}
@@ -285,7 +285,7 @@ function TradeSheet({ city, merchant, me, trade, onClose }: {
           </div>
           <p className="muted small">
             {side === "buy" ? "You will never pay more than " : "You will never receive less than "}
-            <strong>{formatDinar(limit)}</strong> dinars. If the price moves further, the trade is cancelled.
+            <strong>{formatCoins(limit)}</strong> coins. If the price moves further, the trade is cancelled.
           </p>
         </fieldset>
 

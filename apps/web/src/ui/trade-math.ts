@@ -102,7 +102,7 @@ export function ambushLoss(c: Cargo): Cargo {
 }
 
 export interface SaleEstimate {
-  /** dinars (fils) received after fees for what the merchant can take */
+  /** coins (fils) received after fees for what the merchant can take */
   net: bigint;
   /** units the merchant cannot take now (treasury or warehouse limits) */
   unsold: number;

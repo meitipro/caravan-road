@@ -123,7 +123,7 @@ describe.skipIf(!SUPPORTED)("caravan contract on a local NEAR sandbox (real setu
       for (let attempt = 0; ; attempt++) {
         try { await rpc("sandbox_fast_forward", { delta_height: delta }); break; } catch (e) { if (attempt >= 3) throw e; await sleep(1000); }
       }
-      // Wait for the height jump itself (an ordinary new block 1 s later would also change the timestamp).
+      // Wait for the height jump itself (an orcoiny new block 1 s later would also change the timestamp).
       let after = before;
       for (let w = 0; w < 600 && after.height < before.height + delta; w++) { await sleep(200); after = await header(); }
       const gained = BigInt(after.timestamp_nanosec) - BigInt(before.timestamp_nanosec);
@@ -230,7 +230,7 @@ describe.skipIf(!SUPPORTED)("caravan contract on a local NEAR sandbox (real setu
     await expect(provider.viewAccount({ accountId: accountOf.alice! })).resolves.toBeDefined();
   }, STEP);
 
-  it("faucet: 500 dinars, emitted as an event the server parses from the receipt logs", async () => {
+  it("faucet: 500 coins, emitted as an event the server parses from the receipt logs", async () => {
     for (const user of ["alice", "bob"]) {
       const r = await post(faucetPOST, "/api/faucet", {}, { user });
       expect(errCode(r)).toBe("OK");
@@ -238,7 +238,7 @@ describe.skipIf(!SUPPORTED)("caravan contract on a local NEAR sandbox (real setu
     }
     const events = await svc.contract.recentEvents(50);
     expect(events.filter((e) => e.event === "faucet").map((e) => e.data.account)).toEqual(expect.arrayContaining([accountOf.alice, accountOf.bob]));
-    // A second claim is refused (net worth is now above 50 dinars; the contract also has a 1 h cooldown).
+    // A second claim is refused (net worth is now above 50 coins; the contract also has a 1 h cooldown).
     expect(errCode(await post(faucetPOST, "/api/faucet", {}, { user: "alice" }))).toBe("BAD_REQUEST");
   }, STEP);
 

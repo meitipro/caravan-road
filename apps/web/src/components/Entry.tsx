@@ -16,7 +16,7 @@ import { PixelImage } from "./PixelImage";
 import { Shell } from "./Shell";
 import { ToastProvider } from "./Toast";
 import { PARAMS } from "@caravan/shared";
-import { formatDinar } from "../ui/format";
+import { formatCoins } from "../ui/format";
 
 function ModeBadge({ mode }: { mode: "PLAY" | "LIVE" }) {
   const b = modeBadge(mode, IS_MOCK);
@@ -128,7 +128,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [claimed] = usePersisted("caravan.claimed");
   const last = i === CARDS.length - 1;
   const card = CARDS[i]!;
-  // Demo: offered once to a new player. Real PLAY game: offered when the contract would pay (worth under 50 dinars).
+  // Demo: offered once to a new player. Real PLAY game: offered when the contract would pay (worth under 50 coins).
   const canClaim = mode === "PLAY" && (IS_MOCK ? !claimed : eligible);
 
   return (
@@ -149,7 +149,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {last && canClaim && (
           <>
             <button type="button" className="btn btn-primary btn-lg btn-block" disabled={busy || reason !== null} onClick={claim}>
-              {busy ? "Claiming…" : `Claim ${formatDinar(String(PARAMS.FAUCET_FILS))} dinars`}
+              {busy ? "Claiming…" : `Claim ${formatCoins(String(PARAMS.FAUCET_FILS))} coins`}
             </button>
             {reason && !IS_MOCK && <p className="muted small" role="status">{reason}</p>}
           </>

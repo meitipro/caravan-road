@@ -173,7 +173,7 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
           if (cargoUnits(me.inventory) + req.qty > PARAMS.CARGO_CAP) return fail("CARGO_LIMIT", "Caravan is full.");
           const pay = cost.total + cost.fee;
           if (pay > limit) return fail("SLIPPAGE", "The price moved.");
-          if (pay > fils) return fail("INSUFFICIENT_FUNDS", "Not enough dinar.");
+          if (pay > fils) return fail("INSUFFICIENT_FUNDS", "Not enough coins.");
           me.fils = (fils - pay).toString();
           me.inventory[req.good] += req.qty;
           m.stock[req.good] -= req.qty;
@@ -224,7 +224,7 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
         let risk = BigInt(route.riskBp);
         for (let i = 0; i < req.guards; i++) risk = (risk * BigInt(PARAMS.GUARD_RISK_FACTOR_BP)) / BP;
         const guardCost = (baseValue * BigInt(PARAMS.GUARD_COST_BP) * BigInt(req.guards)) / BP;
-        if (guardCost > BigInt(me.fils)) return fail("INSUFFICIENT_FUNDS", "Not enough dinar for guards.");
+        if (guardCost > BigInt(me.fils)) return fail("INSUFFICIENT_FUNDS", "Not enough coins for guards.");
         me.fils = (BigInt(me.fils) - guardCost).toString();
         house += guardCost;
         for (const [g, n] of Object.entries(cargo) as Array<[GoodId, number]>) me.inventory[g] -= n;
@@ -292,7 +292,7 @@ export function createMockApiClient(options: MockOptions = {}): ApiClient {
         let fee = (price * BigInt(PARAMS.STALL_FEE_BP) + BP - 1n) / BP;
         if (fee < 1n) fee = 1n;
         if (price > BigInt(req.limit_total)) return fail("SLIPPAGE", "The price moved.");
-        if (price > BigInt(me.fils)) return fail("INSUFFICIENT_FUNDS", "Not enough dinar.");
+        if (price > BigInt(me.fils)) return fail("INSUFFICIENT_FUNDS", "Not enough coins.");
         me.fils = (BigInt(me.fils) - price).toString();
         me.inventory[stall.good] += req.qty;
         stall.qty -= req.qty;

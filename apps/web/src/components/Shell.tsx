@@ -47,7 +47,7 @@ export function TopBar() {
         </nav>
         <div className="topbar-right">
           {me && (
-            <Link href="/play/cash" className="balance" aria-label="Your dinars, open cash">
+            <Link href="/play/cash" className="balance" aria-label="Your coins, open cash">
               <Money fils={me.fils} />
             </Link>
           )}

@@ -1,6 +1,6 @@
 """Single source of truth for Caravan Road world parameters.
 Used by the economy simulation and by the PDF build so every document agrees.
-Money unit: fils. 1 dinar = 100 fils. 1 USDC = 10,000 fils = 100 dinar.
+Money unit: fils. 1 coin = 100 fils. 1 USDC = 10,000 fils = 100 coin.
 """
 
 GOODS = [
@@ -47,7 +47,7 @@ PARAMS = dict(
     MAX_GUARDS=3,
     AMBUSH_LOSS_BP=3000,
     MERCHANT_TREASURY_FILS=50000,   # 5 USDC
-    FAUCET_FILS=50000,              # 500 dinar (PLAY only)
+    FAUCET_FILS=50000,              # 500 coin (PLAY only)
     MAX_DEPOSIT_FILS=200000,        # 20 USDC
     DAILY_WITHDRAW_CAP_FILS=100000, # 10 USDC
     STALL_FEE_BP=200,

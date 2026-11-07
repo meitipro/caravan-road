@@ -6,11 +6,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { GOOD_IDS, PARAMS, type CityId, type GoodId, type Merchant, type Player, type Stall } from "@caravan/shared";
-import { formatDinar, formatDinarDelta } from "../ui/format";
+import { formatCoins, formatCoinsDelta } from "../ui/format";
 import { CITY_META, GOOD_META } from "../ui/game-meta";
 import {
   MAX_OPEN_STALLS, buyProblem, createBlockReason, createHint, feeNote, maxStallBuyQty, myStalls, parseUnitPrice,
-  plainDinar, priceVsMerchant, qtyDigits, sellerLabel, sellerProceeds, stallErrorText, stallFee, stallPrice, stallsForSale, validateCreate,
+  plainCoins, priceVsMerchant, qtyDigits, sellerLabel, sellerProceeds, stallErrorText, stallFee, stallPrice, stallsForSale, validateCreate,
 } from "../ui/stall-math";
 import { cargoUnits, maxSellQty, previewTrade } from "../ui/trade-math";
 import { EmptyState, ErrorState, GoodIcon, LoadingBlock, Money, Page } from "./Bits";
@@ -291,7 +291,7 @@ function BuySheet({ stallId, stall, me, merchant, city, onClose }: {
     const r = await actions.stallBuy({ stall_id: stall.id, qty: q, good: stall.good, price });
     setBusy(false);
     if (r.ok) {
-      toast.success(`Bought ${q} ${GOOD_META[good].name} from ${seller}: ${formatDinarDelta(-price)} dinars`);
+      toast.success(`Bought ${q} ${GOOD_META[good].name} from ${seller}: ${formatCoinsDelta(-price)} coins`);
       onClose();
     } else {
       setErr(stallErrorText("buy", r.error.code));
@@ -307,7 +307,7 @@ function BuySheet({ stallId, stall, me, merchant, city, onClose }: {
         <>
           {(err ?? problem) && <p className="loss strong sheet-alert" role="alert">{err ?? problem}</p>}
           <button type="button" className="btn btn-lg btn-good grow" disabled={!stall || !!problem || busy} onClick={confirm}>
-            {busy ? "Working…" : `Buy for ${formatDinar(price)}`}
+            {busy ? "Working…" : `Buy for ${formatCoins(price)}`}
           </button>
           <button type="button" className="btn btn-lg" onClick={onClose}>Cancel</button>
         </>
@@ -340,7 +340,7 @@ function BuySheet({ stallId, stall, me, merchant, city, onClose }: {
             <dt>Price each</dt><dd className="num"><Money fils={stall.unit_price} /></dd>
             <dt>Quantity</dt><dd className="num">{q}</dd>
             <dt className="strong">You pay</dt><dd className="num strong"><Money fils={price} /></dd>
-            <dt>Dinars left</dt><dd className="num"><Money fils={price > fils ? 0n : fils - price} /></dd>
+            <dt>Coins left</dt><dd className="num"><Money fils={price > fils ? 0n : fils - price} /></dd>
             <dt>Merchant asks</dt><dd className="num"><Money fils={merchant.quotes[good].ask} /></dd>
           </dl>
           <p className="panel-dim small" id="stall-fee-note">{feeNote(price)}</p>
@@ -371,7 +371,7 @@ function CreateSheet({ open, me, merchant, city, openStalls, onClose }: {
     const g = held[0] ?? "grain";
     setGood(g);
     setQty(Math.max(1, me.inventory[g]));
-    setPriceInput(plainDinar(merchant.quotes[g].mid));
+    setPriceInput(plainCoins(merchant.quotes[g].mid));
     setErr(null);
     setBusy(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -380,7 +380,7 @@ function CreateSheet({ open, me, merchant, city, openStalls, onClose }: {
   const pickGood = (g: GoodId) => {
     setGood(g);
     setQty(Math.max(1, me.inventory[g]));
-    setPriceInput(plainDinar(merchant.quotes[g].mid));
+    setPriceInput(plainCoins(merchant.quotes[g].mid));
     setErr(null);
   };
 
@@ -405,7 +405,7 @@ function CreateSheet({ open, me, merchant, city, openStalls, onClose }: {
     const r = await actions.stallCreate({ good, qty: q, unit_price: unit.toString() });
     setBusy(false);
     if (r.ok) {
-      toast.success(`Stall open: ${q} ${GOOD_META[good].name} at ${formatDinar(unit)} each`);
+      toast.success(`Stall open: ${q} ${GOOD_META[good].name} at ${formatCoins(unit)} each`);
       onClose();
     } else {
       setErr(stallErrorText("create", r.error.code));
@@ -468,7 +468,7 @@ function CreateSheet({ open, me, merchant, city, openStalls, onClose }: {
           </div>
 
           <div className="field">
-            <label htmlFor="stall-price" className="strong">Price for each unit (dinars)</label>
+            <label htmlFor="stall-price" className="strong">Price for each unit (coins)</label>
             <input
               id="stall-price"
               className="input num"
@@ -480,7 +480,7 @@ function CreateSheet({ open, me, merchant, city, openStalls, onClose }: {
               aria-describedby="stall-price-help"
             />
             <p id="stall-price-help" className="muted small">
-              In {CITY_META[city].name} the merchant pays <span className="num">{formatDinar(quote.bid)}</span> and asks <span className="num">{formatDinar(quote.ask)}</span> for one {GOOD_META[good].name}.
+              In {CITY_META[city].name} the merchant pays <span className="num">{formatCoins(quote.bid)}</span> and asks <span className="num">{formatCoins(quote.ask)}</span> for one {GOOD_META[good].name}.
             </p>
             <div className="row">
               {quick.map((o) => (
@@ -488,10 +488,10 @@ function CreateSheet({ open, me, merchant, city, openStalls, onClose }: {
                   key={o.key}
                   type="button"
                   className="btn btn-small"
-                  onClick={() => setPriceInput(plainDinar(o.fils))}
-                  aria-label={`Use ${formatDinar(o.fils)}, ${o.label.toLowerCase()}`}
+                  onClick={() => setPriceInput(plainCoins(o.fils))}
+                  aria-label={`Use ${formatCoins(o.fils)}, ${o.label.toLowerCase()}`}
                 >
-                  {o.label} <span className="num">{formatDinar(o.fils)}</span>
+                  {o.label} <span className="num">{formatCoins(o.fils)}</span>
                 </button>
               ))}
             </div>
@@ -512,7 +512,7 @@ function CreateSheet({ open, me, merchant, city, openStalls, onClose }: {
             </dl>
           )}
           <p className="muted small">
-            The fee is 2% of each sale, rounded up (at least 0.01 dinars), and comes out of your share. Buyers pay only the price.
+            The fee is 2% of each sale, rounded up (at least 0.01 coins), and comes out of your share. Buyers pay only the price.
           </p>
 
         </div>

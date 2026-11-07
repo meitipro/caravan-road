@@ -12,7 +12,7 @@ import {
 } from "../ui/cash-assets";
 import { cannedDepositQuote, cannedDepositStatus, cannedWithdraw } from "../ui/cash-canned";
 import { MIN_WITHDRAW, cashErrorText, withdrawProblem } from "../ui/cash-rules";
-import { formatDinar, formatEta, formatUnits, parseDinar, parseUnits, shortId } from "../ui/format";
+import { formatCoins, formatEta, formatUnits, parseCoins, parseUnits, shortId } from "../ui/format";
 import { EmptyState, ErrorState, LoadingBlock, Money, Page } from "./Bits";
 import { claimLabel, useFaucet } from "./Faucet";
 import { useGame } from "./GameProvider";
@@ -33,13 +33,13 @@ export function CashScreen() {
   return (
     <Page
       title="Cash"
-      subtitle={mode === "PLAY" ? "Practice mode: free dinars, no real money." : "Real USDC, real stakes. Caps apply."}
+      subtitle={mode === "PLAY" ? "Practice mode: free coins, no real money." : "Real USDC, real stakes. Caps apply."}
       actions={<button type="button" className="btn btn-small" onClick={() => setAdvanced(true)}>Advanced</button>}
     >
       <section className="panel stack-sm balance-card" aria-labelledby="bal-h">
-        <h2 id="bal-h" className="muted small">Your dinars</h2>
+        <h2 id="bal-h" className="muted small">Your coins</h2>
         <p className="big-balance"><Money fils={me.fils} /></p>
-        <p className="muted small">Net worth <Money fils={me.net_worth} /> (dinars plus goods at base prices)</p>
+        <p className="muted small">Net worth <Money fils={me.net_worth} /> (coins plus goods at base prices)</p>
       </section>
 
       {mode === "PLAY" ? <PlayCash /> : <LiveCash demo={demoLive} />}
@@ -54,10 +54,10 @@ function PlayCash() {
   return (
     <>
       <section className="panel stack" aria-labelledby="faucet-h">
-        <h2 id="faucet-h" className="h3">Free dinars</h2>
+        <h2 id="faucet-h" className="h3">Free coins</h2>
         <p>
-          Claim {formatDinar(String(PARAMS.FAUCET_FILS))} free dinars when you run low.{" "}
-          {IS_MOCK ? "A short wait applies between claims." : "You can claim once an hour, and only while everything you own (dinars, goods, stalls and cargo on the road) is worth less than 50 dinars."}
+          Claim {formatCoins(String(PARAMS.FAUCET_FILS))} free coins when you run low.{" "}
+          {IS_MOCK ? "A short wait applies between claims." : "You can claim once an hour, and only while everything you own (coins, goods, stalls and cargo on the road) is worth less than 50 coins."}
         </p>
         <button type="button" className="btn btn-primary btn-lg" onClick={claim} disabled={busy || reason !== null}>
           {claimLabel(busy, left)}
@@ -156,7 +156,7 @@ function Deposit({ demo, assets }: { demo: boolean; assets: CashAsset[] }) {
 
   return (
     <div className="panel stack">
-      <p className="muted small">Total deposits are capped at {formatDinar(String(PARAMS.MAX_DEPOSIT_FILS))} dinars (20 USDC) per player.</p>
+      <p className="muted small">Total deposits are capped at {formatCoins(String(PARAMS.MAX_DEPOSIT_FILS))} coins (20 USDC) per player.</p>
       <div className="field">
         <label htmlFor="dep-asset" className="strong">Asset to send</label>
         <select id="dep-asset" className="input" value={assetId} onChange={(e) => setAssetId(e.target.value)}>
@@ -167,7 +167,7 @@ function Deposit({ demo, assets }: { demo: boolean; assets: CashAsset[] }) {
         <label htmlFor="dep-amount" className="strong">Amount ({asset.symbol})</label>
         <input id="dep-amount" className="input" inputMode="decimal" placeholder="5" value={amount} onChange={(e) => setAmount(e.target.value)} aria-invalid={amount !== "" && units === null} aria-describedby="dep-amount-h" />
         <p id="dep-amount-h" className={`small ${amount !== "" && units === null ? "loss" : "muted"}`}>
-          {amount !== "" && units === null ? `Enter a number with at most ${asset.decimals} decimals.` : "You will see how many dinars you get before you send anything."}
+          {amount !== "" && units === null ? `Enter a number with at most ${asset.decimals} decimals.` : "You will see how many coins you get before you send anything."}
         </p>
       </div>
       <div className="field">
@@ -247,7 +247,7 @@ function DepositWait({ quote, asset, demo, onDone }: { quote: DepositQuoteData; 
 
       {status === "credited" && (
         <div className="panel-dim stack-sm" role="status">
-          <p className="strong profit">{text.title}: {data?.fils_credited ? <Money fils={data.fils_credited} /> : "your dinars are in"}</p>
+          <p className="strong profit">{text.title}: {data?.fils_credited ? <Money fils={data.fils_credited} /> : "your coins are in"}</p>
           <button type="button" className="btn btn-primary" onClick={onDone}>Done</button>
         </div>
       )}
@@ -298,7 +298,7 @@ function Withdraw({ demo, assets }: { demo: boolean; assets: CashAsset[] }) {
   // The server's reason when it refuses (a withdrawal already open, the daily cap...), kept on the form until the next edit.
   const [refused, setRefused] = useState<string | null>(null);
   const asset = (assetById(assets, assetId) ?? assets[0]) as CashAsset;
-  const fils = parseDinar(amount);
+  const fils = parseCoins(amount);
   const balance = BigInt(me?.fils ?? "0");
   const cap = BigInt(PARAMS.DAILY_WITHDRAW_CAP_FILS);
   const addrOk = isValidAddress(asset.kind, address);
@@ -332,7 +332,7 @@ function Withdraw({ demo, assets }: { demo: boolean; assets: CashAsset[] }) {
       <div className="panel stack" role="status">
         <p className="strong">{isFinalCashStatus(st) ? text.title : "Withdrawal requested."}</p>
         <p className="muted small">
-          Request {shortId(done.id, 6, 4)}: {isFinalCashStatus(st) ? text.detail : "your dinars are set aside and the money is being sent. It usually takes a few minutes. You can only have one withdrawal open at a time."}
+          Request {shortId(done.id, 6, 4)}: {isFinalCashStatus(st) ? text.detail : "your coins are set aside and the money is being sent. It usually takes a few minutes. You can only have one withdrawal open at a time."}
         </p>
         <button type="button" className="btn" onClick={() => setDone(null)}>Make another</button>
       </div>
@@ -342,14 +342,14 @@ function Withdraw({ demo, assets }: { demo: boolean; assets: CashAsset[] }) {
   return (
     <div className="panel stack">
       <p className="muted small">
-        Minimum {formatDinar(MIN_WITHDRAW)} dinars. Daily limit {formatDinar(cap)} dinars (10 USDC) per UTC day, refunded withdrawals included. One withdrawal at a time. Balance <Money fils={balance} />.
+        Minimum {formatCoins(MIN_WITHDRAW)} coins. Daily limit {formatCoins(cap)} coins (10 USDC) per UTC day, refunded withdrawals included. One withdrawal at a time. Balance <Money fils={balance} />.
       </p>
-      {tooLittle && <p className="small loss" role="status">You need at least {formatDinar(MIN_WITHDRAW)} dinars to withdraw.</p>}
+      {tooLittle && <p className="small loss" role="status">You need at least {formatCoins(MIN_WITHDRAW)} coins to withdraw.</p>}
       <div className="field">
-        <label htmlFor="wd-amount" className="strong">Amount (dinars)</label>
+        <label htmlFor="wd-amount" className="strong">Amount (coins)</label>
         <input id="wd-amount" className="input" inputMode="decimal" placeholder="100" value={amount} onChange={(e) => { setAmount(e.target.value); setRefused(null); }} aria-invalid={amount !== "" && (fils === null || !!problem)} aria-describedby="wd-amount-h" />
         <p id="wd-amount-h" className={`small ${amount !== "" && (fils === null || problem) ? "loss" : "muted"}`}>
-          {amount !== "" && fils === null ? "Enter a number with at most 2 decimals." : problem ?? `100 dinars is 1 USDC. At least ${formatDinar(MIN_WITHDRAW)} dinars.`}
+          {amount !== "" && fils === null ? "Enter a number with at most 2 decimals." : problem ?? `100 coins is 1 USDC. At least ${formatCoins(MIN_WITHDRAW)} coins.`}
         </p>
       </div>
       <div className="field">

@@ -1,4 +1,4 @@
-// Free-dinar (faucet) rules as the contract enforces them (contracts/caravan/src/game.rs try_faucet), so the UI only offers
+// Free-coin (faucet) rules as the contract enforces them (contracts/caravan/src/game.rs try_faucet), so the UI only offers
 // Claim to a player who can actually get it. The mock keeps its own simpler rule (60 s wait, no wealth limit).
 
 import { GOODS, GOOD_IDS, netWorthFils, type GoodId, type Player, type Stall } from "@caravan/shared";
@@ -25,7 +25,7 @@ function baseValue(goods: Goods | null | undefined): bigint {
 }
 
 /**
- * The contract's faucet_worth: dinars + base value of the inventory + goods in the player's open stalls (escrow)
+ * The contract's faucet_worth: coins + base value of the inventory + goods in the player's open stalls (escrow)
  * + the cargo of a journey that is still IN_TRANSIT (an ARRIVED, unclaimed journey is not counted by the contract).
  * `stalls` is the world's stall list; only the player's own are counted.
  */
@@ -50,7 +50,7 @@ export function formatWait(seconds: number): string {
 }
 
 export const FAUCET_TOO_RICH_TEXT =
-  "You still own too much to claim. Free dinars are for players with less than 50 dinars in total, goods and open stalls included.";
+  "You still own too much to claim. Free coins are for players with less than 50 coins in total, goods and open stalls included.";
 
 /** Honest message after a refused claim, or null to fall back to the standard error toast. */
 export function faucetRefusalText(code: string, mock: boolean): string | null {

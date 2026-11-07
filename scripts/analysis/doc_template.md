@@ -22,7 +22,7 @@ Ranked proposals are in section 7.
 | Q1 unsold goods kept (contract) | 51-55% truncated, merchants end at 3,488-10,526 fils, 64-74% of merchant-ticks dry | **unchanged in direction**: 43-51% truncated, 4,248-9,300 fils, 58-74% dry | Tables 1G, 5D |
 | Q1 bigger treasuries | 35.3% to 23.9% truncated for 4x the treasury | **unchanged**: 31.7% to 21.6% | Table 1C-C |
 | Q1 REBALANCE, RECYCLE, ship units | weak levers | **unchanged** | Tables 1D, 1E, 1F |
-| Q2 bankruptcy and faucet | faucet takes 39% of 10 bots under 50 dinars after 24 h (A) to 0% | **unchanged**: 43% to 0% | Table 2A |
+| Q2 bankruptcy and faucet | faucet takes 39% of 10 bots under 50 coins after 24 h (A) to 0% | **unchanged**: 43% to 0% | Table 2A |
 | Q3 clamp saturation | spice+silk at a clamp 66-89%, all goods 27-53% | **changed**: spice+silk 17-24% (low clamp only), all goods 7-15% | Tables 3B, 3C |
 | Q3 wider clamps / larger spice and silk targets | wider clamps cut clamp time but cost trips; x2/x3 targets help partly | **changed**: at K = 3000 a floor of 6000 removes the remaining clamp time at small cost; x2/x3 targets no longer matter | Tables 3D, 3E |
 | Q4 first profit | first positive trade at minute 2 (266 fils); first profitable arrival after a median 6-11 min (running world), 13-20 min (fresh world) | **changed a little**: minute 3 (805 fils); 6-12 min and 14-22 min; no conclusion changes | Tables 4A, 4F |
@@ -82,7 +82,7 @@ Commands: `python scripts/analysis/run_exp.py q1` (tables 1A, 1B, 1H). The TypeS
 
 {{T:q1:1H}}
 
-Reading (**conclusion unchanged by K = 3000**): at the spec treasury, 14-36% of single-seed cargo sales are truncated (mean 20-32%) and the merchant's inability to pay removes 14-24% of the sale revenue (means). A typical cargo would earn 6,465-9,613 fils if the merchant could pay (13-19% of a 50,000-fils capital) but realises -294 to 3,117 fils on average. The share falls only a little as bots are added (25.2%, 23.1%, 19.9% under A): the loss is a per-sale ceiling, not only a crowding effect. Against K = 4000 (Table 1H) the truncated share moves by at most 4.8 points (A: 30.0, 23.5, 20.3 to 25.2, 23.1, 19.9; C: 27.5, 35.3, 26.2 to 26.3, 31.7, 25.7), within the seed noise of Table 1B. A single merchant treasury of 50,000 fils caps one visit's revenue at 500 dinars; a 40-unit cargo of silk is worth 800,000 fils at base.
+Reading (**conclusion unchanged by K = 3000**): at the spec treasury, 14-36% of single-seed cargo sales are truncated (mean 20-32%) and the merchant's inability to pay removes 14-24% of the sale revenue (means). A typical cargo would earn 6,465-9,613 fils if the merchant could pay (13-19% of a 50,000-fils capital) but realises -294 to 3,117 fils on average. The share falls only a little as bots are added (25.2%, 23.1%, 19.9% under A): the loss is a per-sale ceiling, not only a crowding effect. Against K = 4000 (Table 1H) the truncated share moves by at most 4.8 points (A: 30.0, 23.5, 20.3 to 25.2, 23.1, 19.9; C: 27.5, 35.3, 26.2 to 26.3, 31.7, 25.7), within the seed noise of Table 1B. A single merchant treasury of 50,000 fils caps one visit's revenue at 500 coins; a 40-unit cargo of silk is worth 800,000 fils at base.
 
 ### 2.2 Sensitivity to treasury size (operator risk grows with it)
 
@@ -138,7 +138,7 @@ Method: `python scripts/analysis/run_exp.py q2`. Faucet rule modelled as in the 
 Reading (**conclusion unchanged; numbers moved**):
 
 * Concentration: Gini 0.20 (2 bots), 0.37 (5), 0.49 (10) after 4 h under A without a faucet (0.14, 0.27, 0.45 under C; 0.23, 0.35, 0.50 under A at K = 4000). Per seed (Table 2B) the richest bot ends with 4.3x-8.6x the net worth of the poorest (5.6x-12x at K = 4000).
-* Bankruptcy: without a faucet, 5% of bots are under 50 dinars after 4 h with 10 bots (A; 11% at K = 4000) and **43% after 24 h** (A, 10 bots; 24.9% of all bot-time; 12% under C). With the faucet rule: 0% after 4 h and 0% after 24 h, Gini 0.64 to 0.39 (24 h, 10 bots, A).
+* Bankruptcy: without a faucet, 5% of bots are under 50 coins after 4 h with 10 bots (A; 11% at K = 4000) and **43% after 24 h** (A, 10 bots; 24.9% of all bot-time; 12% under C). With the faucet rule: 0% after 4 h and 0% after 24 h, Gini 0.64 to 0.39 (24 h, 10 bots, A).
 * The faucet is cheap: 0.1 claims per bot in 4 h and 0.6-0.7 claims per bot in 24 h with 10 bots (27.5-37.0 USDC-equivalents of PLAY money across the 10 bots, which is play money by definition).
 * Caveat: in set A many "bankruptcies" are cargo destroyed by truncated sales (section 2.4), so the figure is pessimistic for A and optimistic for contract semantics, where players keep goods and the problem is merchants' cash. The faucet rule as written (net worth, not cash) does what the plan asks; no change is proposed.
 
@@ -171,7 +171,7 @@ Reading:
 
 ## 5. Question 4 - the first profitable trade
 
-Three different questions are mixed in "first profitable trade in under a minute": when can the player start, when does profit appear, and how large is it. Method: `python scripts/analysis/run_q4.py`. Expected profit (EP) for a 500-dinar newcomer = one journey chosen with full knowledge of the current prices and treasuries, exact integer prices, 1% fees, ambush risk, guards chosen optimally (cost 2% of the cargo base value each, truncated), unsold goods valued at 0. EP is therefore an upper bound for a player who acts first; Table 4F is the realised outcome of a competing bot. All tables except 4C and 4E run at K = 3000 (4C and 4E are analytic and do not depend on K).
+Three different questions are mixed in "first profitable trade in under a minute": when can the player start, when does profit appear, and how large is it. Method: `python scripts/analysis/run_q4.py`. Expected profit (EP) for a 500-coin newcomer = one journey chosen with full knowledge of the current prices and treasuries, exact integer prices, 1% fees, ambush risk, guards chosen optimally (cost 2% of the cargo base value each, truncated), unsold goods valued at 0. EP is therefore an upper bound for a player who acts first; Table 4F is the realised outcome of a competing bot. All tables except 4C and 4E run at K = 3000 (4C and 4E are analytic and do not depend on K).
 
 {{T:q4:4E}}
 
@@ -235,7 +235,7 @@ The stall fee `ceil(2% x price)`, minimum 1 fils, cannot be evaded by splitting 
 
 {{T:q5:5A}}
 
-Reading (**unchanged**): in every run of Table 5A the operator's P&L stayed above -200,000 fils (worst observed -192,019, 96% of the seed, 10 players x 50,000 fils for 24 h under C), which confirms the plan's statement that the operator's maximum loss equals the merchants' treasuries. It also shows the cap is not a theoretical limit: one 20-USDC whale alone takes a mean 139,464-161,467 fils (70-81%) in 24 hours, and 5-10 ordinary greedy players take about 162,000-172,000 (C, 24 h). Operator risk is a practical number, not a remote one.
+Reading (**unchanged**): in every run of Table 5A the operator's P&L stayed above -200,000 fils (worst observed -192,019, 96% of the seed, 10 players x 50,000 fils for 24 h under C), which confirms the plan's statement that the operator's maximum loss equals the merchants' treasuries. It also shows the cap is not a theoretical limit: one 20-USDC whale alone takes a mean 139,464-161,467 fils (70-81%) in 24 hours, and 5-10 orcoiny greedy players take about 162,000-172,000 (C, 24 h). Operator risk is a practical number, not a remote one.
 
 **Money conservation.** Every run asserts `merchants + house + bots' cash == start (+ faucet injections)` after every tick. Results: {{C}} The tables' "conserved" columns show the per-row count.
 
@@ -256,7 +256,7 @@ Ranked by expected benefit divided by risk. Proposal 3 is **adopted** (spec-v1.2
 | 5 | **Fix the first-minute UX goal.** Reword it as "first purchase and departure in under a minute in a running world, first realised profit usually within about 10 minutes", show projected profit when the player picks a route, and (optional, spec change) add a first-journey-only intro route of 60 s with no ambush risk. | Table 4E (180 s minimum), 4F (median 0-5 min to first purchase in a running world; 6-12 min to first profitable arrival), 4A (fresh world has no price gaps: first positive trade at minute 3, small until about minute 10). Changed slightly from the K = 4000 text ("within 5-6 minutes"): the median first profitable arrival is now 6-12 minutes. | Intro route is new content and a new special case in the contract; the rewording costs nothing. |
 | 6 | **Re-price guards**: `GUARD_COST_BP` 200 to 50-100, or `GUARD_RISK_FACTOR_BP` 6500 to about 4000, or `ceil` loss with a minimum of 1 unit. | Table 4C: with today's numbers a guard only pays on madan-bandar; Table 5-5: nothing is lost in lots of 3 or fewer. Unchanged by K. | Changing the loss rule re-opens D1 (floor) of spec-v1.1; cheaper guards reduce `house` income that funds recycling. |
 | 7 | ~~Raise spice and silk target stock x2~~ **Moot at K = 3000.** It was the fallback if proposal 3 were rejected. | Table 3E: at K = 3000 x2 and x3 leave spice+silk at a clamp 22%, 22%, 21% (A, 5 bots); the 86% to 74% improvement existed only at K = 4000. | Would change the goods table and golden vectors for no gain. |
-| 8 | **Keep the faucet rule** (net worth under 5,000 fils, 1 h cooldown) and the rebalance (30%) and recycle (10%) percentages. | Tables 2A (43% to 0% of bots under 50 dinars after 24 h with 10 bots, A), 1D, 1E (switching either off raises dry merchants from 3.4% to 38.2% or 7.2%, A, 5 bots). | None. |
+| 8 | **Keep the faucet rule** (net worth under 5,000 fils, 1 h cooldown) and the rebalance (30%) and recycle (10%) percentages. | Tables 2A (43% to 0% of bots under 50 coins after 24 h with 10 bots, A), 1D, 1E (switching either off raises dry merchants from 3.4% to 38.2% or 7.2%, A, 5 bots). | None. |
 | 9 | **Close small leaks** (any order): a worker-side rule that the AI never moves bias in one direction for more than one tick in a row (or lower the D24 step from 300 to 100 bp); optionally rate-limit trades per player per minute; optionally make a trade priced by the sum of unit prices instead of the midpoint. | Tables 5-4 (profitable after 2 ticks), 5-3 (up to 1.77% from splitting sells, 0.53% buys at K = 3000; was 3.91% and 0.83%): the pricing leak is smaller now. | Slower policy response for the AI; extra contract complexity for the pricing change. |
 
 Not recommended: more or fewer house caravan units (Table 1F: profit falls with units, truncation does not), wider clamps alone (Table 3D: at K = 4000 fewer trips and more truncation; at K = 3000 a lower floor is harmless but gains little), and changing the 1% fee or spread without first fixing liquidity (the 1% fee funds the only inflow to merchants other than purchases).

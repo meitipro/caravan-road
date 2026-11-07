@@ -142,29 +142,29 @@ export function isFinalCashStatus(s: CashStatus): boolean {
 export function cashStatusText(kind: CashKind, s: CashStatus): { title: string; detail: string } {
   if (kind === "deposit") {
     switch (s) {
-      case "credited": return { title: "Credited", detail: "Your dinars are in." };
+      case "credited": return { title: "Credited", detail: "Your coins are in." };
       case "expired": return { title: "This quote expired.", detail: "If you already sent money, it will be refunded to your refund address." };
       case "refunded": return { title: "Refunded.", detail: "Your money went back to your refund address." };
       case "failed":
         return {
           title: "This deposit could not be completed.",
-          detail: "No dinars were added. If you sent money, it is being returned: the payment service refunds it to your refund address, or we return it by hand if we could not credit it. It is not lost.",
+          detail: "No coins were added. If you sent money, it is being returned: the payment service refunds it to your refund address, or we return it by hand if we could not credit it. It is not lost.",
         };
-      case "cancelled": return { title: "This deposit was cancelled.", detail: "No dinars were added." };
+      case "cancelled": return { title: "This deposit was cancelled.", detail: "No coins were added." };
       case "unknown": return { title: "Checking the status", detail: "We do not recognise this status yet. Nothing has changed on your balance; we keep checking." };
       default: return { title: "", detail: "" };
     }
   }
   switch (s) {
     case "credited": return { title: "Sent.", detail: "The withdrawal is complete." };
-    case "refunded": return { title: "Refunded.", detail: "The withdrawal did not go through and your dinars were returned." };
-    case "cancelled": return { title: "Cancelled.", detail: "The withdrawal never started and no dinars were taken." };
+    case "refunded": return { title: "Refunded.", detail: "The withdrawal did not go through and your coins were returned." };
+    case "cancelled": return { title: "Cancelled.", detail: "The withdrawal never started and no coins were taken." };
     case "failed":
       return {
         title: "The withdrawal needs a manual check.",
-        detail: "Your dinars are not lost: we review it and either send the money or return the dinars.",
+        detail: "Your coins are not lost: we review it and either send the money or return the coins.",
       };
-    case "expired": return { title: "This withdrawal expired.", detail: "Check your balance. If dinars were taken, they are returned." };
+    case "expired": return { title: "This withdrawal expired.", detail: "Check your balance. If coins were taken, they are returned." };
     case "unknown": return { title: "Checking the status", detail: "We do not recognise this status yet. Check your balance in a few minutes." };
     default: return { title: "", detail: "" };
   }

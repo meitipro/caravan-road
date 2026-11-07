@@ -17,7 +17,7 @@ import type { z } from "zod";
 const QUOTE_MAX_VALIDITY_SECONDS = 24 * 3600;
 const POS_INT = /^[1-9][0-9]*$/;
 
-const MIN_WITHDRAW_MESSAGE = "The minimum withdrawal is 1,000 fils (10 dinars).";
+const MIN_WITHDRAW_MESSAGE = "The minimum withdrawal is 10 coins.";
 const OPEN_WITHDRAW_MESSAGE = "You already have a withdrawal in progress. Wait until it finishes before requesting another.";
 const DAILY_CAP_MESSAGE = "Daily withdrawal limit reached (10 USDC per UTC day, refunded withdrawals included). It resets at 00:00 UTC.";
 

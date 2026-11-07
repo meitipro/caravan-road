@@ -4,18 +4,18 @@ import { useEffect, useState } from "react";
 import { PARAMS } from "@caravan/shared";
 import { IS_MOCK } from "../ui/api";
 import { faucetBlockReason, faucetCooldownSec, faucetEligible, faucetWorthFils } from "../ui/faucet-rules";
-import { formatDinar } from "../ui/format";
+import { formatCoins } from "../ui/format";
 import { usePersisted } from "../ui/persisted";
 import { useActions, useGame } from "./GameProvider";
 import { useToast } from "./Toast";
 
-// Cooldown and eligibility. The real contract waits 3600 s between claims and refuses once the player's worth (dinars,
-// goods, stall goods and cargo on the road, at base prices) reaches 50 dinars; see ui/faucet-rules.ts. The browser demo
+// Cooldown and eligibility. The real contract waits 3600 s between claims and refuses once the player's worth (coins,
+// goods, stall goods and cargo on the road, at base prices) reaches 50 coins; see ui/faucet-rules.ts. The browser demo
 // (NEXT_PUBLIC_MOCK=1) keeps its own rule: a 60 s wait and no wealth limit. The server does not tell us when the last
 // claim was, so the wait is remembered here: after a claim, or after the server answers RATE_LIMIT (then as the full
 // cooldown, which is an upper bound: the label says "about").
 
-/** Can this player get free dinars by the contract's wealth rule? The demo has no such rule. */
+/** Can this player get free coins by the contract's wealth rule? The demo has no such rule. */
 function useFaucetEligible(): boolean {
   const { me, world } = useGame();
   return IS_MOCK || (!!me && !!world && faucetEligible(faucetWorthFils(me, world.stalls)));
@@ -57,7 +57,7 @@ export function useFaucet() {
     if (r.ok) {
       setClaimed("1");
       setUntil(Date.now() + cooldownMs);
-      toast.success(`+${formatDinar(String(PARAMS.FAUCET_FILS))} dinars added`);
+      toast.success(`+${formatCoins(String(PARAMS.FAUCET_FILS))} coins added`);
     } else if (r.error.code === "RATE_LIMIT") {
       setUntil(Date.now() + cooldownMs);
     }
@@ -69,14 +69,14 @@ export function useFaucet() {
 /** Button text: a short wait counts down, a long one just says so (the reason line gives the time). */
 export function claimLabel(busy: boolean, left: number): string {
   if (busy) return "Claiming…";
-  const amount = `Claim ${formatDinar(String(PARAMS.FAUCET_FILS))} dinars`;
+  const amount = `Claim ${formatCoins(String(PARAMS.FAUCET_FILS))} coins`;
   if (left <= 0) return amount;
   return left <= 90 ? `Wait ${left}s` : amount;
 }
 
 /**
- * Whether to show the free-dinars banner. Real PLAY game: only when the player can actually get them (worth under 50
- * dinars; the wait is shown on the banner itself). Demo: new players (never claimed) and broke ones (under 50 dinars).
+ * Whether to show the free-coins banner. Real PLAY game: only when the player can actually get them (worth under 50
+ * coins; the wait is shown on the banner itself). Demo: new players (never claimed) and broke ones (under 50 coins).
  */
 export function useNeedsFaucet(): boolean {
   const { me, mode } = useGame();
@@ -95,8 +95,8 @@ export function FaucetBanner() {
   return (
     <div className="panel faucet-banner">
       <div>
-        <p className="empty-title">Free dinars for practice</p>
-        <p className="muted small">PLAY mode is free. Claim {formatDinar(String(PARAMS.FAUCET_FILS))} dinars and start trading.</p>
+        <p className="empty-title">Free coins for practice</p>
+        <p className="muted small">PLAY mode is free. Claim {formatCoins(String(PARAMS.FAUCET_FILS))} coins and start trading.</p>
         {reason && !IS_MOCK && <p className="small" role="status">{reason}</p>}
       </div>
       <button type="button" className="btn btn-primary btn-lg" onClick={claim} disabled={busy || reason !== null}>

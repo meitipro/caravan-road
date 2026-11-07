@@ -8,7 +8,7 @@ import {
   type CityId, type GoodId, type Journey, type Player, type WorldState,
 } from "@caravan/shared";
 import { basisCost, type Basis } from "../ui/basis";
-import { formatBp, formatDinar, formatEta } from "../ui/format";
+import { formatBp, formatCoins, formatEta } from "../ui/format";
 import { CITY_META, GOOD_META } from "../ui/game-meta";
 import {
   ambushLoss, cargoBaseValue, cargoUnits, estimateSale, estimateSaleNet, guardCostFils, riskWithGuards, type Cargo,
@@ -212,7 +212,7 @@ function Planner({ world, me, basis }: { world: WorldState; me: Player; basis: B
                 <PixelImage slot="ui/guard" w={16} h={16} scale={2} alt="" decorative color="var(--stone)" />
                 <span className="num">{g}</span>
               </span>
-              <span className="small">{g === 0 ? "free" : `${formatDinar(guardCostFils(cargo, g))}`}</span>
+              <span className="small">{g === 0 ? "free" : `${formatCoins(guardCostFils(cargo, g))}`}</span>
             </label>
           ))}
         </div>
@@ -230,12 +230,12 @@ function Planner({ world, me, basis }: { world: WorldState; me: Player; basis: B
             <dt>Ambush risk</dt><dd className="num strong">{formatBp(risk)}</dd>
             <dt>If ambushed</dt>
             <dd>
-              {lossUnits > 0 ? <span className="loss">lose {lossUnits} unit{lossUnits === 1 ? "" : "s"} (30% of each good), worth about {formatDinar(lossValue)} dinars</span> : "Small cargo: an ambush takes nothing, but bigger loads can lose 30%"}
+              {lossUnits > 0 ? <span className="loss">lose {lossUnits} unit{lossUnits === 1 ? "" : "s"} (30% of each good), worth about {formatCoins(lossValue)} coins</span> : "Small cargo: an ambush takes nothing, but bigger loads can lose 30%"}
             </dd>
             <dt>Guards</dt><dd className="num">{guards} · <Money fils={guardCost} /></dd>
           </dl>
         )}
-        {broke && <p className="loss strong" role="alert">Not enough dinars for the guards.</p>}
+        {broke && <p className="loss strong" role="alert">Not enough coins for the guards.</p>}
         <button type="button" className="btn btn-primary btn-lg btn-block" disabled={!canStart} onClick={start}>
           {busy ? "Sending…" : to ? `Send caravan to ${CITY_META[to].name}` : "Choose a destination"}
         </button>
@@ -312,7 +312,7 @@ function Transit({ journey: j, world, onClaimed }: { journey: Journey; world: Wo
             <li key={g} className="chip inv-chip"><GoodIcon good={g} />{GOOD_META[g].name} <span className="num">{j.cargo[g]}</span></li>
           ))}
         </ul>
-        <p className="muted small">{j.guards} guard{j.guards === 1 ? "" : "s"} hired. Cargo worth about {formatDinar(cargoBaseValue(j.cargo))} dinars at base prices.</p>
+        <p className="muted small">{j.guards} guard{j.guards === 1 ? "" : "s"} hired. Cargo worth about {formatCoins(cargoBaseValue(j.cargo))} coins at base prices.</p>
         {basisHint(basis, j.cargo)}
       </section>
     </div>
@@ -321,7 +321,7 @@ function Transit({ journey: j, world, onClaimed }: { journey: Journey; world: Wo
 
 function basisHint(basis: Basis, cargo: Cargo) {
   const c = cargoBasis(basis, cargo);
-  return c === null ? null : <p className="muted small">You paid about {formatDinar(c)} dinars for this cargo.</p>;
+  return c === null ? null : <p className="muted small">You paid about {formatCoins(c)} coins for this cargo.</p>;
 }
 
 /* ------------------------------------------------------------------ result */

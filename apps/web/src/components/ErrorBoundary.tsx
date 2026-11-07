@@ -20,7 +20,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     return (
       <div className="panel error-state boundary" role="alert">
         <p className="empty-title">The caravan hit a rock.</p>
-        <p className="muted">Something broke in the interface. Your goods and dinars are safe on the server.</p>
+        <p className="muted">Something broke in the interface. Your goods and coins are safe on the server.</p>
         <button type="button" className="btn btn-primary" onClick={() => this.setState({ failed: false })}>
           Try again
         </button>

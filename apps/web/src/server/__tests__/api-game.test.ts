@@ -241,7 +241,7 @@ describe("state, accounts and the POST pipeline", () => {
 });
 
 describe("faucet", () => {
-  it("PLAY: credits 500 dinars, then RATE_LIMIT during the cooldown", async () => {
+  it("PLAY: credits 500 coins, then RATE_LIMIT during the cooldown", async () => {
     const kit = await makeKit();
     try {
       await signIn(kit, stateGET, "alice");
@@ -304,7 +304,7 @@ describe("trade", () => {
     expectErr(await buy("alice", { merchant: "dasht" }), "NOT_IN_CITY");
   });
 
-  it("INSUFFICIENT_FUNDS for a player without dinars", async () => {
+  it("INSUFFICIENT_FUNDS for a player without coins", async () => {
     await signIn(kit, stateGET, "broke");
     expectErr(await buy("broke"), "INSUFFICIENT_FUNDS");
   });
