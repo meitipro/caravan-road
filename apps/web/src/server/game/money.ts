@@ -101,9 +101,10 @@ export const withdrawSpec: PostSpec<z.infer<typeof WithdrawRequestSchema>, Withd
     try {
       out = await svc.relayer.submit(user, "request_withdraw", { fils: body.fils, dest_asset: body.dest_asset, dest_address: body.dest_address });
     } catch (e) {
-      // A definite rejection (contract panic, rate limit) means nothing was debited: release the reservation.
-      // INTERNAL is ambiguous (the transaction may have executed): keep the reservation for reconciliation.
-      if (isApiError(e) && e.code !== "INTERNAL") await svc.repo.cancelWithdrawal(row.id, svc.now());
+      // A definite rejection (contract panic, rate limit, a delegate rejected before it ran) means nothing was debited:
+      // release the reservation now. A plain INTERNAL is ambiguous (the transaction may have executed): keep the
+      // reservation for reconciliation.
+      if (isApiError(e) && (e.code !== "INTERNAL" || e.notExecuted)) await svc.repo.cancelWithdrawal(row.id, svc.now());
       throw e;
     }
     noteTx(out);

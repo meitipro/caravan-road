@@ -11,9 +11,16 @@ const CONTRACT_PANIC = Symbol.for("caravan.ContractPanic");
 
 export class ApiError extends Error {
   readonly [API_ERROR] = true;
-  constructor(public readonly code: ErrorCode, message: string) {
+  /**
+   * True when the failure is DEFINITELY a rejection before anything ran on chain (contract panic, stale delegate that was
+   * never executed, a failure before the transaction was sent). Only then may a caller undo its own bookkeeping for an
+   * INTERNAL error; INTERNAL without this flag means "the transaction may have executed".
+   */
+  readonly notExecuted: boolean;
+  constructor(public readonly code: ErrorCode, message: string, opts?: { notExecuted?: boolean }) {
     super(message);
     this.name = "ApiError";
+    this.notExecuted = opts?.notExecuted ?? false;
   }
 }
 
@@ -51,6 +58,16 @@ export class ContractPanic extends Error {
     super(message);
     this.name = "ContractPanic";
   }
+}
+
+/** Marks an error as "raised before the transaction was sent / rejected before it ran" (see ApiError.notExecuted). */
+const NOT_EXECUTED = Symbol.for("caravan.NotExecuted");
+export function markNotExecuted<E extends Error>(e: E): E {
+  (e as unknown as Record<symbol, unknown>)[NOT_EXECUTED] = true;
+  return e;
+}
+export function isNotExecuted(e: unknown): boolean {
+  return typeof e === "object" && e !== null && (e as Record<symbol, unknown>)[NOT_EXECUTED] === true;
 }
 
 export function isContractPanic(e: unknown): e is ContractPanic {
