@@ -60,6 +60,11 @@ export function stallsForSale(stalls: readonly Stall[], city: CityId, myAccount:
   return stalls.filter((s) => s.city === city && s.seller !== myAccount).sort(byGoodThenPrice);
 }
 
+/** What a quantity box keeps of what was typed: digits only, at most four. */
+export function qtyDigits(raw: string): string {
+  return raw.replace(/\D/g, "").slice(0, 4);
+}
+
 /** The player's own stalls in any city. */
 export function myStalls(stalls: readonly Stall[], myAccount: string | null | undefined): Stall[] {
   if (!myAccount) return [];

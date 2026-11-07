@@ -3,8 +3,17 @@ import { worldFixture, type ErrorCode, type Stall } from "@caravan/shared";
 import { ERROR_TEXT } from "./game-meta";
 import {
   MAX_OPEN_STALLS, buyProblem, createBlockReason, createHint, feeNote, maxStallBuyQty, myStalls, parseUnitPrice,
-  plainDinar, priceVsMerchant, sellerLabel, sellerProceeds, stallErrorText, stallFee, stallPrice, stallsForSale, validateCreate,
+  plainDinar, priceVsMerchant, qtyDigits, sellerLabel, sellerProceeds, stallErrorText, stallFee, stallPrice, stallsForSale, validateCreate,
 } from "./stall-math";
+
+describe("qtyDigits (quantity box typing)", () => {
+  it("keeps digits only, at most four (the old filter stripped the letter D, not non-digits)", () => {
+    expect(qtyDigits("abc")).toBe("");
+    expect(qtyDigits("1x2")).toBe("12");
+    expect(qtyDigits("12345")).toBe("1234");
+    expect(qtyDigits("D5")).toBe("5");
+  });
+});
 
 const stall = (over: Partial<Stall> = {}): Stall => ({
   id: 1, seller: "p1a2b3c4d.relay.testnet", city: "shahr", good: "salt", qty: 12, unit_price: "1700", ...over,

@@ -10,7 +10,7 @@ import { formatDinar, formatDinarDelta } from "../ui/format";
 import { CITY_META, GOOD_META } from "../ui/game-meta";
 import {
   MAX_OPEN_STALLS, buyProblem, createBlockReason, createHint, feeNote, maxStallBuyQty, myStalls, parseUnitPrice,
-  plainDinar, priceVsMerchant, sellerLabel, sellerProceeds, stallErrorText, stallFee, stallPrice, stallsForSale, validateCreate,
+  plainDinar, priceVsMerchant, qtyDigits, sellerLabel, sellerProceeds, stallErrorText, stallFee, stallPrice, stallsForSale, validateCreate,
 } from "../ui/stall-math";
 import { cargoUnits, maxSellQty, previewTrade } from "../ui/trade-math";
 import { EmptyState, ErrorState, GoodIcon, LoadingBlock, Money, Page } from "./Bits";
@@ -45,7 +45,7 @@ function QtyInput({ id, value, max, onChange, describedBy }: {
         setText(String(value));
       }}
       onChange={(e) => {
-        const digits = e.target.value.replace(/D/g, "").slice(0, 4);
+        const digits = qtyDigits(e.target.value);
         const n = parseInt(digits, 10);
         if (!Number.isFinite(n) || n < 1) {
           setText(digits);
