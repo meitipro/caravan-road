@@ -100,8 +100,8 @@ the build window of 2026-11-01 to 2026-11-14, so it is separated here by a git t
 
 - **Baseline** = tag `pre-hackathon-baseline`, commit `260e0a6` (2026-10-31 22:09 +03:30, 18:39 UTC), the last commit before
   2026-11-01. It holds 31 commits, the first dated 2026-10-23 01:16 +03:30 (2026-10-22 21:46 UTC).
-- **Hackathon work** = every commit after it. Compare: `https://github.com/<owner>/<repo>/compare/pre-hackathon-baseline...HEAD`:
-  TODO(owner): fill in the repository URL once it is public (the repository has no remote yet). Locally:
+- **Hackathon work** = every commit after it. Compare: [github.com/meitipro/caravan-road/compare/pre-hackathon-baseline...main](https://github.com/meitipro/caravan-road/compare/pre-hackathon-baseline...main).
+  Repository: <https://github.com/meitipro/caravan-road> (public since 2026-11-07). Locally:
   `git log pre-hackathon-baseline..HEAD --format='%h %ad %s' --date=iso-strict`.
 - The organisers' FAQ (summarised in `docs/SUBMISSION.md`) describes the window as starting at the announcement on 2026-10-19,
   with earlier work counting as baseline. This README uses the stricter cut at 2026-11-01. Whether any of this is acceptable is
