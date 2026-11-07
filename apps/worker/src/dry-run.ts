@@ -56,7 +56,7 @@ async function main(): Promise<void> {
         const ship = d.ship ? `ship ${d.ship.qty} ${d.ship.good} -> ${d.ship.to}` : "no ship";
         const tag = isFakeDecision(d) ? "[FAKE] " : "";
         console.log(
-          `${tag}t+${String(Math.round((d.ts - 1_800_000_000) / 60)).padStart(3)}  ${PERSONAS[d.merchant].name.padEnd(13)} ${d.source.padEnd(8)} model=${String(d.model).padEnd(13)} attested=${d.attested} spread=${String(d.spread_bp).padStart(4)} bias=${String(d.bias_bp).padStart(5)} ${d.mood.padEnd(8)} ${ship}${out.skippedModel ? " (model skipped)" : ""} | ${d.line.en}`,
+          `${tag}t+${String(Math.round((d.ts - 1_800_000_000) / 60)).padStart(3)}  ${PERSONAS[d.merchant].name.padEnd(13)} ${d.source.padEnd(8)} model=${String(d.model).padEnd(13)} attested=${d.attested} spread=${String(d.spread_bp).padStart(4)} bias=${String(d.bias_bp).padStart(5)} ${d.mood.padEnd(8)} ${ship}${out.skippedModel ? " (model skipped)" : ""} | ${d.line}`,
         );
       }
     },

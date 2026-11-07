@@ -1,7 +1,7 @@
 // Text hygiene for anything that crosses a trust boundary.
 //
 // 1. Model output (`line`, `reason`) is untrusted: it is shown to players and stored. We strip
-//    control characters, bidi controls, markup, links and emoji, collapse whitespace and cut to length.
+//    control characters, bidi controls, Arabic-script characters, markup, links and emoji, collapse whitespace and cut to length.
 //    Instruction-like words ("ignore previous instructions") are NOT removed: they are plain text,
 //    cannot trigger anything (no tools, no free-text input to the model) and are rendered as text.
 // 2. Player text (haggling, optional, not implemented in this worker) must go through
@@ -11,15 +11,16 @@
 const MAX_SCAN = 4000; // never run the regexes over more than this (bounded work on huge strings)
 
 const CONTROL = /[\p{Cc}\u2028\u2029]/gu;
-// zero-width / bidi controls. U+200C (ZWNJ) is kept: it is part of normal Persian spelling.
-const INVISIBLE = /[\u200B\u200D\u200E\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g;
+// zero-width / bidi controls (including ZWNJ)
+const INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g;
 const EMOJI = /[\p{Extended_Pictographic}\uFE0F\u20E3]/gu;
 const SCHEME_URL = /\b(?:https?|ftp|wss?|data|javascript|file|mailto):[^\s]*/gi;
 const WWW_URL = /\bwww\.[^\s]*/gi;
 const BARE_DOMAIN = /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|ai|xyz|ir|near|app|dev|co|me|info|ly|gg|tk)\b[^\s]*/gi;
 const MARKUP = /[<>`]/g;
 
-export const ARABIC_SCRIPT = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/u;
+// The game is English-only: Arabic-script characters in model output are dropped, never shown.
+const ARABIC_SCRIPT = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/gu;
 
 /** Cut to at most `max` UTF-16 code units without splitting a surrogate pair. */
 export function cutTo(s: string, max: number): string {
@@ -36,6 +37,7 @@ function cleanBase(input: string): string {
     .slice(0, MAX_SCAN)
     .replace(CONTROL, " ")
     .replace(INVISIBLE, "")
+    .replace(ARABIC_SCRIPT, "")
     .replace(EMOJI, "")
     .replace(SCHEME_URL, " ")
     .replace(WWW_URL, " ")

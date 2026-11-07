@@ -7,8 +7,8 @@
 //  - spread_bp / bias_bp out of range       -> clamp to [400, 2000] / [-1500, 1500], report clamp
 //  - mood not one of the four (or missing)  -> derived from the baseline
 //  - ship_choice not an integer index of a supplied option (or missing) -> null
-//  - line.en / line.fa: wrong type -> reject; empty after sanitising -> persona fallback line;
-//    fa without any Arabic-script letter -> persona fallback fa line; both trimmed to <= 120
+//  - line (one English string): wrong type -> reject; empty after sanitising (which strips Arabic-script
+//    characters, so a non-English reply ends up empty) -> persona fallback line; trimmed to <= 120
 //  - reason: trimmed to <= 240, empty -> a neutral default
 //  - extra keys are ignored (and reported)
 
@@ -17,7 +17,7 @@ import { DecisionSchema, PARAMS } from "@caravan/shared";
 import { z } from "zod";
 import { clampInt, type BaselineDecision } from "./baseline.js";
 import type { ShipOption } from "./candidates.js";
-import { ARABIC_SCRIPT, sanitizeDisplayText } from "./sanitize.js";
+import { sanitizeDisplayText } from "./sanitize.js";
 
 export const LINE_MAX = 120;
 export const REASON_MAX = 240;
@@ -29,7 +29,7 @@ const RawOutputSchema = z.object({
   bias_bp: z.number().int(),
   mood: z.unknown().optional(),
   ship_choice: z.unknown().optional(),
-  line: z.object({ en: z.string(), fa: z.string() }).optional(),
+  line: z.string().optional(),
   reason: z.string().optional(),
 });
 
@@ -38,7 +38,7 @@ export interface ValidatedOutput {
   bias_bp: number;
   mood: Mood;
   ship: ShipOption | null;
-  line: { en: string; fa: string };
+  line: string;
   reason: string;
 }
 
@@ -115,15 +115,10 @@ export function validateModelOutput(raw: unknown, ctx: ValidationContext): Valid
     else repairs.push("ship_choice invalid; set to null");
   }
 
-  let en = o.line ? sanitizeDisplayText(o.line.en, LINE_MAX) : "";
-  let fa = o.line ? sanitizeDisplayText(o.line.fa, LINE_MAX) : "";
-  if (en.length === 0) {
-    en = ctx.baseline.line.en;
-    repairs.push("line.en empty or missing; persona fallback used");
-  }
-  if (fa.length === 0 || !ARABIC_SCRIPT.test(fa)) {
-    fa = ctx.baseline.line.fa;
-    repairs.push("line.fa empty or not Persian script; persona fallback used");
+  let line = o.line !== undefined ? sanitizeDisplayText(o.line, LINE_MAX) : "";
+  if (line.length === 0) {
+    line = ctx.baseline.line;
+    repairs.push("line empty or missing; persona fallback used");
   }
 
   let reason = sanitizeDisplayText(o.reason ?? "", REASON_MAX);
@@ -137,7 +132,7 @@ export function validateModelOutput(raw: unknown, ctx: ValidationContext): Valid
 
   return {
     ok: true,
-    value: { spread_bp: spread, bias_bp: bias, mood, ship, line: { en, fa }, reason },
+    value: { spread_bp: spread, bias_bp: bias, mood, ship, line, reason },
     report: { clamped, repairs },
   };
 }
@@ -162,7 +157,7 @@ export function toDecision(v: ValidatedOutput | BaselineDecision, meta: Decision
     bias_bp: v.bias_bp,
     mood: v.mood,
     ship,
-    line: { en: v.line.en, fa: v.line.fa },
+    line: v.line,
     reason: v.reason,
     source: meta.source,
     model: meta.model,

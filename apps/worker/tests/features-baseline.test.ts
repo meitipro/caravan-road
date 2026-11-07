@@ -81,6 +81,6 @@ describe("baseline policy (spec 8.6)", () => {
     expect(a).toEqual(b);
     expect(a.mood).toBe("worried");
     expect(a.spread_bp).toBe(1400);
-    expect(a.line.en.length).toBeGreaterThan(0);
+    expect(a.line.length).toBeGreaterThan(0);
   });
 });

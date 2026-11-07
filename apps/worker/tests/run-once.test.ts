@@ -26,7 +26,7 @@ const answer = (o: Record<string, unknown> = {}) =>
     bias_bp: 250,
     mood: "greedy",
     ship_choice: null,
-    line: { en: "Grain is dear today.", fa: "امروز غله گران است." },
+    line: "Grain is dear today.",
     reason: "test",
     ...o,
   });
@@ -213,7 +213,7 @@ describe("policy writes and the model-skip rule", () => {
     expect(model.calls).toBe(1); // no credits spent
     expect(out.skippedModel).toBe(true);
     expect(out.decision).toMatchObject({ source: "keep", spread_bp: 1100, bias_bp: 250, mood: "greedy", model: null, request_id: null });
-    expect(out.decision.line.en).toBe("Grain is dear today.");
+    expect(out.decision.line).toBe("Grain is dear today.");
     expect(spy).not.toHaveBeenCalled();
   });
 
