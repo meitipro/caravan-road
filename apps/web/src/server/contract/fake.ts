@@ -697,7 +697,7 @@ export class FakeContract implements ContractClient {
     if (this.depositRefs.has(a.reference)) return { credited: false }; // duplicate reference ignored
     const p = this.mustPlayer(a.account_id);
     const fils = BigInt(a.fils);
-    if (p.total_deposited + fils > BigInt(PARAMS.MAX_DEPOSIT_FILS)) panic("BAD_REQUEST", "deposit cap reached");
+    if (p.total_deposited + fils > BigInt(PARAMS.MAX_DEPOSIT_FILS)) panic("RATE_LIMIT", "player deposit cap reached");
     this.depositRefs.add(a.reference);
     p.total_deposited += fils;
     p.fils += fils;

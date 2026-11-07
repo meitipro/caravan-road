@@ -14,6 +14,17 @@ export const RELAYER_LOW_YOCTO = 2n * 10n ** 24n; // 2 NEAR
 const BATCH = 50;
 /** Contract refusals that will never succeed on retry; everything else (RATE_LIMIT, PAUSED, INTERNAL...) is retried. */
 const PERMANENT_CODES = new Set(["BAD_REQUEST", "MODE_NOT_ALLOWED"]);
+/**
+ * The one RATE_LIMIT that is permanent: credit_deposit panics RATE_LIMIT "player deposit cap reached" when the player's
+ * lifetime deposits would pass the contract's per-player cap (admin.rs try_credit_deposit). total_deposited never goes
+ * down, so a retry can never succeed. The operator's DAILY cap panics RATE_LIMIT too ("operator daily cap reached") and
+ * resets at midnight UTC, so that one stays transient.
+ */
+const PLAYER_DEPOSIT_CAP = /player deposit cap reached/i;
+
+function isPermanentCreditFailure(code: string, raw: string): boolean {
+  return PERMANENT_CODES.has(code) || (code === "RATE_LIMIT" && PLAYER_DEPOSIT_CAP.test(raw));
+}
 
 /** True when the money crons may run (LIVE, not paused, contract mode matches). */
 async function moneyEnabled(svc: Services): Promise<boolean> {
@@ -111,7 +122,7 @@ export async function cronDeposits(svc: Services): Promise<{ credited: number; e
       if (await svc.repo.transitionDeposit(id, "CREDITING", "CREDITED", svc.now(), { creditRef: quoteId, creditedFils: fils })) res.credited++;
     } catch (e) {
       const m = isContractPanic(e) ? mapPanic(e.message) : null;
-      if (m && PERMANENT_CODES.has(m.code)) await fail(id, "CREDITING", `contract ${m.code}`);
+      if (m && isPermanentCreditFailure(m.code, m.raw)) await fail(id, "CREDITING", `contract ${m.code}: ${m.raw.slice(0, 80)}`);
       else svc.log.error(`deposit ${id} credit failed and will be retried`); // transient: RATE_LIMIT, PAUSED, INTERNAL, network
     }
   };
