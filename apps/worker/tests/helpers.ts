@@ -14,6 +14,6 @@ export function ctxFor(city: CityId, spec: ScenarioSpec) {
   return { snapshot, features, options, baseline, prompt };
 }
 
-/** A state in which dasht has a grain glut, so a ship option exists. */
-export const GLUT: ScenarioSpec = { treasury_bp: 10000, own_ratio_bp: { grain: 17000 }, others_ratio_bp: {} };
+/** A state in which dasht has a grain glut and every other city is below its grain target, so a ship option exists. */
+export const GLUT: ScenarioSpec = { treasury_bp: 10000, own_ratio_bp: { grain: 17000 }, others_ratio_bp: { grain: 9000 } };
 export const NEUTRAL: ScenarioSpec = { treasury_bp: 10000 };

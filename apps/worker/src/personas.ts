@@ -56,7 +56,7 @@ export const PERSONAS: Record<CityId, Persona> = {
         },
       },
       {
-        scenario: { treasury_bp: 11000, own_ratio_bp: { grain: 17000, salt: 12000 }, others_ratio_bp: {} },
+        scenario: { treasury_bp: 11000, own_ratio_bp: { grain: 17000, salt: 12000 }, others_ratio_bp: { grain: 9000 } },
         output: {
           spread_bp: 600,
           bias_bp: -700,
@@ -130,7 +130,7 @@ export const PERSONAS: Record<CityId, Persona> = {
         },
       },
       {
-        scenario: { treasury_bp: 12000, own_ratio_bp: { spice: 17000, silk: 16000 }, others_ratio_bp: {} },
+        scenario: { treasury_bp: 12000, own_ratio_bp: { spice: 17000, silk: 16000 }, others_ratio_bp: { spice: 9000, silk: 9000 } },
         output: {
           spread_bp: 700,
           bias_bp: -1000,
@@ -167,7 +167,7 @@ export const PERSONAS: Record<CityId, Persona> = {
         },
       },
       {
-        scenario: { treasury_bp: 10500, own_ratio_bp: { iron: 15500, salt: 9000 }, others_ratio_bp: {} },
+        scenario: { treasury_bp: 10500, own_ratio_bp: { iron: 15500, salt: 9000 }, others_ratio_bp: { iron: 8000 } },
         output: {
           spread_bp: 1300,
           bias_bp: -250,

@@ -62,7 +62,9 @@ function setup(model: ModelClient | null, opts: { attestor?: Attestor | null; wo
 }
 
 const glut = (w: SimWorld) => {
-  w.stock.dasht.grain = 340; // 170% of target, neighbours at 100%: gap 7000 bp
+  w.stock.dasht.grain = 340; // 170% of target
+  // neighbours at 90%: below target (the contract only lets a merchant ship to a city short of the good), gap 8000 bp
+  for (const c of ["madan", "bandar", "shahr"] as const) w.stock[c].grain = 180;
 };
 
 describe("fallback ladder", () => {
@@ -81,12 +83,15 @@ describe("fallback ladder", () => {
   it("level 2: model down (network error twice) -> baseline, no model/request id, merchant keeps trading", async () => {
     const model = scripted(() => new NearAiError("network", "down"));
     const { world, deps } = setup(model);
-    world.treasury.dasht = 30_000; // 6000 bp -> spread 1200
+    world.treasury.dasht = 30_000; // 6000 bp -> spread 1200 (money check is only in worldTick, not called here)
     const out = await runMerchantOnce(deps, "dasht");
     expect(model.calls).toBe(2); // one retry
     expect(out.decision).toMatchObject({ source: "baseline", model: null, request_id: null, attested: false });
-    expect(out.decision.spread_bp).toBe(baselineSpread(6000));
-    expect(world.policy.dasht.spread_bp).toBe(1200);
+    // baseline target is 1200, but the contract allows 300 bp per change: 800 -> 1100 now, 1200 next round
+    expect(baselineSpread(6000)).toBe(1200);
+    expect(out.decision.spread_bp).toBe(1100);
+    expect(world.policy.dasht.spread_bp).toBe(1100);
+    expect(world.rejected.setPolicy).toBe(0);
   });
 
   it("level 2: invalid JSON twice -> baseline", async () => {
@@ -122,18 +127,20 @@ describe("fallback ladder", () => {
     expect(out.decision.bias_bp).toBe(baselineBias(Math.trunc((5000 + 4 * 10000) / 5)));
   });
 
-  it("level 3: chain rejects set_policy -> source keep, previous policy recorded, no ship attempted", async () => {
+  it("level 3: chain rejects set_policy -> source keep, previous policy recorded; ship is still attempted", async () => {
     const model = scripted(() => answer({ ship_choice: 0 }));
     const { world, store, deps } = setup(model);
     glut(world);
     world.failNext.setPolicy = "chain unavailable";
     const shipSpy = vi.spyOn(world, "ship");
     const out = await runMerchantOnce(deps, "dasht");
-    expect(out.decision).toMatchObject({ source: "keep", spread_bp: PARAMS.SPREAD_DEFAULT_BP, bias_bp: 0, ship: null, model: null, request_id: null });
+    expect(out.decision).toMatchObject({ source: "keep", spread_bp: PARAMS.SPREAD_DEFAULT_BP, bias_bp: 0, model: null, request_id: null });
     expect(out.decision.reason).toMatch(/previous policy kept/);
     expect(out.chainErrors[0]).toMatch(/set_policy/);
     expect(world.policy.dasht).toEqual({ spread_bp: PARAMS.SPREAD_DEFAULT_BP, bias_bp: 0 });
-    expect(shipSpy).not.toHaveBeenCalled();
+    expect(shipSpy).toHaveBeenCalledTimes(1);
+    expect(out.decision.ship).not.toBeNull();
+    expect(out.decision.tx_hashes).toHaveLength(1); // only the ship
     expect(store.rows).toHaveLength(1); // the failure is still recorded
   });
 });
@@ -302,9 +309,10 @@ describe("authority limits end to end", () => {
     const { world, deps } = setup(model);
     const out = await runMerchantOnce(deps, "dasht");
     expect(world.rejected.setPolicy).toBe(0);
-    expect(world.policy.dasht).toEqual({ spread_bp: 2000, bias_bp: -1500 });
-    expect(out.decision.spread_bp).toBe(2000);
-    expect(out.decision.bias_bp).toBe(-1500);
+    // clamped to 2000 / -1500, then stepped: at most 300 bp from the 800 / 0 in force
+    expect(world.policy.dasht).toEqual({ spread_bp: 1100, bias_bp: -300 });
+    expect(out.decision.spread_bp).toBe(1100);
+    expect(out.decision.bias_bp).toBe(-300);
     expect(out.decision.source).toBe("llm");
   });
 

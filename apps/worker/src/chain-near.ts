@@ -51,9 +51,19 @@ function decodeReturn(status: unknown): unknown {
   try { return JSON.parse(Buffer.from(v, "base64").toString("utf8")); } catch { return undefined; }
 }
 
+/** What this process sent through `ship` in one tick (the contract keeps this state but does not expose it). */
+interface ShipLedger {
+  tick: number;
+  paid: Map<CityId, bigint>;
+  shipped: Map<CityId, Set<GoodId>>;
+}
+
 export class NearChain implements ChainPort {
   private readonly provider: JsonRpcProvider;
   private readonly accounts = new Map<CityId, Account>();
+  /** tick of the last snapshot read: the tick a following ship call is assumed to land in */
+  private lastTick = -1;
+  private ledger: ShipLedger | null = null;
 
   constructor(
     private readonly cfg: WorkerConfig,
@@ -67,7 +77,19 @@ export class NearChain implements ChainPort {
 
   async readSnapshot(): Promise<WorldSnapshot> {
     const raw = await this.provider.callFunction({ contractId: this.cfg.contractId, method: "get_world", args: {} });
-    return parseWorldView(raw, this.nowSeconds);
+    const snap = parseWorldView(raw, this.nowSeconds);
+    this.lastTick = snap.tick;
+    // get_world does not report ship_in_paid / last_ship_tick; add what this process sent in this tick
+    const l = this.ledger;
+    if (l && l.tick === snap.tick) {
+      for (const c of CITY_IDS) {
+        const paid = l.paid.get(c);
+        if (paid !== undefined && paid > 0n) snap.merchants[c].ship_in_paid = paid;
+        const goods = l.shipped.get(c);
+        if (goods && goods.size > 0) snap.merchants[c].shipped_this_tick = [...goods];
+      }
+    }
+    return snap;
   }
 
   private async call(city: CityId, methodName: string, args: Record<string, unknown>): Promise<TxResult & { returned?: unknown }> {
@@ -96,8 +118,16 @@ export class NearChain implements ChainPort {
     return this.call(city, "set_policy", { spread_bp: spreadBp, bias_bp: biasBp });
   }
 
-  ship(city: CityId, to: CityId, good: GoodId, qty: number): Promise<TxResult> {
-    return this.call(city, "ship", { to, good, qty });
+  async ship(city: CityId, to: CityId, good: GoodId, qty: number): Promise<TxResult> {
+    const r = await this.call(city, "ship", { to, good, qty });
+    // `ship` returns the exact payment as a U128 string; remember it for the destination's per-tick budget
+    if (this.ledger?.tick !== this.lastTick) this.ledger = { tick: this.lastTick, paid: new Map(), shipped: new Map() };
+    const l = this.ledger;
+    const goods = l.shipped.get(city) ?? new Set<GoodId>();
+    goods.add(good);
+    l.shipped.set(city, goods);
+    if (typeof r.returned === "string" && /^[0-9]+$/.test(r.returned)) l.paid.set(to, (l.paid.get(to) ?? 0n) + BigInt(r.returned));
+    return { txHash: r.txHash };
   }
 
   async worldTick(): Promise<TxResult & { skipped?: boolean }> {
