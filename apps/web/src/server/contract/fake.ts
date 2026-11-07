@@ -180,9 +180,10 @@ export class FakeContract implements ContractClient {
     return {
       tick: this.tick, now_ns: secToNs(this.clock()), mode: this.mode, paused: this.paused, house: this.house.toString(),
       merchants: CITY_IDS.map((c) => this.viewMerchant(this.merchants.get(c)!)),
-      stalls: structuredClone(this.stalls),
+      stalls: structuredClone(this.stalls), player_count: this.players.size, stall_count: this.stalls.length,
     };
   }
+  async getPlayerCount(): Promise<number> { return this.players.size; }
   async getPlayer(accountId: string): Promise<ContractPlayer | null> {
     const p = this.players.get(accountId);
     return p ? this.viewPlayer(p) : null;

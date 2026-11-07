@@ -37,7 +37,11 @@ export interface ContractWorld {
   paused: boolean;
   house: Fils;
   merchants: ContractMerchant[];
+  /** Every stall (the client pages through the contract's 100-per-call get_stalls). */
   stalls: ContractStall[];
+  /** From get_world; optional because older doubles do not report them. */
+  player_count?: number;
+  stall_count?: number;
 }
 
 export interface ContractJourney {
@@ -148,6 +152,8 @@ export interface ContractClient {
   getWorld(): Promise<ContractWorld>;
   getPlayer(accountId: string): Promise<ContractPlayer | null>;
   getPlayers(fromIndex: number, limit: number): Promise<ContractPlayer[]>;
+  /** Number of registered players (get_world.player_count); bounds how far a full scan may go. */
+  getPlayerCount(): Promise<number>;
   getMerchant(city: CityId): Promise<ContractMerchant>;
   getStalls(city?: CityId): Promise<ContractStall[]>;
   getJourney(accountId: string): Promise<ContractJourney | null>;

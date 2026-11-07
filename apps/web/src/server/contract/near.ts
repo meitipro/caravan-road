@@ -45,6 +45,10 @@ const META_TX_TTL_BLOCKS = 100;
 const ACCOUNT_FUNDING_YOCTO = 10n ** 22n; // 0.01 NEAR, VERIFY on the testnet smoke run
 const EVENT_PREFIX = "EVENT_JSON:";
 const MAX_EVENTS = 100;
+/** get_stalls / get_players scan at most this many entries per call (contracts/caravan/src/math.rs MAX_PAGE). */
+const VIEW_PAGE = 100;
+/** Hard stop for a stall scan (50,000 stalls); real worlds are far smaller (max_players x 5 stalls). */
+const MAX_STALL_PAGES = 500;
 
 /** Adapts a PlayerKey (in-memory seed) to near-api-js' Signer. */
 class PlayerKeySigner extends Signer {
@@ -115,7 +119,12 @@ export class NearContract implements ContractClient {
     return {
       tick: Number(w.tick), now_ns: String(w.now_ns), mode: w.mode as Mode, paused: Boolean(w.paused), house: String(w.house),
       merchants: (w.merchants as Raw[]).map(normMerchant), stalls,
+      player_count: w.player_count === undefined ? undefined : Number(w.player_count),
+      stall_count: w.stall_count === undefined ? undefined : Number(w.stall_count),
     };
+  }
+  async getPlayerCount(): Promise<number> {
+    return Number((await this.view<Raw>("get_world")).player_count ?? 0);
   }
   async getPlayer(accountId: string): Promise<ContractPlayer | null> {
     const p = await this.view<Raw | null>("get_player", { account_id: accountId });
@@ -127,10 +136,25 @@ export class NearContract implements ContractClient {
   async getMerchant(city: CityId): Promise<ContractMerchant> {
     return normMerchant(await this.view<Raw>("get_merchant", { city }));
   }
+  /**
+   * All stalls. The contract scans at most VIEW_PAGE stalls per call and applies its `city` filter INSIDE that page, so a
+   * city filter on the contract would silently drop stalls beyond the first page: page by from_index until a short page,
+   * never pass `city`, and filter here. Stalls are deduplicated by id (the list can shift between page calls).
+   */
   async getStalls(city?: CityId): Promise<ContractStall[]> {
-    return (await this.view<Raw[]>("get_stalls", city ? { city } : {})).map((s) => ({
-      id: Number(s.id), seller: String(s.seller), city: s.city as CityId, good: s.good as GoodId, qty: Number(s.qty), unit_price: String(s.unit_price),
-    }));
+    const byId = new Map<number, ContractStall>();
+    for (let page = 0; page < MAX_STALL_PAGES; page++) {
+      const rows = await this.view<Raw[]>("get_stalls", { from_index: page * VIEW_PAGE, limit: VIEW_PAGE });
+      for (const s of rows) {
+        const stall: ContractStall = {
+          id: Number(s.id), seller: String(s.seller), city: s.city as CityId, good: s.good as GoodId, qty: Number(s.qty), unit_price: String(s.unit_price),
+        };
+        byId.set(stall.id, stall);
+      }
+      if (rows.length < VIEW_PAGE) break;
+    }
+    const all = [...byId.values()];
+    return city ? all.filter((s) => s.city === city) : all;
   }
   async getJourney(accountId: string): Promise<ContractJourney | null> {
     const j = await this.view<Raw | null>("get_journey", { account_id: accountId });
