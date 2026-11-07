@@ -4,7 +4,7 @@
 
 import { useState, type ReactNode } from "react";
 import { IS_MOCK } from "../ui/api";
-import { GAME_MODE_TEXT } from "../ui/game-meta";
+import { modeBadge } from "../ui/game-meta";
 import { usePersisted } from "../ui/persisted";
 import { devLogin, startLogin, useDevLoginAvailable, useMockSession, type Provider } from "../ui/session";
 import { ErrorState, LoadingBlock, Money } from "./Bits";
@@ -19,9 +19,10 @@ import { PARAMS } from "@caravan/shared";
 import { formatDinar } from "../ui/format";
 
 function ModeBadge({ mode }: { mode: "PLAY" | "LIVE" }) {
+  const b = modeBadge(mode, IS_MOCK);
   return (
     <span className={`badge mode-badge mode-${mode.toLowerCase()}`}>
-      {mode}: {GAME_MODE_TEXT[mode]}
+      {b.label}: {b.text}
     </span>
   );
 }

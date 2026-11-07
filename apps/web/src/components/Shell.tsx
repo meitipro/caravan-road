@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 import { CITY_IDS } from "@caravan/shared";
 import { IS_MOCK } from "../ui/api";
 import { formatEta } from "../ui/format";
-import { CITY_META, GAME_MODE_TEXT } from "../ui/game-meta";
+import { CITY_META, modeBadge } from "../ui/game-meta";
 import { devLogout, useDevLoginAvailable, useMockSession } from "../ui/session";
 import { Money } from "./Bits";
 import { useGame, useNow } from "./GameProvider";
@@ -54,8 +54,8 @@ export function TopBar() {
             </Link>
           )}
           {mode && (
-            <span className={`badge mode-badge mode-${mode.toLowerCase()}`} title={GAME_MODE_TEXT[mode]}>
-              {mode}
+            <span className={`badge mode-badge mode-${mode.toLowerCase()}`} title={modeBadge(mode, IS_MOCK).text}>
+              {modeBadge(mode, IS_MOCK).label}
             </span>
           )}
           <button type="button" className="btn btn-small lang-btn hide-narrow" onClick={toggle} aria-label={`Merchant language: ${lang === "en" ? "English" : "Persian"}. Switch`}>
@@ -80,7 +80,7 @@ function MenuSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Sheet open={open} onClose={onClose} title="Menu" variant="drawer">
       <div className="stack">
-        {mode && <p className="muted small">{GAME_MODE_TEXT[mode]}</p>}
+        {mode && <p className="muted small">{modeBadge(mode, IS_MOCK).text}</p>}
         <button type="button" className="btn btn-block" onClick={toggle}>
           Merchant language: {lang === "en" ? "English" : "فارسی"}
         </button>

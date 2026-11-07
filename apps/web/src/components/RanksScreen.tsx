@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { getApi, unwrap } from "../ui/api";
+import { getApi, IS_MOCK, unwrap } from "../ui/api";
 import { formatDinar } from "../ui/format";
 import { EmptyState, ErrorState, LoadingBlock, Money, Page } from "./Bits";
 import { useGame } from "./GameProvider";
@@ -63,7 +63,9 @@ export function RanksScreen() {
               </tbody>
             </table>
           </div>
-          <p className="muted small">Updates every 10 seconds.</p>
+          <p className="muted small">
+            Updates every 10 seconds.{IS_MOCK ? " The other merchants in this demo are sample players, not real people." : ""}
+          </p>
         </>
       )}
     </Page>

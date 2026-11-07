@@ -47,6 +47,15 @@ export const GAME_MODE_TEXT = {
   LIVE: "Real USDC, real stakes",
 } as const;
 
+/**
+ * Badge label and tooltip text for the game mode. In the browser-only demo (NEXT_PUBLIC_MOCK=1) the world is
+ * simulated, so the badge says DEMO instead of claiming a PLAY or LIVE server game.
+ */
+export function modeBadge(mode: keyof typeof GAME_MODE_TEXT, mock: boolean): { label: string; text: string } {
+  if (mock) return { label: "DEMO", text: "Simulated world in your browser, no real money. Reloading the page resets it." };
+  return { label: mode, text: GAME_MODE_TEXT[mode] };
+}
+
 /** Friendly message per ErrorCode (spec section 2.12). The server message is only a fallback. */
 export const ERROR_TEXT: Record<ErrorCode, string> = {
   UNAUTHENTICATED: "Please log in to continue.",

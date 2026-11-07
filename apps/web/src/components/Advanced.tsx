@@ -29,8 +29,9 @@ export function AdvancedDrawer({ open, onClose, accountId, mode }: { open: boole
               try { await navigator.clipboard.writeText(accountId); toast.success("Copied"); } catch { toast.info("Copy failed"); }
             }}>Copy</button>
           </dd>
-          <dt>Network</dt><dd>{mode === "LIVE" ? "NEAR mainnet" : "NEAR testnet"}</dd>
-          <dt>No wallet needed</dt><dd>The game pays network fees for you and signs on your behalf.</dd>
+          <dt>Network</dt><dd>{IS_MOCK ? "None (demo)" : mode === "LIVE" ? "NEAR mainnet" : "NEAR testnet"}</dd>
+          <dt>No wallet needed</dt>
+          <dd>{IS_MOCK ? "This demo runs in your browser. Nothing is sent to any network." : "The game pays network fees for you and signs on your behalf."}</dd>
         </dl>
         {IS_MOCK ? (
           <p className="muted small">Mock mode: this is a simulated account, so there is nothing to look up in an explorer.</p>
