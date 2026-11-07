@@ -30,7 +30,7 @@ exact, and that the committed PNGs match the generator.
   table typed by hand for this repository (`tools/art/font5x7.py`, plain 5x7 dot
   grids for A-Z, 0-9 and a little punctuation). It contains no third-party font
   data, so there is no font license to attribute.
-- **Web UI fonts** (`apps/web/src/app/layout.tsx`, `next/font/google`): three families, all
+- **Web UI fonts** (`apps/web/src/app/layout.tsx`, `next/font/google`): two families, both
   under the SIL Open Font License, Version 1.1. Each license was checked on 2026-11-01 by
   fetching the font project's own license file from its GitHub repository (the first lines of
   each file state "SIL Open Font License, Version 1.1"). `next/font/google` downloads the font
@@ -45,16 +45,15 @@ exact, and that the committed PNGs match the generator.
 |---|---|---|---|---|
 | Pixelify Sans | headings | Copyright 2021 The Pixelify Sans Project Authors | SIL OFL 1.1 | https://github.com/eifetx/Pixelify-Sans/blob/main/OFL.txt |
 | Inter | body text, numbers, buttons | Copyright (c) 2016 The Inter Project Authors | SIL OFL 1.1 | https://github.com/rsms/inter/blob/master/LICENSE.txt |
-| Vazirmatn | Persian text | Copyright 2015 The Vazirmatn Project Authors | SIL OFL 1.1 | https://github.com/rastikerdar/vazirmatn/blob/master/OFL.txt |
 
-  Project pages: https://github.com/eifetx/Pixelify-Sans, https://github.com/rsms/inter,
-  https://github.com/rastikerdar/vazirmatn. The OFL permits use, embedding and redistribution
+  Project pages: https://github.com/eifetx/Pixelify-Sans, https://github.com/rsms/inter.
+  The OFL permits use, embedding and redistribution
   of the fonts with software; the fonts must not be sold on their own. The OFL also asks that each copy of
   the Font Software carries the copyright notice and the license text: the committed Inter subset above
   does not have a copy of the license file next to it yet (to do for the UI owner: add Inter's `LICENSE.txt`
   from the URL in the table beside the woff2). Not verified: the
   copyright line shown by Google Fonts for each family could differ from the repository file
-  (it was not compared), and none of the three license files lists a Reserved Font Name in its
+  (it was not compared), and neither of the two license files lists a Reserved Font Name in its
   first lines.
 
 ## Libraries used to generate the art (build-time only, not shipped)

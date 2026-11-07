@@ -1,5 +1,7 @@
 # API
 
+> **spec-v1.3 (2026-11-07, owner decision): English only.** The game is English-only; the sections below were edited to match (see `spec/CHANGELOG.md`, heading "spec-v1.3"). Everything else is unchanged.
+
 > Source: CARAVAN_ROAD_MASTER_PLAN.md, spec-v1, sections 2.12-2.13 (verbatim).
 
 ### 2.12 Shared types (`packages/shared/src/types.ts`)
@@ -19,7 +21,7 @@ export interface Merchant {
   policy: { spread_bp: number; bias_bp: number };
   quotes: Record<GoodId, Quote>;
   mood: "calm" | "greedy" | "worried" | "generous";
-  last_line: { en: string; fa: string } | null;
+  last_line: string | null;   // one English line (spec-v1.3); rows stored earlier as { en, fa } are read by taking .en
   verified: { model: string; request_id: string; attested: boolean; at: number } | null;
 }
 export interface Journey {
@@ -41,7 +43,7 @@ export type Mood = "calm" | "greedy" | "worried" | "generous";
 export interface Decision {
   merchant: CityId; ts: number; spread_bp: number; bias_bp: number; mood: Mood;
   ship: { to: CityId; good: GoodId; qty: number } | null;
-  line: { en: string; fa: string };       // <= 120 chars each
+  line: string;                           // <= 140 chars, English (spec-v1.3; older stored rows hold { en, fa }: read .en)
   reason: string;                         // <= 240 chars, English
   source: "llm" | "baseline" | "keep";
   model: string | null; request_id: string | null; attested: boolean; tx_hashes: string[];

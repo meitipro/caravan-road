@@ -1,5 +1,22 @@
 # Spec changelog
 
+## spec-v1.3 (2026-11-07, owner decision): English only
+
+The owner decided on 2026-11-07 that the game is English-only and is not aimed at an Iranian audience. Earlier versions of the spec, and the first implementation, carried a second (Persian) text for the merchants' spoken line, a Persian UI font and Persian text in the docs. All of that was removed on 2026-11-07. This is a spec change, recorded here; it is not a claim that the product never had Persian. No git tag was created for it.
+
+**Why:** one language halves the model output to validate, removes a script-detection rule and a font, and keeps every screen, document and demo in one language for the judges.
+
+**Spec sections changed** (and only these):
+
+- `spec/API.md`, section 2.12: `Merchant.last_line` was `{ en: string; fa: string } | null`, now `string | null`. The `Decision` type added in Phase 5: `line` was `{ en: string; fa: string }` (<= 120 chars each), now `string` (<= 140 chars, English).
+- `spec/NPC.md`, section 5 (Decision): the example model output has `"line"` as one English string; the validation table now says `line` missing or not a string -> reject, and `line` empty after sanitising -> persona fallback line (the rule about a Persian-script letter in `fa` is gone); the sanitiser row says the cut is 140 / 240 characters, and the clause "ZWNJ kept" (it existed only for Persian text) was removed. A paragraph was added: stored `npc_decisions` rows from before this change hold `line` as `{ en, fa }` and are read tolerantly by taking `.en`.
+- `spec/NPC.md`, system prompt paragraph (section 7): the output schema reads `line:string<=140`, and the sentences about `line.fa` / `line.en` are replaced by one asking for natural English in the persona's voice.
+- `spec/NPC.md`, section 10 item 5: `last_line` is one English string.
+- `spec/UI.md` and `spec/GAME.md`: checked; nothing about fonts, right-to-left layout or language was in them, so they are unchanged. `spec/OPEN_QUESTIONS.md` #13 only names `last_line` and is unchanged.
+- Documents outside `spec/` changed to match (not spec text): `README.md`, `PROGRESS.md` (decision D6), `docs/ARCHITECTURE.md`, `docs/CREDITS.md` (Vazirmatn entry removed).
+
+**Not changed:** all economy, contract and game rules (sections 2.1-2.11 and 2.14, `spec/ECONOMY.md`, `spec/CONTRACT.md`, the numbers in `spec/GAME.md`). The code that implements the schema change (shared types, worker validation and prompts, server, UI, font files) is a separate change; until it lands, code and spec can differ on `line`.
+
 ## spec-v1.2 (ADOPTED 2026-11-03; prepared as a proposal on 2026-11-02, merged on owner delegation, tag `spec-v1.2`)
 
 Branch `proposal/spec-v1.2-mult-k-3000`, one parameter only: **`MULT_K_BP` 4000 -> 3000** (price sensitivity). Everything else in sections 2.5-2.8 is unchanged (clamps stay 7500 / 13500, spreads, bias, fees, treasuries).

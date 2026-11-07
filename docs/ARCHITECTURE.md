@@ -107,7 +107,7 @@ and `DECISIONS.md`.
 
 **Worker (`apps/worker`).** Once a minute, per merchant (staggered), it reads the world from the contract, computes
 bounded integer features and a rule-based list of shipping options, asks NEAR AI Cloud for one JSON decision
-(spread, bias, mood, a line in English and Persian, a reason, an optional shipping choice), validates and clamps it
+(spread, bias, mood, one short line of English, a reason, an optional shipping choice), validates and clamps it
 with zod, and applies it with the merchant's own key: `set_policy` and `ship`, plus `world_tick` once per round. If
 the model fails it falls back to a deterministic baseline policy. Every decision is stored with its reason, model and
 request id. The model sees only integers and ids, never player text. Details: `spec/NPC.md`, `docs/WORKER.md`.

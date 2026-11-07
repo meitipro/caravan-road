@@ -1,5 +1,7 @@
 # NPC
 
+> **spec-v1.3 (2026-11-07, owner decision): English only.** The game is English-only; the sections below were edited to match (see `spec/CHANGELOG.md`, heading "spec-v1.3"). Everything else is unchanged.
+
 > Source: CARAVAN_ROAD_MASTER_PLAN.md section 8 (Phase 5), spec-v1, plus the implementation decisions of `apps/worker` listed at the end. Locked facts from other files: ECONOMY.md section 2.8 (world tick, house caravans) and API.md (`Decision`, `/api/npc/decisions`, `/api/proof/{merchant}`).
 
 ## 1. Purpose
@@ -62,7 +64,7 @@ Sources: docs.near.ai/cloud/quickstart, /api-reference/chat/create-chat-completi
 ```json
 {
   "spread_bp": 900, "bias_bp": -300, "mood": "worried", "ship_choice": null,
-  "line": { "en": "Salt is thin; I buy cheap and sell dear.", "fa": "نمک کم است؛ ارزان می‌خرم و گران می‌فروشم." },
+  "line": "Salt is thin; I buy cheap and sell dear.",
   "reason": "Salt stock 62% of target, treasury 71% of initial; widen spread, lean toward buying less."
 }
 ```
@@ -76,12 +78,14 @@ Sources: docs.near.ai/cloud/quickstart, /api-reference/chat/create-chat-completi
 | `spread_bp` / `bias_bp` integer out of range | clamp to [400, 2000] / [-1500, 1500] |
 | `mood` missing or not one of the four | derived from the baseline |
 | `ship_choice` not an integer index of a supplied option | `null` |
-| `line.en` / `line.fa` wrong type | reject |
-| `line.*` empty after sanitising, or `fa` without a Persian-script letter | persona fallback line |
-| `line.*`, `reason` | control and bidi characters, markup characters, emoji, links stripped; whitespace collapsed; cut to 120 / 240 characters; ZWNJ kept |
+| `line` missing or not a string | reject |
+| `line` empty after sanitising | persona fallback line |
+| `line`, `reason` | control and bidi characters, markup characters, emoji, links stripped; whitespace collapsed; cut to 140 / 240 characters |
 | extra keys | ignored |
 
 Invalid output: one retry with a "JSON only" nudge, then the fallback ladder. The recorded `Decision` is finally checked with the shared `DecisionSchema`.
+
+Reading old rows: `npc_decisions` rows stored before spec-v1.3 hold `line` as `{ en, fa }`; readers take `.en` and ignore `fa`. New rows hold a plain string.
 
 ## 6. Fallback ladder
 
@@ -113,7 +117,7 @@ Mood (baseline and fallback): `worried` if `treasury_bp < 6000`; else `greedy` i
 | bandar | Captain Nahid, sea trader | bold; gambles on silk and spice, changes prices fast |
 | shahr | Hakim Sohrab, city broker | calculating; wide spreads, ships goods often |
 
-System prompt (wording kept from the plan; persona text injected): "You are the merchant of {city} in Caravan Road, a small trading game. Every minute you set your buying/selling spread and bias and may ship goods to another city. You never talk about being an AI. You output ONE JSON object and nothing else, matching exactly: {spread_bp:int 400..2000, bias_bp:int -1500..1500, mood:'calm'|'greedy'|'worried'|'generous', ship_choice:int|null, line:{en:string<=120, fa:string<=120}, reason:string<=240}. spread_bp is the gap between your buy and sell prices in basis points; higher means you earn more per trade but players trade less. bias_bp > 0 raises both prices (goods are scarce for you), bias_bp < 0 lowers them. ship_choice is the index of one of the given ship_options, or null. Keep your treasury healthy: if treasury_bp < 6000 widen the spread. Never exceed the ranges. line.fa must be natural Persian; line.en natural English; both in your persona's voice, no emojis, no links."
+System prompt (wording kept from the plan; persona text injected): "You are the merchant of {city} in Caravan Road, a small trading game. Every minute you set your buying/selling spread and bias and may ship goods to another city. You never talk about being an AI. You output ONE JSON object and nothing else, matching exactly: {spread_bp:int 400..2000, bias_bp:int -1500..1500, mood:'calm'|'greedy'|'worried'|'generous', ship_choice:int|null, line:string<=140, reason:string<=240}. spread_bp is the gap between your buy and sell prices in basis points; higher means you earn more per trade but players trade less. bias_bp > 0 raises both prices (goods are scarce for you), bias_bp < 0 lowers them. ship_choice is the index of one of the given ship_options, or null. Keep your treasury healthy: if treasury_bp < 6000 widen the spread. Never exceed the ranges. line is one sentence of natural English in your persona's voice, no emojis, no links."
 
 Two few-shot examples per persona are replayed as prior user/assistant turns; the final user turn is the JSON `{features, ship_options}`. No player-provided text ever enters the prompt; a runtime guard (`assertNoFreeText`) refuses any leaf that is not an integer or a city/good id.
 
@@ -131,5 +135,5 @@ Optional, not implemented. If added: the player's sentence only inside a `player
 2. **Chain failure.** If `set_policy` fails the round is recorded as `keep` with the previous policy and no `model` / `request_id`, and no ship is attempted. If only `ship` fails, the decision keeps its source and the ship is recorded as null with the failure in `reason`.
 3. **Retry policy.** One retry on network error, timeout, 408, 429, 5xx and invalid output. No retry on other 4xx (bad key, no credits), so a broken key falls to the baseline in one call.
 4. **Persistence.** `npc_decisions.output_json` holds the full `Decision`; the inference evidence goes to the worker's own table `npc_evidence` (no column for it in the server schema).
-5. **Off-chain fields** (OPEN_QUESTIONS #13): `mood`, `last_line` and `verified` come from the latest `npc_decisions` row, not from the contract.
+5. **Off-chain fields** (OPEN_QUESTIONS #13): `mood`, `last_line` (one English string) and `verified` come from the latest `npc_decisions` row, not from the contract.
 6. **Integer gap test** (OPEN_QUESTIONS #12): the worker uses the integer form. If the contract decides otherwise, `candidates.ts` must follow; a ship the contract rejects is recorded, never forced.

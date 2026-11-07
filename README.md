@@ -4,6 +4,8 @@ A pixel-art trading game on a desert silk road. Buy a good where it is cheap, se
 guards, sell where it is scarce. Four merchants set the prices; the design is that they are AI agents with their own NEAR
 accounts and treasuries, and that all rules and money live in one NEAR smart contract, so that players need no wallet or gas.
 
+The game is in English only (an owner decision of 2026-11-07, `PROGRESS.md` D6; an earlier version had Persian text, which was removed). The language you use when you chat with an assistant about this project has no effect on the product: every screen, merchant line and document is English.
+
 ![Login screen (mock mode)](docs/screens/01-login-1280.png)
 ![World map (mock mode)](docs/screens/04-map-1280.png)
 ![Bandar market with prices (mock mode)](docs/screens/05-market-1280.png)
@@ -27,7 +29,7 @@ NEAR AI Cloud.** See "What is real and what is not".
 ## Try it in 2 minutes (no wallet, no account, no money, no network services)
 
 Needs Node 20+ (tested with v24.19.0) and pnpm 10 (tested with 10.18.2). The first run needs internet: `next/font` downloads
-three UI fonts from Google Fonts (not tested offline).
+two UI fonts from Google Fonts (not tested offline).
 
 | # | Do | You should see |
 |---|---|---|
@@ -329,9 +331,9 @@ Deploying: `docs/DEPLOY.md`.
 
 - `LICENSE` at the repository root: MIT, added in `ff17cc3` (the contract crate declares `license = "MIT"` in
   `contracts/caravan/Cargo.toml`). TODO(owner): confirm the license and the copyright line before publishing.
-- Credits and provenance (generated art, the three OFL-licensed UI fonts Pixelify Sans, Inter and Vazirmatn, build-time
+- Credits and provenance (generated art, the two OFL-licensed UI fonts Pixelify Sans and Inter, build-time
   libraries): `docs/CREDITS.md`.
-- Documents: `spec/` (the locked specification, tags `spec-v1`, `spec-v1.1`, `spec-v1.2`), `docs/PROOF.md` (what a judge can verify and how),
+- Documents: `spec/` (the locked specification, tags `spec-v1`, `spec-v1.1`, `spec-v1.2`; `spec-v1.3`, English only, is recorded in `spec/CHANGELOG.md` without a tag), `docs/PROOF.md` (what a judge can verify and how),
   `docs/deployments.md` (empty record of deployments), `docs/ECONOMY_TUNING.md`, `docs/ARCHITECTURE.md`, `docs/ECONOMY.md`,
   `docs/SERVER.md`, `docs/WORKER.md`, `docs/NPC_EVAL.md`, `docs/INTENTS.md`, `docs/DEPLOY.md`, `docs/DEMO_SCRIPT.md`,
   `docs/X_POST.md`, `docs/SUBMISSION.md`, `docs/JUDGE_REHEARSAL.md`, `PROGRESS.md`.
