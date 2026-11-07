@@ -9,6 +9,13 @@ export interface MerchantSnapshot {
   treasury: bigint; // fils
   stock: Record<GoodId, number>;
   policy: { spread_bp: number; bias_bp: number };
+  /**
+   * What this merchant has already paid for incoming `ship` calls in the CURRENT tick (contract
+   * `ship_in_paid`; the per-tick budget is 25% of treasury + this). Absent means 0 / unknown.
+   */
+  ship_in_paid?: bigint;
+  /** Goods this merchant has already shipped out in the CURRENT tick (contract `last_ship_tick`). Absent means none. */
+  shipped_this_tick?: GoodId[];
 }
 
 export interface WorldSnapshot {

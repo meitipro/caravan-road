@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DecisionSchema, PARAMS } from "@caravan/shared";
 import { parseModelJson, toDecision, validateModelOutput, LINE_MAX, REASON_MAX } from "../src/decision.js";
+import { stepPolicyToward } from "../src/contract-rules.js";
 import { Rng, SimWorld } from "../src/sim-world.js";
 import { ctxFor, GLUT } from "./helpers.js";
 
@@ -195,7 +196,7 @@ describe("toDecision", () => {
 });
 
 describe("property: no model output can move a price outside the allowed range", () => {
-  it("5000 fuzzed outputs: accepted ones are in range and are accepted by a contract-like setPolicy", async () => {
+  it("5000 fuzzed outputs: accepted ones are in range and are accepted by a contract-like setPolicy once stepped", async () => {
     const rng = new Rng(4242);
     const junk = () => {
       const pick = rng.int(9);
@@ -222,7 +223,10 @@ describe("property: no model output can move a price outside the allowed range",
       expect(r.value.bias_bp).toBeLessThanOrEqual(PARAMS.BIAS_MAX_BP);
       expect(Number.isInteger(r.value.spread_bp) && Number.isInteger(r.value.bias_bp)).toBe(true);
       if (r.value.ship) expect(ctx.options).toContainEqual(r.value.ship);
-      await world.setPolicy("dasht", r.value.spread_bp, r.value.bias_bp);
+      // the worker steps the validated values toward the target before sending; one change per tick
+      const sent = stepPolicyToward(world.policy.dasht, r.value);
+      await world.setPolicy("dasht", sent.spread_bp, sent.bias_bp);
+      await world.worldTick();
     }
     expect(world.rejected.setPolicy).toBe(0);
     expect(accepted).toBeGreaterThan(30); // the property was exercised, not vacuous

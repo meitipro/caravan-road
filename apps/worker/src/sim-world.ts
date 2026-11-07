@@ -14,6 +14,7 @@
 import type { CityId, GoodId } from "@caravan/shared";
 import { CITIES, CITY_IDS, findRoute, GOODS, GOOD_IDS, PARAMS, quoteBig, tradeCost } from "@caravan/shared";
 import { gapOk } from "./candidates.js";
+import { policyStepOk, POLICY_MAX_STEP_BP } from "./contract-rules.js";
 import type { ChainPort, MerchantSnapshot, TxResult, WorldSnapshot } from "./types.js";
 
 /** Small seeded PRNG (mulberry32); deterministic across platforms. */
@@ -81,6 +82,8 @@ export class SimWorld implements ChainPort {
   private spreadSum = 0;
   private spreadN = 0;
   readonly moneyStart: number;
+  /** tick of each merchant's last accepted set_policy (contract: once per tick) */
+  private readonly lastPolicyTick = {} as Partial<Record<CityId, number>>;
   /** counters of calls rejected like the contract would (for tests) */
   rejected = { setPolicy: 0, ship: 0 };
   /** optional fault injection for tests: throw on these calls */
@@ -122,14 +125,20 @@ export class SimWorld implements ChainPort {
       delete this.failNext.setPolicy;
       throw new Error(m);
     }
+    // Same order as try_set_policy: ranges, then the 300 bp step from the CURRENT policy, then once per tick.
+    const reject = (why: string): never => {
+      this.rejected.setPolicy++;
+      throw new Error(why);
+    };
     const ok =
       Number.isInteger(spreadBp) && Number.isInteger(biasBp) &&
       spreadBp >= PARAMS.SPREAD_MIN_BP && spreadBp <= PARAMS.SPREAD_MAX_BP &&
       biasBp >= PARAMS.BIAS_MIN_BP && biasBp <= PARAMS.BIAS_MAX_BP;
-    if (!ok) {
-      this.rejected.setPolicy++;
-      throw new Error("BAD_REQUEST: policy out of range");
-    }
+    if (!ok) reject("BAD_REQUEST: policy out of range");
+    const next = { spread_bp: spreadBp, bias_bp: biasBp };
+    if (!policyStepOk(this.policy[city], next)) reject(`BAD_REQUEST: policy can move at most ${POLICY_MAX_STEP_BP} bp per change`);
+    if (this.lastPolicyTick[city] === this.tick) reject("RATE_LIMIT: policy can change once per tick");
+    this.lastPolicyTick[city] = this.tick;
     this.policy[city] = { spread_bp: spreadBp, bias_bp: biasBp };
     return { txHash: `sim:policy:${this.tick}:${city}` };
   }

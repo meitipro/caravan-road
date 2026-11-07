@@ -37,8 +37,11 @@ describe("SimWorld", () => {
       await expect(w.setPolicy("dasht", s, b)).rejects.toThrow(/BAD_REQUEST/);
     }
     expect(w.rejected.setPolicy).toBe(7);
-    await w.setPolicy("dasht", 400, -1500);
-    await w.setPolicy("dasht", 2000, 1500);
+    // the bounds themselves are legal, reached in steps of at most 300 bp (one change per tick)
+    await w.setPolicy("dasht", 500, -300);
+    await w.worldTick();
+    await w.setPolicy("dasht", 400, -600);
+    expect(w.policy.dasht).toEqual({ spread_bp: 400, bias_bp: -600 });
   });
 
   it("ship rejects bad calls: same city, qty, no stock, small gap, full warehouse, poor destination", async () => {
@@ -74,11 +77,10 @@ describe("dry-run simulation with the FAKE model", () => {
       if (d.source !== "llm") expect(d.request_id).toBeNull();
       if (d.source === "llm") expect(d.model).toBe("fake-scripted");
     }
-    // setPolicy is always in range. spec-v1.2 (MULT_K_BP 3000) changed the prices, so with this seed two ship calls are now
-    // rejected with "destination cannot pay": the option is checked against the tick-start snapshot (old bias), but run-once
-    // applies set_policy first and the merchant's new bias raises the midpoint price that ship() charges. That race exists
-    // under any prices; under spec-v1.1 (K=4000) this seed happened to give ship: 0. Numbers are from a real run.
-    expect(res.world.rejected).toEqual({ setPolicy: 0, ship: 2 });
+    // Nothing the worker sends is rejected by the contract-strict SimWorld: set_policy is stepped to within 300 bp of the
+    // current policy, and ship options are priced like the contract (bias 0), so a policy change cannot invalidate them.
+    // (Before the fix this seed had 2 ship rejections: "destination cannot pay", caused by pricing ships at the new bias.)
+    expect(res.world.rejected).toEqual({ setPolicy: 0, ship: 0 });
     expect(res.stats.moneyNow).toBe(res.stats.moneyStart);
     expect(res.bySource.llm).toBeGreaterThan(0);
   });

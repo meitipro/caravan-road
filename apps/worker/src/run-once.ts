@@ -6,16 +6,18 @@
 // Fallback ladder (spec 8.6):
 //   llm      model answered and the answer validated
 //   baseline model timeout/error/invalid after the one retry, or no model configured
-//   keep     inputs barely changed (model skipped), or a chain write failed (policy left as it was)
+//   keep     inputs barely changed (model skipped), or set_policy was rejected (policy left as it was; ship is still tried)
 //
 // The model's output only ever reaches the chain through ChainPort.setPolicy / ChainPort.ship with
-// values that decision.ts has clamped and ship options that candidates.ts computed.
+// values that decision.ts has clamped to the legal ranges, contract-rules.ts has stepped to within 300 bp of the
+// current policy, and ship options that candidates.ts computed.
 
 import type { CityId, Decision, Mood } from "@caravan/shared";
 import type { Attestor } from "./attest.js";
 import { baselineDecision, type BaselineDecision } from "./baseline.js";
 import { proposeDecision, type ModelClient, type ProposeOutcome } from "./brain.js";
 import { computeShipOptions, type ShipOption } from "./candidates.js";
+import { stepPolicyToward } from "./contract-rules.js";
 import { toDecision, type ValidatedOutput } from "./decision.js";
 import { buildFeatures, StockHistory, type Features } from "./features.js";
 import { buildPrompt, inputHash } from "./prompts.js";
@@ -128,28 +130,33 @@ export async function runMerchantOnce(deps: RunDeps, city: CityId): Promise<RunO
   }
 
   // ---- apply on chain ----
+  // set_policy and ship are independent calls: a failed policy change must not silence shipping.
   const txHashes: string[] = [];
-  let spread = chosen.spread_bp;
-  let bias = chosen.bias_bp;
   let shipApplied: ShipOption | null = null;
   let reason = chosen.reason;
-  let policyFailed = false;
+  // The contract lets each of spread and bias move at most 300 bp per change, measured from the CURRENT
+  // policy. Move toward the chosen values by that much; later rounds continue toward them.
+  const sent = stepPolicyToward(current, { spread_bp: chosen.spread_bp, bias_bp: chosen.bias_bp });
+  let spread = sent.spread_bp;
+  let bias = sent.bias_bp;
+  const limited = sent.spread_bp !== chosen.spread_bp || sent.bias_bp !== chosen.bias_bp;
 
   if (spread !== current.spread_bp || bias !== current.bias_bp) {
     try {
       const tx = await chain.setPolicy(city, spread, bias);
       if (tx.txHash) txHashes.push(tx.txHash);
+      if (limited) reason = `Policy step limited to 300 bp: sent spread ${spread}, bias ${bias}; target ${chosen.spread_bp}, ${chosen.bias_bp}. ${reason}`;
     } catch (e) {
-      policyFailed = true;
       chainErrors.push(`set_policy: ${(e as Error).message}`);
       spread = current.spread_bp;
       bias = current.bias_bp;
+      source = "keep";
+      reason = `Chain rejected set_policy; previous policy kept. ${reason}`;
     }
+  } else if (limited) {
+    reason = `Policy step limited to 300 bp: kept spread ${spread}, bias ${bias}; target ${chosen.spread_bp}, ${chosen.bias_bp}. ${reason}`;
   }
-  if (policyFailed) {
-    source = "keep";
-    reason = `Chain rejected set_policy; previous policy kept. ${reason}`;
-  } else if (chosen.ship) {
+  if (chosen.ship) {
     try {
       const tx = await chain.ship(city, chosen.ship.to, chosen.ship.good, chosen.ship.qty);
       if (tx.txHash) txHashes.push(tx.txHash);
