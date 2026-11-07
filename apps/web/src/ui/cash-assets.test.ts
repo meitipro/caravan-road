@@ -7,7 +7,7 @@ import {
 
 const real: TokenInfo[] = [
   { id: "nep141:eth.omft.near", symbol: "ETH", chain: "eth", decimals: 18 },
-  { id: "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1", symbol: "USDC", chain: "near", decimals: 6 },
+  { id: "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133", symbol: "USDC", chain: "near", decimals: 6 },
   { id: "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near", symbol: "USDC", chain: "base", decimals: 6 },
   { id: "nep141:zzz.omft.near", symbol: "ZZZ", chain: "newchain", decimals: 9 },
 ];
