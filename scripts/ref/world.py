@@ -4,18 +4,18 @@ Money unit: fils. 1 dinar = 100 fils. 1 USDC = 10,000 fils = 100 dinar.
 """
 
 GOODS = [
-    dict(id="grain", fa="غله", base=1000, target=200),
-    dict(id="salt", fa="نمک", base=1500, target=120),
-    dict(id="iron", fa="آهن", base=4000, target=100),
-    dict(id="spice", fa="ادویه", base=12000, target=40),
-    dict(id="silk", fa="ابریشم", base=20000, target=30),
+    dict(id="grain", base=1000, target=200),
+    dict(id="salt", base=1500, target=120),
+    dict(id="iron", base=4000, target=100),
+    dict(id="spice", base=12000, target=40),
+    dict(id="silk", base=20000, target=30),
 ]
 
 CITIES = [
-    dict(id="dasht", fa="دشت", role="مزارع", prod={"grain": 8, "salt": 3}, cons={"iron": 2, "spice": 1, "silk": 1}),
-    dict(id="madan", fa="معدن", role="کوهستان", prod={"iron": 4, "salt": 2}, cons={"grain": 4, "spice": 1, "silk": 1}),
-    dict(id="bandar", fa="بندر", role="بندرگاه", prod={"spice": 4, "silk": 3}, cons={"grain": 3, "iron": 3, "salt": 2}),
-    dict(id="shahr", fa="شهر", role="پایتخت", prod={"iron": 1}, cons={"grain": 1, "salt": 3, "spice": 2, "silk": 1}),
+    dict(id="dasht", prod={"grain": 8, "salt": 3}, cons={"iron": 2, "spice": 1, "silk": 1}),
+    dict(id="madan", prod={"iron": 4, "salt": 2}, cons={"grain": 4, "spice": 1, "silk": 1}),
+    dict(id="bandar", prod={"spice": 4, "silk": 3}, cons={"grain": 3, "iron": 3, "salt": 2}),
+    dict(id="shahr", prod={"iron": 1}, cons={"grain": 1, "salt": 3, "spice": 2, "silk": 1}),
 ]
 
 # (a, b, seconds, ambush risk in basis points)
