@@ -215,7 +215,7 @@ describe("16: reset and a world that does not collapse (dev only)", () => {
   });
 
   it("the dev ticker rescues a collapsed market and keeps money conserved; the real rules alone do not", async () => {
-    // strict contract rules alone: with nobody shipping, Bandar runs out of grain (its staple)
+    // strict contract rules alone: with nobody shipping, Harbor runs out of grain (its staple)
     let now = START_TIME;
     const bare = new FakeContract({ now: () => now, strict: true });
     for (let i = 0; i < 100; i++) {

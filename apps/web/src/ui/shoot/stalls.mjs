@@ -2,7 +2,7 @@
 // Walks screen 9 (player stalls) in headless Chrome and saves docs/screens/stalls-*.png.
 //
 //   mock   NEXT_PUBLIC_MOCK=1 dev server:      node apps/web/src/ui/shoot/stalls.mjs mock http://localhost:3107 [outDir] [width]
-//          one player: create, cancel, travel to Shahr, buy from the fixture stall, look from another city.
+//          one player: create, cancel, travel to Capital, buy from the fixture stall, look from another city.
 //   live   NEXT_PUBLIC_MOCK=0 SERVER_BACKEND=dev DEV_LOGIN=1 GAME_MODE=PLAY dev server:
 //                                              node apps/web/src/ui/shoot/stalls.mjs live http://localhost:3117 [outDir] [width]
 //          two players in two browser contexts: A opens stalls, B buys, A cancels; checks who pays the fee.
@@ -132,11 +132,11 @@ async function runMock(width) {
   log("start balance", await balance());
 
   // market -> stalls (the link on the market page)
-  await click("a::-p-text(Open Bandar market)");
+  await click("a::-p-text(Open Harbor market)");
   await page.waitForSelector(".goods");
   await shot("market-with-stalls-link", false);
   await click("a::-p-text(Player stalls)");
-  await page.waitForSelector("h1::-p-text(Stalls in Bandar)");
+  await page.waitForSelector("h1::-p-text(Stalls in Harbor)");
   await sleep(500);
   await shot("empty-no-goods");
   await overflow("stalls (empty)");
@@ -155,7 +155,7 @@ async function runMock(width) {
 
   // create a stall: 6 of 10 grain
   await click("a::-p-text(Player stalls)");
-  await page.waitForSelector("h1::-p-text(Stalls in Bandar)");
+  await page.waitForSelector("h1::-p-text(Stalls in Harbor)");
   await click("button::-p-text(Create a stall)");
   await page.waitForSelector("dialog[open] #stall-price");
   await shot("create-sheet", false);
@@ -196,14 +196,14 @@ async function runMock(width) {
   await page.waitForSelector("dialog[open]", { hidden: true });
   check("stall count on the market page", true);
 
-  // travel to Shahr with the remaining 6 grain
+  // travel to Capital with the remaining 6 grain
   await click("a::-p-text(Back to the market)");
   await page.waitForSelector(".goods");
   const stallLink = await t.text("a[href$='/stalls']");
   check("market link shows the number of other players' stalls", stallLink === "Player stalls", stallLink);
   await click("a::-p-text(Plan a journey)");
   await page.waitForSelector(".planner");
-  await page.evaluate(() => { [...document.querySelectorAll("label.dest")].find((l) => /Shahr/.test(l.textContent))?.click(); });
+  await page.evaluate(() => { [...document.querySelectorAll("label.dest")].find((l) => /Capital/.test(l.textContent))?.click(); });
   await sleep(300);
   await click("button::-p-text(Send caravan to)");
   await page.waitForSelector(".transit");
@@ -211,7 +211,7 @@ async function runMock(width) {
   // while travelling: everything is disabled with an explanation
   await click("header button::-p-text(Menu)");
   await click("dialog[open] a::-p-text(Stalls)");
-  await page.waitForSelector("h1::-p-text(Stalls in Bandar)");
+  await page.waitForSelector("h1::-p-text(Stalls in Harbor)");
   await sleep(600);
   await shot("travelling");
   await overflow("stalls (travelling)");
@@ -229,14 +229,14 @@ async function runMock(width) {
   await page.waitForSelector(".goods");
   await sleep(500);
   await click("a::-p-text(Player stalls)");
-  await page.waitForSelector("h1::-p-text(Stalls in Shahr)");
+  await page.waitForSelector("h1::-p-text(Stalls in Capital)");
   await sleep(600);
   await shot("shahr-fixture-stall");
   await overflow("stalls (shahr)");
   const row = await t.text(".stall-row");
   log("first row:", row);
   check("fixture stall is listed (salt, 12, 17.00, shortened seller)", /Salt/.test(row) && /12/.test(row) && /17\.00/.test(row) && /Sold by Trader/.test(row));
-  check("my Bandar stall shows the away note and a disabled cancel", (await page.$eval('button[aria-label^="Cancel your stall"]', (b) => b.disabled)) && /You are in Shahr/.test(await t.text(".stall-mine .stall-note")));
+  check("my Harbor stall shows the away note and a disabled cancel", (await page.$eval('button[aria-label^="Cancel your stall"]', (b) => b.disabled)) && /You are in Capital/.test(await t.text(".stall-mine .stall-note")));
 
   // buy 3 salt from the fixture stall
   const before = fils(await balance());
@@ -273,13 +273,13 @@ async function runMock(width) {
   await page.keyboard.press("Escape");
   await sleep(300);
 
-  // look at Bandar's stalls from Shahr
+  // look at Harbor's stalls from Capital
   await navTab("Map");
   await page.waitForSelector(".mapcanvas");
   await page.evaluate(() => [...document.querySelectorAll('a[href="/play/city/bandar"]')].find((a) => a.offsetParent !== null)?.click());
   await page.waitForSelector(".goods");
   await click("a::-p-text(Player stalls)");
-  await page.waitForSelector("h1::-p-text(Stalls in Bandar)");
+  await page.waitForSelector("h1::-p-text(Stalls in Harbor)");
   await sleep(600);
   await shot("bandar-seen-from-shahr");
   await overflow("stalls (other city)");
@@ -374,11 +374,11 @@ async function runLive(width) {
   const sellerLabel = labelOf(meA.account_id);
   ta.log("A shows up to buyers as:", sellerLabel);
 
-  // A buys the sheet's default 10 units of the cheapest good in stock in Bandar
-  await ta.click("a::-p-text(Open Bandar market)");
+  // A buys the sheet's default 10 units of the cheapest good in stock in Harbor
+  await ta.click("a::-p-text(Open Harbor market)");
   await A.page.waitForSelector(".goods");
   const pick = await pickGood(A.page, 10);
-  if (!pick) throw new Error("no good with 10 units in stock under 38 dinars in the dev world");
+  if (!pick) throw new Error("no good with 10 units in stock under 38 coins in the dev world");
   const G = pick.name;
   ta.log("trading good:", G, JSON.stringify(pick));
   await ta.click(`button[aria-label="Buy ${G}"]`);
@@ -387,7 +387,7 @@ async function runLive(width) {
   await okToast(A.page, ta);
 
   await ta.click("a::-p-text(Player stalls)");
-  await A.page.waitForSelector("h1::-p-text(Stalls in Bandar)");
+  await A.page.waitForSelector("h1::-p-text(Stalls in Harbor)");
   await sleep(600);
   await ta.shot("seller-before");
   await ta.click("button::-p-text(Create a stall)");
@@ -406,14 +406,14 @@ async function runLive(width) {
   const aBeforeSale = fils(await ta.balance());
 
   // B finds A's stall (shortened seller name) and buys 2
-  await tb.click("a::-p-text(Open Bandar market)");
+  await tb.click("a::-p-text(Open Harbor market)");
   await B.page.waitForSelector(".goods");
   await sleep(3500); // the world polls every 3 s
   await tb.shot("market-with-stalls-link", false);
   const link = await tb.text("a[href$='/stalls']");
   check("B's market link shows the number of stalls", /Player stalls \(\d+\)/.test(link), link);
   await tb.click("a::-p-text(Player stalls)");
-  await B.page.waitForSelector("h1::-p-text(Stalls in Bandar)");
+  await B.page.waitForSelector("h1::-p-text(Stalls in Harbor)");
   await sleep(700);
   await tb.shot("buyer-list");
   await tb.overflow("buyer list");
@@ -501,7 +501,7 @@ async function runLive(width) {
 
   if (travel && leftover) {
     // tidy the shared dev world: wait for the caravan (real time, about 3 minutes), claim, close the last stall
-    ta.log("waiting for A's caravan to arrive in Shahr (about 3 minutes)...");
+    ta.log("waiting for A's caravan to arrive in Capital (about 3 minutes)...");
     for (let i = 0; i < 80; i++) {
       const st = (await getState(A.page)).data.me.journey;
       if (!st || st.status !== "IN_TRANSIT") break;
@@ -511,7 +511,7 @@ async function runLive(width) {
     ta.log("claim:", claim.ok ? "ok" : JSON.stringify(claim.error));
     const cancelFar = await post(A.page, "/api/stall/cancel", { stall_id: leftover.id });
     // contracts/caravan game.rs refuses this with NOT_IN_CITY; the dev FakeContract has no such check
-    ta.log("cancel from Shahr of a Bandar stall:", cancelFar.ok ? "ACCEPTED by the dev backend (the real contract answers NOT_IN_CITY)" : JSON.stringify(cancelFar.error));
+    ta.log("cancel from Capital of a Harbor stall:", cancelFar.ok ? "ACCEPTED by the dev backend (the real contract answers NOT_IN_CITY)" : JSON.stringify(cancelFar.error));
   }
   await browser.close();
 }

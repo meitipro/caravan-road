@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MAP_ROUTES, MAP_SIZE } from "./map-config";
 
 describe("map route labels", () => {
-  it("never overlap each other (the crossing Bandar-Shahr and Dasht-Madan roads once shared a label spot)", () => {
+  it("never overlap each other (the crossing Harbor-Capital and Farmstead-Minetown roads once shared a label spot)", () => {
     // a label is about 90 x 28 px on the 960 x 540 world art
     for (let i = 0; i < MAP_ROUTES.length; i++) {
       for (let j = i + 1; j < MAP_ROUTES.length; j++) {

@@ -29,10 +29,10 @@ Clamp-hit rates are over accepted decisions. A valid first answer that is clampe
 
 | persona | scripted fake: mean spread | scripted fake: mean bias | baseline: mean spread | baseline: mean bias |
 |---|---|---|---|---|
-| Golnar (dasht) | 712 | 820 | 918 | 769 |
-| Ostad Rostam (madan) | 924 | 347 | 1040 | 434 |
-| Captain Nahid (bandar) | 1027 | -164 | 1070 | -77 |
-| Hakim Sohrab (shahr) | 1334 | 1382 | 1144 | 1364 |
+| Hazel (dasht) | 712 | 820 | 918 | 769 |
+| Bram (madan) | 924 | 347 | 1040 | 434 |
+| Captain Mara (bandar) | 1027 | -164 | 1070 | -77 |
+| Victor (shahr) | 1334 | 1382 | 1144 | 1364 |
 
 The baseline is persona-agnostic by design, so its columns differ only through the states each persona received. The fake's spreads are ordered by its script (golnar < rostam < nahid < sohrab); that ordering is a property of the script, shown here to prove the harness can detect the intended direction, not evidence about a model.
 

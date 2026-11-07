@@ -26,7 +26,7 @@ async function buyGrain(api: ApiClient, qty: number): Promise<Player> {
   return r.data.player;
 }
 
-describe("stalls flow on the mock: create and cancel in Bandar", () => {
+describe("stalls flow on the mock: create and cancel in Harbor", () => {
   it("lists a created stall under Your stalls, takes the goods out of the inventory, and cancel returns them", async () => {
     const { api } = setup();
     const player = await buyGrain(api, 10);
@@ -92,12 +92,12 @@ describe("stalls flow on the mock: create and cancel in Bandar", () => {
   });
 });
 
-describe("stalls flow on the mock: buy from the fixture stall in Shahr", () => {
+describe("stalls flow on the mock: buy from the fixture stall in Capital", () => {
   it("is refused in another city (NOT_IN_CITY) and works after arriving, charging the exact price only", async () => {
     const { api, advance } = setup();
     await buyGrain(api, 10);
 
-    // in Bandar the fixture stall (Shahr) cannot be bought
+    // in Harbor the fixture stall (Capital) cannot be bought
     const early = await api.stallBuy({ stall_id: 1, qty: 1, limit_total: "99999999" });
     expect(!early.ok && early.error.code).toBe("NOT_IN_CITY");
     if (!early.ok) expect(stallErrorText("buy", early.error.code)).toMatch(/seller is away/);
@@ -137,7 +137,7 @@ describe("stalls flow on the mock: buy from the fixture stall in Shahr", () => {
 
   it("removes a stall that is bought out, and then reports it as gone", async () => {
     const { api, advance } = setup();
-    // rich enough: buy grain in Bandar, travel, then buy all 12 salt
+    // rich enough: buy grain in Harbor, travel, then buy all 12 salt
     await buyGrain(api, 10);
     const j = await api.journeyStart({ to: "shahr", cargo: { grain: 10 }, guards: 0 });
     if (!j.ok) throw new Error(j.error.message);

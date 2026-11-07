@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CITY_IDS } from "@caravan/shared";
+import { CITY_IDS, CITY_NAMES } from "@caravan/shared";
 import { validateModelOutput } from "../src/decision.js";
 import { assertNoFreeText, buildFeatures, StockHistory } from "../src/features.js";
 import { PERSONAS } from "../src/personas.js";
@@ -57,12 +57,16 @@ describe("prompt contents", () => {
   it("system prompt keeps the plan's wording and the persona", () => {
     for (const c of CITY_IDS) {
       const p = systemPrompt(c);
-      expect(p).toContain(`You are the merchant of ${c} in Caravan Road`);
+      expect(p).toContain(`You are the merchant of ${CITY_NAMES[c]} in Caravan Road`);
       expect(p).toContain("You never talk about being an AI.");
       expect(p).toContain("ONE JSON object and nothing else");
       expect(p).toContain("spread_bp:int 400..2000, bias_bp:int -1500..1500");
       expect(p).toContain("if treasury_bp < 6000 widen the spread");
       expect(p).toContain(PERSONAS[c].name);
+      // display names and coins: the model is told how to call the cities and the money
+      expect(p).toContain(`${c} = ${CITY_NAMES[c]}`);
+      expect(p).toMatch(/Call the money coins/);
+      expect(p).not.toMatch(/dinar/i);
     }
   });
 

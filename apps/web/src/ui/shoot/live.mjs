@@ -59,8 +59,8 @@ await sleep(800);
 log("balance after claim:", await balance());
 await shot("map", true); await overflow("map");
 
-// buy in Bandar
-await click("a::-p-text(Open Bandar market)");
+// buy in Harbor
+await click("a::-p-text(Open Harbor market)");
 await page.waitForSelector(".goods");
 await shot("market", true); await overflow("market");
 const good = process.env.BUY_GOOD ?? "Grain";

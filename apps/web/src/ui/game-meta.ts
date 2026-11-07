@@ -1,6 +1,6 @@
 // Display metadata for the fixed world (names, colors, portraits). Rules and numbers live in @caravan/shared.
 
-import type { CityId, ErrorCode, GoodId, Mood } from "@caravan/shared";
+import { CITY_NAMES, type CityId, type ErrorCode, type GoodId, type Mood } from "@caravan/shared";
 
 export interface CityMeta {
   id: CityId;
@@ -11,13 +11,13 @@ export interface CityMeta {
   portrait: string;
 }
 
-// ASSUMPTION: the spec lists the portraits (golnar, rostam, nahid, sohrab) but not which city each
-// merchant belongs to; assigned in the order dasht, madan, bandar, shahr. Change here if art differs.
+// City display names come from CITY_NAMES in @caravan/shared (the single map; ids are internal keys). The portrait
+// file names are internal too and kept; each portrait belongs to the merchant of that city.
 export const CITY_META: Record<CityId, CityMeta> = {
-  dasht: { id: "dasht", name: "Dasht", role: "Farmland", merchant: "Golnar", portrait: "golnar" },
-  madan: { id: "madan", name: "Madan", role: "Mountain mine", merchant: "Rostam", portrait: "rostam" },
-  bandar: { id: "bandar", name: "Bandar", role: "Harbour", merchant: "Nahid", portrait: "nahid" },
-  shahr: { id: "shahr", name: "Shahr", role: "Capital", merchant: "Sohrab", portrait: "sohrab" },
+  dasht: { id: "dasht", name: CITY_NAMES.dasht, role: "Farmland", merchant: "Hazel", portrait: "golnar" },
+  madan: { id: "madan", name: CITY_NAMES.madan, role: "Mountain mine", merchant: "Bram", portrait: "rostam" },
+  bandar: { id: "bandar", name: CITY_NAMES.bandar, role: "Port town", merchant: "Mara", portrait: "nahid" },
+  shahr: { id: "shahr", name: CITY_NAMES.shahr, role: "Capital city", merchant: "Victor", portrait: "sohrab" },
 };
 
 export interface GoodMeta {
@@ -43,7 +43,7 @@ export const MOOD_META: Record<Mood, { label: string; hint: string }> = {
 };
 
 export const GAME_MODE_TEXT = {
-  PLAY: "Practice with free dinars",
+  PLAY: "Practice with free coins",
   LIVE: "Real USDC, real stakes",
 } as const;
 
@@ -65,7 +65,7 @@ export const ERROR_TEXT: Record<ErrorCode, string> = {
   NOT_IN_CITY: "You are not in that city. Travel there first.",
   IN_TRANSIT: "Your caravan is on the road. Wait for it to arrive and claim it.",
   NOT_ARRIVED: "The caravan has not arrived yet.",
-  INSUFFICIENT_FUNDS: "Not enough dinars for that.",
+  INSUFFICIENT_FUNDS: "Not enough coins for that.",
   INSUFFICIENT_STOCK: "Not enough goods for that.",
   MERCHANT_BROKE: "This merchant cannot afford it right now. Try another city or a smaller amount.",
   SLIPPAGE: "The price moved while you were deciding. Review the new price and confirm again.",

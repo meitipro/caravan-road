@@ -81,8 +81,8 @@ async function run(width, height, tag) {
   await overflow("map");
   log(`  [${tag}] start balance ${await balance()}`);
 
-  // ---- market in Bandar, buy the cheapest-looking good that sells higher elsewhere
-  await click("a::-p-text(Open Bandar market)");
+  // ---- market in Harbor, buy the cheapest-looking good that sells higher elsewhere
+  await click("a::-p-text(Open Harbor market)");
   await page.waitForSelector(".goods");
   await shot("05-market");
   await overflow("market");
@@ -157,7 +157,7 @@ async function run(width, height, tag) {
   await sleep(300);
   await click("header button::-p-text(Menu)");
   await shot("15a-menu", false);
-  await click("dialog[open] button::-p-text(Golnar)");
+  await click("dialog[open] button::-p-text(Hazel)");
   await page.waitForSelector("dialog[open] .decision");
   await shot("15b-merchant-mind-evidence", false);
   log(`  [${tag}] dasht mind badge: ${await page.$eval("dialog[open] .badge", (e) => e.textContent).catch(() => "none")}`);
