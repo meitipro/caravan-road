@@ -62,7 +62,9 @@ function setup(model: ModelClient | null, opts: { attestor?: Attestor | null; wo
 }
 
 const glut = (w: SimWorld) => {
-  w.stock.dasht.grain = 340; // 170% of target, neighbours at 100%: gap 7000 bp
+  w.stock.dasht.grain = 340; // 170% of target
+  // neighbours at 90%: below target (the contract only lets a merchant ship to a city short of the good), gap 8000 bp
+  for (const c of ["madan", "bandar", "shahr"] as const) w.stock[c].grain = 180;
 };
 
 describe("fallback ladder", () => {

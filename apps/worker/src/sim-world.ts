@@ -14,7 +14,7 @@
 import type { CityId, GoodId } from "@caravan/shared";
 import { CITIES, CITY_IDS, findRoute, GOODS, GOOD_IDS, PARAMS, quoteBig, tradeCost } from "@caravan/shared";
 import { gapOk } from "./candidates.js";
-import { policyStepOk, POLICY_MAX_STEP_BP } from "./contract-rules.js";
+import { destinationShort, policyStepOk, POLICY_MAX_STEP_BP, SHIP_MAX_PAY_PCT, shipUnitPayment } from "./contract-rules.js";
 import type { ChainPort, MerchantSnapshot, TxResult, WorldSnapshot } from "./types.js";
 
 /** Small seeded PRNG (mulberry32); deterministic across platforms. */
@@ -84,6 +84,10 @@ export class SimWorld implements ChainPort {
   readonly moneyStart: number;
   /** tick of each merchant's last accepted set_policy (contract: once per tick) */
   private readonly lastPolicyTick = {} as Partial<Record<CityId, number>>;
+  /** contract `last_ship_tick`: tick of each merchant's last accepted ship per good (one per good per tick) */
+  readonly lastShipTick = {} as Record<CityId, Partial<Record<GoodId, number>>>;
+  /** contract `ship_in_tick` / `ship_in_paid`: what each merchant paid for incoming ships, valid for `tick` only */
+  readonly shipIn = {} as Record<CityId, { tick: number; paid: number }>;
   /** counters of calls rejected like the contract would (for tests) */
   rejected = { setPolicy: 0, ship: 0 };
   /** optional fault injection for tests: throw on these calls */
@@ -97,6 +101,8 @@ export class SimWorld implements ChainPort {
       for (const g of GOOD_IDS) this.stock[c][g] = GOODS[g].target;
       this.treasury[c] = INIT;
       this.policy[c] = { spread_bp: PARAMS.SPREAD_DEFAULT_BP, bias_bp: 0 };
+      this.lastShipTick[c] = {};
+      this.shipIn[c] = { tick: -1, paid: 0 };
     }
     for (let i = 0; i < opts.bots; i++) {
       this.bots.push({ city: CITY_IDS[this.rng.int(CITY_IDS.length)]!, cash: PARAMS.FAUCET_FILS, inv: {}, dest: null, arriveTick: 0, startWorth: null });
@@ -114,7 +120,12 @@ export class SimWorld implements ChainPort {
   snapshot(): WorldSnapshot {
     const merchants = {} as Record<CityId, MerchantSnapshot>;
     for (const c of CITY_IDS) {
-      merchants[c] = { id: c, treasury: BigInt(this.treasury[c]), stock: { ...this.stock[c] }, policy: { ...this.policy[c] } };
+      const m: MerchantSnapshot = { id: c, treasury: BigInt(this.treasury[c]), stock: { ...this.stock[c] }, policy: { ...this.policy[c] } };
+      // only what the contract would report for the CURRENT tick
+      if (this.shipIn[c].tick === this.tick && this.shipIn[c].paid > 0) m.ship_in_paid = BigInt(this.shipIn[c].paid);
+      const shipped = GOOD_IDS.filter((g) => this.lastShipTick[c][g] === this.tick);
+      if (shipped.length > 0) m.shipped_this_tick = shipped;
+      merchants[c] = m;
     }
     return { tick: this.tick, now: this.startUnix + this.tick * PARAMS.TICK_SECONDS, merchants };
   }
@@ -149,25 +160,32 @@ export class SimWorld implements ChainPort {
       delete this.failNext.ship;
       throw new Error(m);
     }
-    const reject = (why: string): never => {
+    const reject = (why: string, code = "BAD_REQUEST"): never => {
       this.rejected.ship++;
-      throw new Error(`BAD_REQUEST: ${why}`);
+      throw new Error(`${code}: ${why}`);
     };
+    // Same order of checks as try_ship, then apply_shipment (contracts/caravan/src/admin.rs).
     if (city === to) reject("same city");
     if (!Number.isInteger(qty) || qty < 1 || qty > PARAMS.NPC_SHIP_UNITS_PER_TICK) reject("qty out of range");
+    if (this.lastShipTick[city][good] === this.tick) reject("one shipment per good per tick", "RATE_LIMIT");
     const fromStock = this.stock[city][good];
     const toStock = this.stock[to][good];
-    if (fromStock < qty) reject("not enough stock");
+    if (!destinationShort(good, toStock)) reject("destination is not short of this good");
+    // the destination pays at most 25% of (treasury + paid so far this tick) per tick
+    const paid = this.shipIn[to].tick === this.tick ? this.shipIn[to].paid : 0;
+    const pay = Number(shipUnitPayment(good, fromStock, toStock)) * qty;
+    const budget = Math.trunc(((this.treasury[to] + paid) * Number(SHIP_MAX_PAY_PCT)) / 100);
+    if (paid + pay > budget) reject("destination reached its shipment budget for this tick", "RATE_LIMIT");
     if (!gapOk(fromStock, toStock, good)) reject("gap below minimum");
+    if (fromStock < qty) reject("not enough stock", "INSUFFICIENT_STOCK");
     if (toStock + qty > GOODS[good].cap) reject("destination warehouse full");
-    const mid = (stock: number, bias: number) => quoteBig({ good, stock, spreadBp: PARAMS.SPREAD_DEFAULT_BP, biasBp: bias }).mid;
-    const unit = (mid(fromStock, this.policy[city].bias_bp) + mid(toStock, this.policy[to].bias_bp)) / 2n;
-    const pay = Number(unit) * qty;
-    if (this.treasury[to] < pay) reject("destination cannot pay");
+    if (this.treasury[to] < pay) reject("destination cannot pay", "MERCHANT_BROKE");
     this.treasury[to] -= pay;
     this.treasury[city] += pay;
     this.stock[city][good] -= qty;
     this.stock[to][good] += qty;
+    this.lastShipTick[city][good] = this.tick;
+    this.shipIn[to] = { tick: this.tick, paid: paid + pay };
     return { txHash: `sim:ship:${this.tick}:${city}:${to}:${good}` };
   }
 

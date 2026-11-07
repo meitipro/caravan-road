@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CITY_IDS, GOODS, GOOD_IDS } from "@caravan/shared";
+import { CITY_IDS, GOODS, GOOD_IDS, quoteBig } from "@caravan/shared";
 import { SimWorld } from "../src/sim-world.js";
 import { simulate } from "../src/simulate.js";
 import { FakeModel, scriptedPolicy } from "../src/fake/fake-model.js";
@@ -44,23 +44,77 @@ describe("SimWorld", () => {
     expect(w.policy.dasht).toEqual({ spread_bp: 400, bias_bp: -600 });
   });
 
-  it("ship rejects bad calls: same city, qty, no stock, small gap, full warehouse, poor destination", async () => {
+  it("ship rejects bad calls: same city, qty, destination not short, small gap, no stock, full warehouse, poor destination", async () => {
     const w = new SimWorld({ bots: 0, seed: 1 });
     w.stock.dasht.grain = 340;
     await expect(w.ship("dasht", "dasht", "grain", 1)).rejects.toThrow();
     await expect(w.ship("dasht", "madan", "grain", 5)).rejects.toThrow(/qty/);
     await expect(w.ship("dasht", "madan", "grain", 0)).rejects.toThrow(/qty/);
-    await expect(w.ship("dasht", "madan", "salt", 1)).rejects.toThrow(/gap/);
+    await expect(w.ship("dasht", "madan", "salt", 1)).rejects.toThrow(/not short/); // both at target
     w.stock.madan.grain = 399;
-    await expect(w.ship("dasht", "madan", "grain", 1)).rejects.toThrow(/gap/);
+    await expect(w.ship("dasht", "madan", "grain", 1)).rejects.toThrow(/not short/); // above target
+    w.stock.madan.grain = 200;
+    await expect(w.ship("dasht", "madan", "grain", 1)).rejects.toThrow(/not short/); // exactly at target
+    w.stock.dasht.grain = 250;
+    w.stock.madan.grain = 199;
+    await expect(w.ship("dasht", "madan", "grain", 1)).rejects.toThrow(/gap/); // 51 < 100
+    w.stock.dasht.grain = 340;
     w.stock.madan.grain = 150;
     w.treasury.madan = 10;
-    await expect(w.ship("dasht", "madan", "grain", 4)).rejects.toThrow(/pay/);
+    await expect(w.ship("dasht", "madan", "grain", 4)).rejects.toThrow(/budget/);
     w.treasury.madan = 50_000;
     const before = w.moneyNow();
     await w.ship("dasht", "madan", "grain", 4);
     expect(w.moneyNow()).toBe(before);
     expect(w.stock.madan.grain).toBe(154);
+  });
+
+  it("ship payment is the contract's ship_payment: mids at the default policy, whatever the merchants' bias", async () => {
+    const w = new SimWorld({ bots: 0, seed: 1 });
+    w.stock.dasht.grain = 340;
+    w.stock.madan.grain = 150;
+    w.policy.dasht = { spread_bp: 2000, bias_bp: 1500 };
+    w.policy.madan = { spread_bp: 2000, bias_bp: -1500 };
+    const mid = (stock: number) => quoteBig({ good: "grain", stock, spreadBp: 800, biasBp: 0 }).mid;
+    const unit = Number((mid(340) + mid(150)) / 2n);
+    const t0 = w.treasury.madan;
+    await w.ship("dasht", "madan", "grain", 3);
+    expect(t0 - w.treasury.madan).toBe(unit * 3);
+  });
+
+  it("ship: the destination pays at most 25% of its treasury per tick, summed over all incoming shipments", async () => {
+    const w = new SimWorld({ bots: 0, seed: 1 });
+    // silk: bandar 60 (mid 15000), dasht 60, shahr 6 (mid 24800) -> 19900 per unit
+    w.stock.bandar.silk = 60;
+    w.stock.dasht.silk = 60;
+    w.stock.shahr.silk = 6;
+    w.treasury.shahr = 110_000; // budget 27500 per tick: one unit (19900), not two
+    w.house += w.moneyStart - w.moneyNow(); // keep money conserved after hand-setting treasuries
+    await expect(w.ship("bandar", "shahr", "silk", 2)).rejects.toThrow(/RATE_LIMIT.*budget/);
+    await w.ship("bandar", "shahr", "silk", 1);
+    expect(w.snapshot().merchants.shahr.ship_in_paid).toBe(19_900n);
+    // treasury is now 90100; (90100 + 19900) / 4 = 27500 budget, 7600 left: a unit from a DIFFERENT merchant is refused
+    await expect(w.ship("dasht", "shahr", "silk", 1)).rejects.toThrow(/budget/);
+    await w.worldTick(); // new tick: the paid counter starts over
+    expect(w.snapshot().merchants.shahr.ship_in_paid ?? 0n).toBe(0n);
+  });
+
+  it("ship: one shipment per good per tick; another good is fine; the next tick resets", async () => {
+    const w = new SimWorld({ bots: 0, seed: 1 });
+    w.stock.dasht.grain = 340;
+    w.stock.dasht.iron = 250;
+    w.stock.madan.grain = 100;
+    w.stock.madan.iron = 50;
+    w.stock.bandar.grain = 100;
+    await w.ship("dasht", "madan", "grain", 1);
+    expect(w.snapshot().merchants.dasht.shipped_this_tick).toEqual(["grain"]);
+    await expect(w.ship("dasht", "bandar", "grain", 1)).rejects.toThrow(/RATE_LIMIT.*one shipment per good/);
+    await w.ship("dasht", "madan", "iron", 1);
+    const before = w.rejected.ship;
+    await w.worldTick();
+    expect(w.snapshot().merchants.dasht.shipped_this_tick ?? []).toEqual([]);
+    await w.ship("dasht", "bandar", "grain", 1);
+    expect(w.rejected.ship).toBe(before);
   });
 });
 

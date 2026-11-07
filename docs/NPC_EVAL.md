@@ -49,29 +49,29 @@ Worker cycle against SimWorld. "Baseline only" means no model: every decision is
 
 | seed | mode | decisions (fake-model / baseline / keep) | bot trips | median profit per trip (fils) | merchant-broke events | ambushes | mean spread (bp) | money conserved |
 |---|---|---|---|---|---|---|---|---|
-| 7 | baseline only | 960 (0 / 960 / 0) | 155 | 2480 | 49 | 24 | 1039 | yes |
-| 7 | fake-scripted, no faults | 960 (830 / 0 / 130) | 168 | 5611 | 64 | 26 | 1000 | yes |
-| 7 | fake-scripted, faults injected | 960 (809 / 5 / 146) | 167 | 2769 | 56 | 24 | 1102 | yes |
-| 11 | baseline only | 960 (0 / 960 / 0) | 169 | 4128 | 60 | 31 | 1034 | yes |
-| 11 | fake-scripted, no faults | 960 (790 / 0 / 170) | 154 | 4630 | 57 | 34 | 1010 | yes |
-| 11 | fake-scripted, faults injected | 960 (818 / 13 / 129) | 170 | 2909 | 61 | 34 | 1119 | yes |
-| 13 | baseline only | 960 (0 / 960 / 0) | 164 | 3590 | 57 | 39 | 1047 | yes |
-| 13 | fake-scripted, no faults | 960 (816 / 0 / 144) | 163 | 6011 | 64 | 42 | 999 | yes |
-| 13 | fake-scripted, faults injected | 960 (820 / 9 / 131) | 163 | 3219 | 57 | 35 | 1100 | yes |
+| 7 | baseline only | 960 (0 / 960 / 0) | 152 | 4019 | 57 | 18 | 1012 | yes |
+| 7 | fake-scripted, no faults | 960 (829 / 0 / 131) | 161 | 4439 | 78 | 25 | 993 | yes |
+| 7 | fake-scripted, faults injected | 960 (849 / 6 / 105) | 168 | 5224 | 71 | 24 | 1025 | yes |
+| 11 | baseline only | 960 (0 / 960 / 0) | 166 | 2234 | 58 | 41 | 912 | yes |
+| 11 | fake-scripted, no faults | 960 (818 / 0 / 142) | 162 | 4890 | 65 | 31 | 994 | yes |
+| 11 | fake-scripted, faults injected | 960 (818 / 13 / 129) | 172 | 6363 | 60 | 38 | 1031 | yes |
+| 13 | baseline only | 960 (0 / 960 / 0) | 137 | 3079 | 47 | 34 | 1002 | yes |
+| 13 | fake-scripted, no faults | 960 (829 / 0 / 131) | 172 | 2358 | 67 | 35 | 987 | yes |
+| 13 | fake-scripted, faults injected | 960 (783 / 9 / 168) | 138 | 5487 | 52 | 31 | 1043 | yes |
 
 Mid-price range seen (fils, min-max, sampled every 20 ticks across all cities):
 
 | seed | mode | grain | salt | iron | spice | silk |
 |---|---|---|---|---|---|---|
-| 7 | baseline only | 787-1344 | 1279-2159 | 3362-5038 | 8483-17940 | 14139-29900 |
-| 7 | fake-scripted, no faults | 781-1419 | 1158-2242 | 3038-5763 | 8090-17940 | 13483-29900 |
-| 7 | fake-scripted, faults injected | 667-1429 | 956-2242 | 2550-5717 | 7650-17940 | 12750-29900 |
-| 11 | baseline only | 808-1337 | 1280-2112 | 3439-5000 | 8483-17940 | 14139-29900 |
-| 11 | fake-scripted, no faults | 789-1438 | 1174-2242 | 3023-5754 | 8202-17940 | 13671-29900 |
-| 11 | fake-scripted, faults injected | 648-1385 | 974-2242 | 2614-5726 | 8154-17940 | 13590-29900 |
-| 13 | baseline only | 775-1372 | 1173-2211 | 3224-5149 | 8474-17940 | 14124-29900 |
-| 13 | fake-scripted, no faults | 801-1439 | 1216-2242 | 3075-5712 | 8090-17940 | 13483-29900 |
-| 13 | fake-scripted, faults injected | 637-1408 | 991-2242 | 2550-5664 | 7650-17940 | 12750-29900 |
+| 7 | baseline only | 778-1358 | 1171-2242 | 3108-5536 | 8465-17940 | 14109-29900 |
+| 7 | fake-scripted, no faults | 770-1394 | 1163-2242 | 3074-5807 | 8186-17940 | 13644-29900 |
+| 7 | fake-scripted, faults injected | 772-1417 | 1162-2242 | 3024-5870 | 8052-17940 | 13420-29900 |
+| 11 | baseline only | 785-1347 | 1224-2242 | 3129-5285 | 8465-17940 | 14109-29900 |
+| 11 | fake-scripted, no faults | 790-1445 | 1147-2242 | 3061-5782 | 8186-17940 | 13644-29900 |
+| 11 | fake-scripted, faults injected | 740-1435 | 1157-2242 | 2984-5766 | 8282-17940 | 13804-29900 |
+| 13 | baseline only | 819-1301 | 1158-2198 | 3090-5769 | 8474-17940 | 14124-29900 |
+| 13 | fake-scripted, no faults | 810-1392 | 1154-2242 | 3078-5753 | 8090-17940 | 13483-29900 |
+| 13 | fake-scripted, faults injected | 789-1438 | 1150-2242 | 3067-5754 | 8090-17940 | 13483-29900 |
 
 Money is conserved on every tick in every run (the world throws if it is not). Three seeds are shown so that no conclusion rests on one run; differences between rows are small samples of a noisy greedy-bot economy and should not be read as proof that one policy is better.
 
