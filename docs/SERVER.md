@@ -42,7 +42,8 @@ same-origin check -> session (`UNAUTHENTICATED`) -> `Idempotency-Key` required -
 | `GET /api/state` | world + me + last 20 events; world cached 1 s; creates the account on first sign-in |
 | `POST /api/trade`, `journey/start`, `journey/claim`, `stall/create`, `stall/buy`, `stall/cancel` | player meta-transactions |
 | `POST /api/faucet` | PLAY only |
-| `POST /api/deposit/quote`, `GET /api/deposit/status`, `POST /api/withdraw` | LIVE only; caps 20 USDC total / 10 USDC per day; Intents behind `IntentsClient` (Phase 7) |
+| `POST /api/deposit/quote`, `GET /api/deposit/status`, `POST /api/withdraw` | LIVE only; caps 20 USDC total / 10 USDC per UTC day; minimum withdrawal 1,000 fils; Intents behind `IntentsClient` |
+| `GET /api/tokens` | public, LIVE only, cached 60 s: `{assets: [{id, symbol, chain, decimals}]}` from 1Click `GET /v0/tokens`. Deposit `origin_asset` and withdraw `dest_asset` must be one of these ids |
 | `GET /api/leaderboard`, `GET /api/npc/decisions`, `GET /api/proof/{merchant}` | public reads |
 | `/api/cron/{tick,health,deposits,withdrawals}` | `Authorization: Bearer $CRON_SECRET`, GET or POST |
 | `/api/auth/*` | Auth.js (Google, Discord), JWT sessions |
@@ -143,6 +144,37 @@ A `FINALIZING` row whose run died is taken over after 5 minutes. The provider's 
 
 Environment: `ONECLICK_JWT` and `ONECLICK_USDC_ASSET_ID` are optional in PLAY and required together in LIVE
 (`loadEnv()`); the asset id must look like `nep141:<contract>`.
+
+## Contract parity fixes (server vs `contracts/caravan`)
+
+Ground truth is `contracts/caravan/src/*.rs` and `fixtures/contract-json.json`; `FakeContract` is a test double that follows it.
+
+- **Paging (F5, F6).** `get_stalls` scans at most 100 stalls per call and applies its `city` filter inside that page, so
+  `NearContract.getStalls` walks `from_index` 0, 100, 200... until a short page, never sends `city`, filters client-side
+  and de-duplicates by id (cap 500 pages). `getLeaderboard` walks `get_players` pages until a short page; the loop is
+  bounded by `get_world.player_count` plus two pages of slack and an absolute 5,000 players (`ContractClient.getPlayerCount`).
+  Each leaderboard refresh (cached 5 s) is therefore up to 50 view calls on a huge world; cache longer or index off-chain if that ever matters.
+- **Stale delegate (F7).** A delegate action whose nonce is old or whose `max_block_height` passed fails inside a receipt as
+  `ActionError.kind.DelegateActionInvalidNonce{..numbers..}` / `DelegateActionExpired` (key or bare string, no panic text).
+  Failure detection now reads object keys as well as strings, throws `StaleDelegateError`, and `NearContract.playerCall`
+  re-signs (fresh Account: nonce and block height read again, 1.5 s pause) and relays once more. Safe because the inner call
+  never ran. near-api-js throws failed outcomes (`throwOnFailure`), so a thrown error's `transactionResult` goes through the
+  same classification (contract panics become `ContractPanic`; before this they surfaced as a plain error -> INTERNAL).
+  A stale delegate rejected twice, and a failure before the transaction was sent, are marked "not executed"
+  (`ApiError.notExecuted`); `POST /api/withdraw` then cancels the RESERVED row at once instead of leaving it for the
+  900 s reconciliation. Any other INTERNAL (network error after sending, numeric protocol failure) stays RESERVED for
+  reconciliation, deliberately.
+- **Deposit caps (F8).** `credit_deposit` panics `RATE_LIMIT: player deposit cap reached` (lifetime per-player cap, never
+  decreases) and `RATE_LIMIT: operator daily cap reached` (resets at UTC midnight). Only the first is permanent: the
+  deposit goes to FAILED with an `ALERT` for manual refund review. Everything else RATE_LIMIT is retried.
+- **Assets (F3).** `money.ts` checks `origin_asset` / `dest_asset` against `IntentsClient.listTokens()` before any quote, before
+  the treasury check and before the reservation row / `request_withdraw` (the contract debits first). Unknown id ->
+  `BAD_REQUEST "That asset is not supported"`; list unreadable -> `PAUSED` (fail closed).
+- **Withdraw rules (F4).** Minimum `PARAMS.MIN_WITHDRAW_FILS` (1,000). One open withdrawal per player (DB rows RESERVED,
+  REQUESTED, SENDING, SENT, FINALIZING block; a FAILED row blocks only while the chain still says PENDING/SENT). Daily cap =
+  UTC calendar day of the request, refunded rows still count, only CANCELLED rows are free (the contract's `withdrawn_today`
+  is never decremented). All three are checked before reserving and answer `BAD_REQUEST` with a specific message (the contract
+  would answer `RATE_LIMIT` after the reservation). The reservation transaction re-checks open + cap under the per-user lock.
 
 ## Error identity across module copies
 

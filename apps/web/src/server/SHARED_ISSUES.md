@@ -55,6 +55,27 @@ Nothing in `packages/shared` or `spec/` was edited. Items for the owners of thos
 15. **`FakeContract.stallCancel` is looser than the contract (dev backend only).** `contract/fake.ts` `stallCancel` has no travelling check and no city check, and answers `BAD_REQUEST` for someone else's stall. `contracts/caravan/src/game.rs` `try_stall_cancel` answers `UNAUTHENTICATED` ("not your stall") for a foreign stall, `IN_TRANSIT` while the seller travels and `NOT_IN_CITY` when the seller is not in the stall's city. Seen in the walkthrough: after arriving in Shahr, the seller could cancel a Bandar stall through the API and the dev backend accepted it. The UI follows the contract (the Cancel button is disabled with a reason unless the player stands in the stall's city and is not travelling), so the dev backend currently cannot show that the rule holds. Also note for the UI mapping: a real `UNAUTHENTICATED` here would read "Please log in to continue", which is misleading; the screen never offers Cancel on other players' stalls, so a player cannot trigger it.
 16. **Persistent dev world drifts to an unplayable market (observation).** After earlier sessions, `apps/web/.data` held a world at tick 278 where Bandar had 0 grain, 0 salt and 0 iron (only 80 spice at about 101 dinars and 60 silk at about 168), so a new player with 500 dinars could not buy anything cheap there. The stalls walkthrough had to start from a fresh `.data` (moved aside and restored afterwards). Related to 13c (price impact and NPC drift); worth checking `docs/ECONOMY.md` rebalancing against the dev ticker over hundreds of ticks.
 
+17. **UI changes still needed for the contract parity fixes (server side is done, UI untouched).**
+   a. **Asset ids.** `ui/cash-assets.ts` uses ids like `usdc-near` that 1Click does not know; the server now answers
+      `BAD_REQUEST "That asset is not supported"` for them, before any money moves. Read the real ids from `GET /api/tokens`
+      (LIVE only, public: `{assets: [{id, symbol, chain, decimals}]}`, e.g. `nep141:...omft.near`) and send those as
+      `origin_asset` (deposit quote) and `dest_asset` (withdraw). In PLAY the route answers `MODE_NOT_ALLOWED`.
+   b. **Minimum withdrawal 1,000 fils (10 dinars).** `PARAMS.MIN_WITHDRAW_FILS` is exported from `@caravan/shared`; disable the
+      withdraw button below it. Also: one open withdrawal at a time (a second answers BAD_REQUEST "...withdrawal in
+      progress") and the daily 10 USDC cap is per UTC day and a refunded withdrawal still counts (BAD_REQUEST "Daily
+      withdrawal limit reached ... resets at 00:00 UTC"). Show these messages as they come.
+   c. **Faucet (PLAY only), from the contract's `get_config` / `try_faucet`.** Cooldown is 3,600 s (`faucet_cooldown_seconds`),
+      not the mock's 60 s. The faucet is refused with BAD_REQUEST once the player's `faucet_worth` is at least
+      `faucet_max_balance_fils` (5,000 fils = 50 dinars), where `faucet_worth = fils + base value of inventory + goods in
+      stall escrow + cargo of a journey that is IN_TRANSIT` (base value = quantity x base price). It pays `faucet_fils`
+      (50,000 = 500 dinars). The UI should hide or disable the button (with the reason) using these numbers instead of the mock's rule.
+   d. **Server-side notes, no UI work:** deposit lifetime cap is 200,000 fils (20 USDC) and never goes down; a deposit that would
+      pass it ends in FAILED for manual refund.
+   e. Not verified live (no keys): near-api-js' thrown-outcome shape for relayed failures (`transactionResult`) and the exact
+      JSON of the delegate errors are read from the nearcore/near-api-js sources, not from a testnet run. Confirm in
+      `smoke:testnet` that a deliberately stale nonce is retried once and that a contract panic via `playerCall` reaches the
+      client as its mapped code (not INTERNAL).
+
 ## Resolved (server owner)
 
 - 14: `ApiError` / `ContractPanic` are identified by a `Symbol.for` brand (`isApiError`, `isContractPanic`), not `instanceof`;

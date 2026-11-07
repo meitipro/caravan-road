@@ -53,7 +53,8 @@ the file named in each item (I did not edit those files).
    FAILED` plus `refundedMicro`. **Needs:** a cron step for rows in `SENT` that calls it, then `refund_withdraw` on
    `REFUNDED`/`FAILED`. Until then a withdrawal that 1Click refunds back to the treasury is not returned to the
    player automatically: watch `https://explorer.near-intents.org` for the deposit address.
-8. **Asset list and previews have no route.** `listTokens()` (GET /v0/tokens, cached) and `previewDeposit()` (dry
+8. **Asset list and previews have no route.** *(Asset list: done, `GET /api/tokens` and `IntentsClient.listTokens()`; money.ts
+   validates every asset id against it. Previews: still open.)* `listTokens()` (GET /v0/tokens, cached) and `previewDeposit()` (dry
    quote) exist on `OneClickIntents`, but spec 2.13 has no `/api/tokens` or preview endpoint and `IntentsClient` has
    neither method. The UI therefore cannot show the supported assets or the final amount before the real quote.
    **Needs:** a spec decision (new endpoints, spec-v1.2) and the interface additions.
