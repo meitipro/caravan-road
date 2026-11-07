@@ -1,7 +1,7 @@
 // In-memory IntentsClient for tests.
 
 import type {
-  IntentQuote, IntentQuoteRequest, IntentState, IntentStatus, IntentWithdrawRequest, IntentWithdrawResult, IntentsClient,
+  IntentQuote, IntentQuoteRequest, IntentState, IntentStatus, IntentToken, IntentWithdrawRequest, IntentWithdrawResult, IntentsClient,
 } from "./types";
 
 export class FakeIntents implements IntentsClient {
@@ -15,6 +15,14 @@ export class FakeIntents implements IntentsClient {
   readonly quotes = new Map<string, IntentQuote & { state: IntentState; receivedFils?: string; recipient?: string; asset?: string }>();
   readonly withdrawals: IntentWithdrawRequest[] = [];
   withdrawResult: IntentWithdrawResult | null = null;
+  /** The supported-asset list (tests may replace it or make listTokens throw). */
+  tokens: IntentToken[] = [
+    { assetId: "nep141:usdc.fake", symbol: "USDC", blockchain: "near", decimals: 6, contractAddress: "usdc.fake" },
+    { assetId: "nep141:eth.fake", symbol: "ETH", blockchain: "eth", decimals: 18, contractAddress: null },
+  ];
+  async listTokens(): Promise<IntentToken[]> {
+    return this.tokens.map((t) => ({ ...t }));
+  }
   /** fils per unit of amount_in (decimal) used for expected_fils. */
   filsPerUnit = 1n;
 

@@ -14,4 +14,5 @@ export const unconfiguredIntents: IntentsClient = {
   status: async () => unavailable(),
   withdraw: async () => unavailable(),
   withdrawalStatus: async () => unavailable(),
+  listTokens: async () => unavailable(),
 };

@@ -10,6 +10,7 @@ import {
 import { ApiError, isApiError } from "../errors";
 import { assertContractMode, checkMode } from "../guards/mode";
 import type { GetCtx, PostSpec } from "../http";
+import type { Services } from "../services";
 import type { IntentQuote } from "../intents/types";
 import type { z } from "zod";
 
@@ -17,6 +18,46 @@ const QUOTE_MAX_VALIDITY_SECONDS = 24 * 3600;
 const POS_INT = /^[1-9][0-9]*$/;
 
 const unavailable = (): ApiError => new ApiError("PAUSED", "Deposits and withdrawals are not available right now.");
+
+/**
+ * The UI sends asset ids that 1Click may not know. Both money routes check the id against the provider's list BEFORE
+ * anything moves (for a withdrawal that means before the reservation row and before request_withdraw, which debits the
+ * player first). If the list cannot be read the route fails closed.
+ */
+export async function assertSupportedAsset(svc: Services, assetId: string): Promise<void> {
+  let tokens;
+  try {
+    tokens = await svc.intents.listTokens();
+  } catch {
+    svc.log.error("asset list unavailable; refusing a money route");
+    throw unavailable();
+  }
+  if (!tokens.some((t) => t.assetId === assetId)) throw new ApiError("BAD_REQUEST", "That asset is not supported");
+}
+
+export interface TokensData {
+  assets: Array<{ id: string; symbol: string; chain: string; decimals: number }>;
+}
+
+/** GET /api/tokens: the assets a deposit can come from or a withdrawal can go to. LIVE only, public, cached. */
+export async function supportedAssets(ctx: GetCtx): Promise<TokensData> {
+  const { svc } = ctx;
+  checkMode(svc.mode, "LIVE_ONLY");
+  if (!svc.intents.configured) throw unavailable();
+  return (await svc.tokensCache.get(async () => {
+    let tokens;
+    try {
+      tokens = await svc.intents.listTokens();
+    } catch {
+      svc.log.error("asset list unavailable for /api/tokens");
+      throw unavailable();
+    }
+    const assets = tokens
+      .map((t) => ({ id: t.assetId, symbol: t.symbol, chain: t.blockchain, decimals: t.decimals }))
+      .sort((a, b) => a.symbol.localeCompare(b.symbol) || a.chain.localeCompare(b.chain) || a.id.localeCompare(b.id));
+    return { assets } satisfies TokensData;
+  })) as TokensData;
+}
 
 export function validateQuote(q: IntentQuote, amountIn: string, now: number): void {
   const bad = (why: string): never => {
@@ -45,6 +86,7 @@ export const depositQuoteSpec: PostSpec<z.infer<typeof DepositQuoteRequestSchema
   mode: "LIVE_ONLY",
   async run({ svc, user, body }) {
     if (!svc.intents.configured) throw unavailable();
+    await assertSupportedAsset(svc, body.origin_asset);
     const now = svc.now();
     const cap = BigInt(PARAMS.MAX_DEPOSIT_FILS);
     const totals = await svc.repo.depositTotals(user.id);
@@ -83,6 +125,7 @@ export const withdrawSpec: PostSpec<z.infer<typeof WithdrawRequestSchema>, Withd
     if (!svc.intents.configured) throw unavailable();
     const fils = BigInt(body.fils);
     if (fils <= 0n) throw new ApiError("BAD_REQUEST", "Amount must be positive.");
+    await assertSupportedAsset(svc, body.dest_asset);
     const available = BigInt(await svc.intents.treasuryBalanceFils());
     if (available < (await svc.repo.outstandingWithdrawalFils()) + fils) {
       svc.log.error("ALERT: treasury cannot cover a withdrawal; refusing");

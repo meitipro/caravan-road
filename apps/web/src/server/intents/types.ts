@@ -48,6 +48,15 @@ export type IntentWithdrawResult =
   | { ok: true; quoteId: string; txHash: string; signature?: string }
   | { ok: false; reason: string };
 
+/** One asset 1Click can swap from / to (GET /v0/tokens). `assetId` is the id every deposit and withdrawal must use. */
+export interface IntentToken {
+  assetId: string;
+  symbol: string;
+  blockchain: string;
+  decimals: number;
+  contractAddress: string | null;
+}
+
 export interface IntentsClient {
   /** False until the real provider is wired: money routes then fail closed before touching the chain. */
   readonly configured: boolean;
@@ -61,4 +70,9 @@ export interface IntentsClient {
    * provider says it returned to the treasury, in USDC micro-units (1 fil = 100 micro).
    */
   withdrawalStatus(quoteId: string): Promise<{ state: IntentState; refundedMicro?: string }>;
+  /**
+   * Assets the provider supports (cached by the client). money.ts checks every origin_asset / dest_asset against this
+   * list BEFORE any money moves; GET /api/tokens serves it to the UI.
+   */
+  listTokens(): Promise<IntentToken[]>;
 }

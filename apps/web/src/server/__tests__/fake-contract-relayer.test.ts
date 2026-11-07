@@ -82,7 +82,7 @@ describe("FakeContract follows spec/ECONOMY.md", () => {
     const r1 = await c.operatorCall("credit_deposit", { account_id: "a.t", fils: "150000", reference: "r1" });
     expect(r1.returnValue).toEqual({ credited: true });
     expect((await c.operatorCall("credit_deposit", { account_id: "a.t", fils: "150000", reference: "r1" })).returnValue).toEqual({ credited: false });
-    await rejects(c.operatorCall("credit_deposit", { account_id: "a.t", fils: "60000", reference: "r2" }), "BAD_REQUEST");
+    await rejects(c.operatorCall("credit_deposit", { account_id: "a.t", fils: "60000", reference: "r2" }), "RATE_LIMIT");
     expect((await c.getPlayer("a.t"))!.fils).toBe("150000");
     const play = setup();
     await play.mk("b.t");

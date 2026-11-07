@@ -35,7 +35,7 @@ import {
 } from "./schemas";
 import type { TreasuryChain } from "./treasury";
 import type {
-  IntentQuote, IntentQuoteRequest, IntentState, IntentStatus, IntentWithdrawRequest, IntentWithdrawResult, IntentsClient,
+  IntentQuote, IntentQuoteRequest, IntentState, IntentStatus, IntentToken, IntentWithdrawRequest, IntentWithdrawResult, IntentsClient,
 } from "./types";
 import type { z } from "zod";
 
@@ -60,13 +60,7 @@ export interface OneClickConfig {
   depositWindowSeconds?: number;
 }
 
-export interface OneClickTokenInfo {
-  assetId: string;
-  symbol: string;
-  blockchain: string;
-  decimals: number;
-  contractAddress: string | null;
-}
+export type OneClickTokenInfo = IntentToken;
 
 export interface DepositPreview {
   amountIn: string;
