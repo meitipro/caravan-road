@@ -81,11 +81,11 @@ export function StockBar({ stock, target, cap, color }: { stock: number; target:
   );
 }
 
-export function MoodChip({ mood, lang = "en" }: { mood: Mood; lang?: "en" | "fa" }) {
+export function MoodChip({ mood }: { mood: Mood }) {
   const m = MOOD_META[mood];
   return (
     <span className={`chip mood mood-${mood}`} title={m.hint}>
-      {lang === "fa" ? m.fa : m.label}
+      {m.label}
     </span>
   );
 }

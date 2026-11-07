@@ -10,7 +10,6 @@ import { CITY_META, modeBadge } from "../ui/game-meta";
 import { devLogout, useDevLoginAvailable, useMockSession } from "../ui/session";
 import { Money } from "./Bits";
 import { useGame, useNow } from "./GameProvider";
-import { useLang } from "./Lang";
 import { useMind } from "./Mind";
 import { PixelImage } from "./PixelImage";
 import { Sheet } from "./Sheet";
@@ -36,7 +35,6 @@ function Icon({ name }: { name: "map" | "market" | "cash" | "ranks" }) {
 
 export function TopBar() {
   const { me, mode } = useGame();
-  const { lang, toggle } = useLang();
   const [menu, setMenu] = useState(false);
   return (
     <header className="topbar">
@@ -58,9 +56,6 @@ export function TopBar() {
               {modeBadge(mode, IS_MOCK).label}
             </span>
           )}
-          <button type="button" className="btn btn-small lang-btn hide-narrow" onClick={toggle} aria-label={`Merchant language: ${lang === "en" ? "English" : "Persian"}. Switch`}>
-            <span className={lang === "en" ? "on" : ""}>EN</span>/<span className={lang === "fa" ? "on" : ""}>FA</span>
-          </button>
           <button type="button" className="btn btn-small" onClick={() => setMenu(true)} aria-haspopup="dialog">
             Menu
           </button>
@@ -76,14 +71,10 @@ function MenuSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { logout } = useMockSession();
   const dev = useDevLoginAvailable();
   const { mode, me } = useGame();
-  const { lang, toggle } = useLang();
   return (
     <Sheet open={open} onClose={onClose} title="Menu" variant="drawer">
       <div className="stack">
         {mode && <p className="muted small">{modeBadge(mode, IS_MOCK).text}</p>}
-        <button type="button" className="btn btn-block" onClick={toggle}>
-          Merchant language: {lang === "en" ? "English" : "فارسی"}
-        </button>
         <nav className="stack-sm" aria-label="Menu">
           <Link className="btn btn-block" href="/play" onClick={onClose}>Map</Link>
           <Link className="btn btn-block" href="/play/journey" onClick={onClose}>Caravan</Link>

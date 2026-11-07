@@ -42,7 +42,8 @@ export function toApiStall(s: ContractStall): Stall {
   return { id: s.id, seller: s.seller, city: s.city, good: s.good, qty: s.qty, unit_price: s.unit_price };
 }
 
-interface DecisionOutput { mood?: Merchant["mood"]; line?: { en: string; fa: string } }
+// `line` is a plain English string. Rows stored before the English-only change hold {en, fa}: read .en.
+interface DecisionOutput { mood?: Merchant["mood"]; line?: string | { en?: unknown } }
 
 function parseOutput(row: NpcDecisionRow | null): DecisionOutput {
   if (!row) return {};
@@ -51,6 +52,13 @@ function parseOutput(row: NpcDecisionRow | null): DecisionOutput {
   } catch {
     return {};
   }
+}
+
+/** The merchant line as one English string; tolerant of old stored rows ({en, fa} objects). */
+export function lineText(line: DecisionOutput["line"]): string | null {
+  if (typeof line === "string") return line;
+  if (line && typeof line === "object" && typeof line.en === "string") return line.en;
+  return null;
 }
 
 const MOODS = new Set(["calm", "greedy", "worried", "generous"]);
@@ -64,7 +72,7 @@ export function toApiMerchant(m: ContractMerchant, latest: NpcDecisionRow | null
     id: m.id, account_id: m.account_id, treasury: m.treasury, stock: { ...m.stock },
     policy: { spread_bp: m.spread_bp, bias_bp: m.bias_bp }, quotes,
     mood: out.mood && MOODS.has(out.mood) ? out.mood : "calm",
-    last_line: out.line && typeof out.line.en === "string" && typeof out.line.fa === "string" ? { en: out.line.en, fa: out.line.fa } : null,
+    last_line: lineText(out.line),
     verified: proof ? { model: proof.model ?? "unknown", request_id: proof.request_id ?? "", attested: proof.attested, at: proof.ts } : null,
   };
 }

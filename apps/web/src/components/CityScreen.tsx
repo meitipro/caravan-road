@@ -12,7 +12,6 @@ import {
 } from "../ui/trade-math";
 import { EmptyState, ErrorState, GoodIcon, LoadingBlock, Money, MoodChip, Page, StockBar } from "./Bits";
 import { useActions, useGame } from "./GameProvider";
-import { useLang } from "./Lang";
 import { useMind } from "./Mind";
 import { PixelImage } from "./PixelImage";
 import { Sheet } from "./Sheet";
@@ -22,7 +21,6 @@ const SLIPPAGE_OPTIONS = [50, 100, 200, 500] as const; // basis points; default 
 
 export function CityScreen({ id }: { id: CityId }) {
   const { world, me, status, refresh, trend } = useGame();
-  const { lang } = useLang();
   const mind = useMind();
   const [trade, setTrade] = useState<{ good: GoodId; side: Side } | null>(null);
 
@@ -35,7 +33,7 @@ export function CityScreen({ id }: { id: CityId }) {
   const traveling = !!me.journey && me.journey.status !== "CLAIMED";
   const here = !traveling && me.location === id;
   const route = findRoute(me.location, id);
-  const line = m.last_line ? (lang === "fa" ? m.last_line.fa : m.last_line.en) : null;
+  const line = m.last_line;
   const stallCount = stallsForSale(world.stalls, id, me.account_id).length;
 
   return (
@@ -78,10 +76,10 @@ export function CityScreen({ id }: { id: CityId }) {
           <div className="only-wide"><PixelImage slot={`cities/${id}`} w={320} h={180} scale={2} alt={`${meta.name} skyline`} color="var(--dune)" label={meta.name} className="city-art" /></div>
           <div className="merchant-row">
             <PixelImage slot={`merchants/${meta.portrait}`} w={96} h={96} alt={meta.merchant} color="var(--terracotta)" label={meta.merchant[0]} />
-            <div className="bubble" lang={lang} dir={lang === "fa" ? "rtl" : "ltr"}>
-              <p>{line ? `“${line}”` : lang === "fa" ? "…" : "The merchant is watching the market."}</p>
+            <div className="bubble">
+              <p>{line ? `“${line}”` : "The merchant is watching the market."}</p>
               <div className="row bubble-meta">
-                <MoodChip mood={m.mood} lang={lang} />
+                <MoodChip mood={m.mood} />
                 <button type="button" className="btn btn-small" onClick={() => mind.open(id)}>Why this price?</button>
               </div>
             </div>

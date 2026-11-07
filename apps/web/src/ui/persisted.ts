@@ -1,6 +1,6 @@
 "use client";
 
-// Small persisted values (flags, language, fake session) exposed as external stores so that
+// Small persisted values (flags, fake session) exposed as external stores so that
 // components re-render when they change and SSR/hydration stay consistent.
 
 import { useCallback, useSyncExternalStore } from "react";

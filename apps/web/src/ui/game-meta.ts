@@ -35,11 +35,11 @@ export const GOOD_META: Record<GoodId, GoodMeta> = {
   silk: { id: "silk", name: "Silk", color: "var(--sky)" },
 };
 
-export const MOOD_META: Record<Mood, { label: string; fa: string; hint: string }> = {
-  calm: { label: "Calm", fa: "آرام", hint: "Prices are steady." },
-  greedy: { label: "Greedy", fa: "حریص", hint: "Wider spread: expect to pay more and get less." },
-  worried: { label: "Worried", fa: "نگران", hint: "Short on something and cautious." },
-  generous: { label: "Generous", fa: "بخشنده", hint: "Tighter spread: fair deals today." },
+export const MOOD_META: Record<Mood, { label: string; hint: string }> = {
+  calm: { label: "Calm", hint: "Prices are steady." },
+  greedy: { label: "Greedy", hint: "Wider spread: expect to pay more and get less." },
+  worried: { label: "Worried", hint: "Short on something and cautious." },
+  generous: { label: "Generous", hint: "Tighter spread: fair deals today." },
 };
 
 export const GAME_MODE_TEXT = {

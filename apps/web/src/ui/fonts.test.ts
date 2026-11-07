@@ -81,3 +81,19 @@ describe("digit font (no pixel-font digits)", () => {
     }
   });
 });
+
+describe("English only", () => {
+  it("ships a single Latin UI: lang=en, no extra font family, no RTL or locale hooks", () => {
+    expect(layout).toMatch(/<html lang="en"/);
+    expect(layout).not.toMatch(/Vazirmatn|vazirmatn/);
+    expect(tokens).not.toMatch(/--font-fa|vazirmatn/i);
+    for (const f of cssFiles) expect(read(f), relative(UI, f)).not.toMatch(/\[dir=|\[lang=|:lang\(|direction:\s*rtl/);
+    for (const f of tsxFiles) expect(read(f), relative(SRC, f)).not.toMatch(/\bdir=\{|\bdir="rtl"|useLang|LangProvider/);
+  });
+
+  it("has no Arabic-script characters in source files", () => {
+    for (const f of walk(SRC, /\.(tsx?|css)$/)) {
+      expect(read(f), relative(SRC, f)).not.toMatch(/[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/);
+    }
+  });
+});

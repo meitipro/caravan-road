@@ -355,6 +355,26 @@ describe("trade", () => {
     expect(b.policy).toEqual({ spread_bp: 1200, bias_bp: 250 });
     StateResponseSchema.parse(s.json.data);
   });
+
+  it("old stored rows whose line is an {en, fa} object still read as the English string", async () => {
+    const legacy = {
+      merchant: "madan", ts: kit.clock.now - 20, spread_bp: 900, bias_bp: 0, mood: "worried", ship: null,
+      line: { en: "Iron is dear.", fa: "legacy second-language text" }, reason: "Stock is low.", source: "baseline",
+      model: null, request_id: null, attested: false, tx_hashes: [],
+    };
+    await kit.svc.repo.insertDecision({
+      merchant: "madan", ts: legacy.ts, input_hash: "h", output_json: JSON.stringify(legacy), model: null,
+      request_id: null, attested: false, source: "baseline", tx_hashes: [],
+    });
+    const d = await get(decisionsGET, "/api/npc/decisions", { query: "?merchant=madan" });
+    expect(d.json.data.rows).toHaveLength(1);
+    expect(d.json.data.rows[0].line).toBe("Iron is dear.");
+    kit.clock.advance(2);
+    const s = await get(stateGET, "/api/state");
+    const madan = s.json.data.world.merchants.find((m: { id: string }) => m.id === "madan");
+    expect(madan.last_line).toBe("Iron is dear.");
+    StateResponseSchema.parse(s.json.data);
+  });
 });
 
 describe("journeys", () => {
@@ -508,7 +528,7 @@ describe("leaderboard, NPC decisions and proof", () => {
     expect((await get(proofGET, "/api/proof/dasht")).json).toEqual({ ok: true, data: null });
     const decision = {
       merchant: "dasht", ts: kit.clock.now - 10, spread_bp: 900, bias_bp: -200, mood: "generous", ship: null,
-      line: { en: "Fresh grain, friend!", fa: "گندم تازه!" }, reason: "Stock is high.", source: "llm",
+      line: "Fresh grain, friend!", reason: "Stock is high.", source: "llm",
       model: "test-model", request_id: "req-1", attested: false, tx_hashes: [],
     };
     await kit.svc.repo.insertDecision({
@@ -530,7 +550,7 @@ describe("leaderboard, NPC decisions and proof", () => {
     const s = await get(stateGET, "/api/state");
     const dasht = s.json.data.world.merchants.find((m: { id: string }) => m.id === "dasht");
     expect(dasht.mood).toBe("generous");
-    expect(dasht.last_line.en).toBe("Fresh grain, friend!");
+    expect(dasht.last_line).toBe("Fresh grain, friend!");
     expect(dasht.verified).toMatchObject({ model: "test-model", attested: false });
     StateResponseSchema.parse(s.json.data);
   });

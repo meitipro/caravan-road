@@ -11,7 +11,6 @@ import { ErrorState, LoadingBlock, Money } from "./Bits";
 import { useFaucet } from "./Faucet";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { GameProvider, useGame } from "./GameProvider";
-import { LangProvider } from "./Lang";
 import { MindProvider } from "./Mind";
 import { PixelImage } from "./PixelImage";
 import { Shell } from "./Shell";
@@ -217,13 +216,11 @@ export function PlayRoot({ children }: { children: ReactNode }) {
   return (
     <ErrorBoundary>
       <ToastProvider>
-        <LangProvider>
-          <GameProvider>
-            <MindProvider>
-              <Gate>{children}</Gate>
-            </MindProvider>
-          </GameProvider>
-        </LangProvider>
+        <GameProvider>
+          <MindProvider>
+            <Gate>{children}</Gate>
+          </MindProvider>
+        </GameProvider>
       </ToastProvider>
     </ErrorBoundary>
   );
