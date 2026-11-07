@@ -25,6 +25,8 @@ const digits = localFont({
 export const metadata: Metadata = {
   title: "Caravan Road",
   description: "Trade across the desert. Outwit the merchants. Keep what you earn.",
+  // No favicon.ico ships, so browsers requested it and logged a 404 on every page.
+  icons: { icon: "/assets/ui/coin.png" },
 };
 
 export const viewport: Viewport = {
