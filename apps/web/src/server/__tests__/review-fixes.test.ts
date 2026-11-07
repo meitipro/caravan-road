@@ -131,10 +131,10 @@ describe("1 (HIGH) withdrawal ids come from the contract's receipt, never from n
       const u = await userRow(kit, erin);
       await kit.svc.repo.reserveWithdrawal({ userId: u.id, fils: "100000", destAsset: "a", destAddress: "b", now: kit.clock.now }, 100000n);
       kit.contract.testGrantFils(erin, 100000n);
-      expectErr(await withdraw("erin", "1"), "BAD_REQUEST"); // reservation counts against the cap
+      expectErr(await withdraw("erin", "1000"), "BAD_REQUEST"); // an open reservation blocks a second withdrawal (and uses the cap)
       kit.clock.advance(901);
       expect((await cron(cronWithdrawalsGET, "/api/cron/withdrawals")).json.ok).toBe(true);
-      expect((await withdraw("erin", "1")).json.ok).toBe(true);
+      expect((await withdraw("erin", "1000")).json.ok).toBe(true);
     });
   });
 });
@@ -144,15 +144,31 @@ describe("2 and 6: the withdraw cap is atomic and a reservation row exists befor
   beforeAll(async () => { kit = await makeKit({ mode: "LIVE" }); }, TIMEOUT);
   afterAll(async () => { await kit.close(); });
 
-  it("parallel requests with different Idempotency-Keys cannot exceed 10 USDC/day", async () => {
+  it("parallel requests with different Idempotency-Keys: exactly one reserves (one open withdrawal, cap 10 USDC/day)", async () => {
     const acc = await signIn(kit, stateGET, "alice");
     kit.contract.testGrantFils(acc, 500000n);
     const results = await Promise.all([1, 2, 3, 4, 5].map(() => withdraw("alice", "30000")));
-    expect(results.filter((r) => r.json.ok)).toHaveLength(3);
+    expect(results.filter((r) => r.json.ok)).toHaveLength(1);
     expect(results.filter((r) => !r.json.ok).every((r) => r.json.error!.code === "BAD_REQUEST")).toBe(true);
     const total = (await kit.db.query<{ t: string }>("select sum(fils)::text as t from withdrawals where status <> 'CANCELLED'"))[0]!.t;
     expect(BigInt(total)).toBeLessThanOrEqual(BigInt(PARAMS.DAILY_WITHDRAW_CAP_FILS));
-    expect(BigInt((await kit.contract.getPlayer(acc))!.fils)).toBe(500000n - 90000n);
+    expect(BigInt((await kit.contract.getPlayer(acc))!.fils)).toBe(500000n - 30000n);
+  });
+
+  it("the daily cap counts finished (DONE) rows too: 3 x 30,000 fit in 100,000, the 4th does not", async () => {
+    const acc = await signIn(kit, stateGET, "cap-racer");
+    const u = (await kit.svc.repo.getUserByAccount(acc))!;
+    const reserve = () => kit.svc.repo.reserveWithdrawal({ userId: u.id, fils: "30000", destAsset: "a", destAddress: "b", now: kit.clock.now }, 100000n);
+    // The one-open rule would also stop a second row, so each one is finished before the next: only the cap can refuse.
+    let granted = 0;
+    for (let i = 0; i < 5; i++) {
+      const r = await reserve();
+      if (typeof r === "object") {
+        granted++;
+        await kit.db.query("update withdrawals set status = 'DONE' where id = $1", [r.id]);
+      }
+    }
+    expect(granted).toBe(3);
   });
 
   it("a definite chain rejection releases the reservation", async () => {

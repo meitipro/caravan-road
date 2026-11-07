@@ -61,6 +61,7 @@ export interface DepositRow {
   updated_at: number;
 }
 
+const SECONDS_PER_DAY = 86400;
 export type WithdrawalStatus = "RESERVED" | "REQUESTED" | "SENDING" | "SENT" | "FINALIZING" | "DONE" | "REFUNDED" | "FAILED" | "CANCELLED";
 export interface WithdrawalRow {
   id: number;
@@ -298,19 +299,28 @@ export function createRepo(db: Db) {
 
     // ---- withdrawals ----
     /**
-     * Reserves a withdrawal inside the daily cap, atomically per user: advisory lock, sum of the last 24 h
-     * (everything except REFUNDED and CANCELLED), insert a RESERVED row. Returns null when over the cap.
+     * Reserves a withdrawal, atomically per user (advisory lock), with the contract's rules:
+     *  - one open withdrawal at a time ("OPEN"): a row that is not finished (RESERVED, REQUESTED, SENDING, SENT, FINALIZING);
+     *  - the daily cap is the UTC CALENDAR day of `now` (the contract's withdraw_day), and every row that debited the
+     *    player counts, REFUNDED included (the contract never decrements withdrawn_today on a refund). Only CANCELLED rows
+     *    (the chain call definitely failed) do not count ("CAP" when over).
      * The row exists BEFORE the chain call, so a debit can never be left without a database record.
      */
-    async reserveWithdrawal(w: { userId: string; fils: string; destAsset: string; destAddress: string; now: number }, cap: bigint): Promise<WithdrawalRow | null> {
+    async reserveWithdrawal(w: { userId: string; fils: string; destAsset: string; destAddress: string; now: number }, cap: bigint): Promise<WithdrawalRow | "CAP" | "OPEN"> {
       return db.transaction(async (tx) => {
         await tx.query("select pg_advisory_xact_lock(hashtext($1))", [`withdraw:${w.userId}`]);
+        const open = await tx.query<R>(
+          "select 1 as x from withdrawals where user_id = $1 and status in ('RESERVED', 'REQUESTED', 'SENDING', 'SENT', 'FINALIZING') limit 1",
+          [w.userId],
+        );
+        if (open.length > 0) return "OPEN" as const;
+        const dayStart = Math.floor(w.now / SECONDS_PER_DAY) * SECONDS_PER_DAY;
         const t = await tx.query<R>(
           `select coalesce(sum(fils), 0)::text as total from withdrawals
-           where user_id = $1 and created_at >= $2 and status not in ('REFUNDED', 'CANCELLED')`,
-          [w.userId, w.now - 86400],
+           where user_id = $1 and created_at >= $2 and status <> 'CANCELLED'`,
+          [w.userId, dayStart],
         );
-        if (BigInt(str(t[0]!.total)) + BigInt(w.fils) > cap) return null;
+        if (BigInt(str(t[0]!.total)) + BigInt(w.fils) > cap) return "CAP" as const;
         const rows = await tx.query<R>(
           `insert into withdrawals (user_id, contract_withdraw_id, fils, dest_asset, dest_address, status, tx_hashes, created_at, updated_at)
            values ($1, null, $2, $3, $4, 'RESERVED', '[]', $5, $5) returning *`,
@@ -318,6 +328,10 @@ export function createRepo(db: Db) {
         );
         return mapWithdrawal(rows[0]!);
       });
+    },
+    /** FAILED rows are in limbo (a human decides); money.ts checks the chain to see whether they still block a new withdrawal. */
+    async listFailedWithdrawals(userId: string): Promise<WithdrawalRow[]> {
+      return (await db.query<R>("select * from withdrawals where user_id = $1 and status = 'FAILED' order by id", [userId])).map(mapWithdrawal);
     },
     /** RESERVED -> REQUESTED once the chain id is known. False if already attached or the id is taken. */
     async attachWithdrawal(id: number, contractId: number, txHash: string | null, now: number): Promise<boolean> {

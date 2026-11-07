@@ -17,6 +17,10 @@ import type { z } from "zod";
 const QUOTE_MAX_VALIDITY_SECONDS = 24 * 3600;
 const POS_INT = /^[1-9][0-9]*$/;
 
+const MIN_WITHDRAW_MESSAGE = "The minimum withdrawal is 1,000 fils (10 dinars).";
+const OPEN_WITHDRAW_MESSAGE = "You already have a withdrawal in progress. Wait until it finishes before requesting another.";
+const DAILY_CAP_MESSAGE = "Daily withdrawal limit reached (10 USDC per UTC day, refunded withdrawals included). It resets at 00:00 UTC.";
+
 const unavailable = (): ApiError => new ApiError("PAUSED", "Deposits and withdrawals are not available right now.");
 
 /**
@@ -125,7 +129,15 @@ export const withdrawSpec: PostSpec<z.infer<typeof WithdrawRequestSchema>, Withd
     if (!svc.intents.configured) throw unavailable();
     const fils = BigInt(body.fils);
     if (fils <= 0n) throw new ApiError("BAD_REQUEST", "Amount must be positive.");
+    // The contract's own rules, checked first so the player gets a clear message instead of a generic contract refusal
+    // after a reservation (contracts/caravan/src/game.rs try_request_withdraw).
+    if (fils < BigInt(PARAMS.MIN_WITHDRAW_FILS)) throw new ApiError("BAD_REQUEST", MIN_WITHDRAW_MESSAGE);
     await assertSupportedAsset(svc, body.dest_asset);
+    // A FAILED row is waiting for a human; it still blocks the player only while the contract holds its withdrawal open.
+    for (const failed of await svc.repo.listFailedWithdrawals(user.id)) {
+      const chain = failed.contract_withdraw_id === null ? null : await svc.contract.getWithdraw(failed.contract_withdraw_id);
+      if (chain && (chain.status === "PENDING" || chain.status === "SENT")) throw new ApiError("BAD_REQUEST", OPEN_WITHDRAW_MESSAGE);
+    }
     const available = BigInt(await svc.intents.treasuryBalanceFils());
     if (available < (await svc.repo.outstandingWithdrawalFils()) + fils) {
       svc.log.error("ALERT: treasury cannot cover a withdrawal; refusing");
@@ -138,7 +150,8 @@ export const withdrawSpec: PostSpec<z.infer<typeof WithdrawRequestSchema>, Withd
       { userId: user.id, fils: body.fils, destAsset: body.dest_asset, destAddress: body.dest_address, now },
       BigInt(PARAMS.DAILY_WITHDRAW_CAP_FILS),
     );
-    if (!row) throw new ApiError("BAD_REQUEST", "Daily withdrawal limit reached.");
+    if (row === "OPEN") throw new ApiError("BAD_REQUEST", OPEN_WITHDRAW_MESSAGE);
+    if (row === "CAP") throw new ApiError("BAD_REQUEST", DAILY_CAP_MESSAGE);
 
     let out;
     try {

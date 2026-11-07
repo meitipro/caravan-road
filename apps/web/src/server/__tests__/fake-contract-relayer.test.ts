@@ -89,18 +89,20 @@ describe("FakeContract follows spec/ECONOMY.md", () => {
     await rejects(play.c.operatorCall("credit_deposit", { account_id: "b.t", fils: "1", reference: "x" }), "MODE_NOT_ALLOWED");
   });
 
-  it("withdrawals: daily cap with day rollover, refund restores the balance exactly, no double refund", async () => {
+  it("withdrawals: min 1,000, one open at a time, UTC-day cap that a refund does not give back, no double refund", async () => {
     const { c, advance, mk } = setup({ mode: "LIVE" });
     const key = await mk("a.t");
     c.testGrantFils("a.t", 300000n);
     const w = (fils: string) => c.playerCall("a.t", "request_withdraw", { fils, dest_asset: "usdc", dest_address: "d" }, key);
+    await rejects(w("999"), "BAD_REQUEST");
     const id = (await w("100000")).returnValue as number;
-    await rejects(w("1"), "BAD_REQUEST");
-    advance(86400);
-    await w("1");
-    expect((await c.getPlayer("a.t"))!.fils).toBe("199999");
+    await rejects(w("1000"), "RATE_LIMIT"); // a withdrawal is already in progress
     await c.operatorCall("refund_withdraw", { id });
-    expect((await c.getPlayer("a.t"))!.fils).toBe("299999");
+    expect((await c.getPlayer("a.t"))!.fils).toBe("300000"); // refund restores the balance exactly...
+    await rejects(w("1000"), "RATE_LIMIT"); // ...but the 100,000 of today's cap stays used (withdrawn_today is never decremented)
+    advance(86400);
+    await w("1000"); // next UTC day: fresh cap, and the refund cleared the open withdrawal
+    expect((await c.getPlayer("a.t"))!.fils).toBe("299000");
     await rejects(c.operatorCall("refund_withdraw", { id }), "BAD_REQUEST");
     await rejects(c.operatorCall("mark_withdraw", { id, reference: "x" }), "BAD_REQUEST");
     expect(c.audit().total).toBe(c.audit().expected);
@@ -109,14 +111,14 @@ describe("FakeContract follows spec/ECONOMY.md", () => {
   it("paused blocks everything except refund_withdraw and set_paused", async () => {
     const { c, mk } = setup({ mode: "LIVE" });
     const key = await mk("a.t");
-    c.testGrantFils("a.t", 1000n);
-    const id = (await c.playerCall("a.t", "request_withdraw", { fils: "500", dest_asset: "u", dest_address: "d" }, key)).returnValue as number;
+    c.testGrantFils("a.t", 5000n);
+    const id = (await c.playerCall("a.t", "request_withdraw", { fils: "1000", dest_asset: "u", dest_address: "d" }, key)).returnValue as number;
     await c.operatorCall("set_paused", { paused: true });
     await rejects(c.playerCall("a.t", "trade", { merchant: "bandar", good: "grain", side: "buy", qty: 1, limit_total: "9999" }, key), "PAUSED");
     await rejects(c.worldTick(), "PAUSED");
     await rejects(c.operatorCall("credit_deposit", { account_id: "a.t", fils: "1", reference: "q" }), "PAUSED");
     await c.operatorCall("refund_withdraw", { id });
-    expect((await c.getPlayer("a.t"))!.fils).toBe("1000");
+    expect((await c.getPlayer("a.t"))!.fils).toBe("5000");
     await c.operatorCall("set_paused", { paused: false });
   });
 

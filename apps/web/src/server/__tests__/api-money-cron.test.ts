@@ -178,25 +178,31 @@ describe("LIVE withdrawals", () => {
     expect(kit.contract.audit().total).toBe(kit.contract.audit().expected);
   });
 
-  it("daily cap of 10 USDC: server pre-check and contract both refuse (BAD_REQUEST)", async () => {
-    // alice already withdrew 40000 today; 60000 more fits exactly, 1 more does not
-    kit.contract.testGrantFils(await signIn(kit, stateGET, "alice"), 100000n);
+  it("daily cap of 10 USDC per UTC day: the server refuses with a clear message; the contract's own cap also holds (RATE_LIMIT)", async () => {
+    const finish = async (rowId: number) => {
+      kit.intents.setWithdrawalState(`fakew-${rowId}`, "SUCCESS");
+      await runCron(cronWithdrawalsGET, "/api/cron/withdrawals"); // sent and followed to DONE: no open withdrawal any more
+    };
+    const alice = await signIn(kit, stateGET, "alice");
+    await finish(1);
+    // alice withdrew 40000 today; 60000 more fits exactly, 1000 more does not
+    kit.contract.testGrantFils(alice, 100000n);
     expect((await withdraw("alice", "60000")).json.ok).toBe(true);
-    kit.contract.testGrantFils((await signIn(kit, stateGET, "alice")), 10n);
-    expectErr(await withdraw("alice", "1"), "BAD_REQUEST");
+    await finish(2);
+    expectErr(await withdraw("alice", "1000"), "BAD_REQUEST");
     expect(PARAMS.DAILY_WITHDRAW_CAP_FILS).toBe(100000);
     // the contract's own cap also holds when the server check is bypassed
     const acc = await signIn(kit, stateGET, "bea");
     kit.contract.testGrantFils(acc, 200000n);
-    await withdraw("bea", "100000");
+    expect((await withdraw("bea", "100000")).json.ok).toBe(true);
+    await finish(3);
     await kit.db.query("delete from withdrawals");
-    expectErr(await withdraw("bea", "1"), "BAD_REQUEST");
-    await runCron(cronWithdrawalsGET, "/api/cron/withdrawals"); // flush alice's second withdrawal
+    expectErr(await withdraw("bea", "1000"), "RATE_LIMIT");
   });
 
   it("INSUFFICIENT_FUNDS for more than the balance", async () => {
     await signIn(kit, stateGET, "cat");
-    expectErr(await withdraw("cat", "500"), "INSUFFICIENT_FUNDS");
+    expectErr(await withdraw("cat", "5000"), "INSUFFICIENT_FUNDS");
   });
 
   it("refunds exactly once when Intents definitely fails", async () => {
