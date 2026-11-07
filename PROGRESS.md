@@ -13,6 +13,8 @@ Times are UTC.
 - Not built: `grant_discount`/haggling (cut list), sandbox end-to-end suite WRITTEN BUT NEVER RUN (`apps/web/src/server/__sandbox__/chain.sandbox.test.ts`, `pnpm --filter @caravan/web test:sandbox`, CI job `sandbox`; fresh-agent review found 3 real defects, fixed with offline tests: real contract JourneyView made claim show ARRIVED and drop ambushed/lost; direct calls (operator, world_tick) threw raw near-api-js errors instead of ContractPanic; worker swallowed every world_tick failure because the regex matched "tick"). Sandbox facts (checked 2026-11-06: `near-sandbox` supports only Linux x64/arm64 and macOS arm64; the Windows-x86_64 binary does not exist on the download host (HTTP 403) and WSL is not installed here, so it cannot run on this machine; run it on Linux/WSL/CI), `cargo-near` (plain `cargo build --target wasm32-unknown-unknown --release` is used).
 - Toolchain: Rust 1.99.1 msvc, wasm32-unknown-unknown, VS Build Tools C++. Windows Application Control can block cargo build scripts outside D: (os error 4551).
 
+- 2026-11-07: repo public at https://github.com/meitipro/caravan-road (branch `main`, tags pushed). Mock demo deployed on Vercel (project `caravan-road`, root `apps/web`, `vercel.json` forces `NEXT_PUBLIC_MOCK=1`): https://caravan-road.vercel.app, verified HTTP 200 on /, /play, ranks, journey, cash, city, stalls. Not a chain test; labelled DEMO. Fixes from three fresh-agent audits merged (events/returns parity with the real contract JSON, worker policy step and ship rules, server paging/nonce/deposit cap/withdraw rules/asset validation, UI QA); web 399, worker 219, shared 35 tests.
+
 ## Phases
 
 - [ ] Phase 0 — pre-flight

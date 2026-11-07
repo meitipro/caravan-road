@@ -15,7 +15,7 @@ NEAR AI Cloud.** See "What is real and what is not".
 
 - Hackathon: NEAR HACKATHON. Intended track: `games`. No other track is claimed: the AI loop has never run live and AI
   attestation is not verified.
-- Live demo (PLAY mode): TODO(owner): no deployment exists yet.
+- Live demo: <https://caravan-road.vercel.app> (deployed 2026-11-07). It is the browser-only MOCK demo (`NEXT_PUBLIC_MOCK=1`, labelled DEMO in the UI): simulated world, simulated login, no server, no NEAR network, no real money, reload resets it. The real PLAY/LIVE game (testnet contract, server, NPC worker) is built and tested offline but not deployed (see the status table below).
 - Demo video / X post: TODO(owner). Drafts: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md), [`docs/X_POST.md`](docs/X_POST.md).
 - Team statement and submission text: TODO(owner). Draft and the official-rules comparison: [`docs/SUBMISSION.md`](docs/SUBMISSION.md).
 - An independent run-through of this README by a fresh reader, with the problems it found:
