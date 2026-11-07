@@ -22,7 +22,9 @@ export interface MapRoute {
   label: { x: number; y: number };
 }
 
-const LABEL_T: Record<string, number> = { "shahr-bandar": 0.8, "madan-dasht": 0.3, "dasht-bandar": 0.5, "dasht-shahr": 0.5 };
+// Keys are "<a>-<b>" exactly as ROUTES lists them (the old keys had the cities swapped, so none matched and
+// every label sat at the midpoint, where Bandar-Shahr and Dasht-Madan cross: one label hid the other).
+export const LABEL_T: Record<string, number> = { "bandar-shahr": 0.3 };
 
 export const MAP_ROUTES: readonly MapRoute[] = ROUTES.map((r) => {
   const key = `${r.a}-${r.b}`;
