@@ -86,9 +86,12 @@ VRF (e.g. OutLayer's, to be verified in its docs).
 | Money conservation / solvency | `players + treasuries + house + pending = seed + deposits + faucet - withdrawn` | `random_sequences_*` (49 seeds x 400 random actions), `simulation_240_ticks_*` |
 | Keys | merchant accounts get function-call keys for `set_policy`/`ship` only; operator daily cap | deploy step (not in this folder) |
 
-Not covered by unit tests: the `#[private]` check on `init`, function-call key restrictions, real gas and storage
-costs. These are what the sandbox suite targets: `apps/web/src/server/__sandbox__/chain.sandbox.test.ts` runs the real
-wasm on a local NEAR node (`near-sandbox`, which has Linux and macOS arm64 binaries only, none for Windows) through
-`scripts/setup-testnet.mjs`, the server's routes and the worker adapter. **It has never been executed**: write-up and
-review only, the CI job `sandbox` (`.github/workflows/ci.yml`) or `pnpm --filter @caravan/web test:sandbox` on Linux/WSL
-is the first run. Skipped automatically on Windows.
+Covered end to end by the sandbox suite instead: `apps/web/src/server/__sandbox__/chain.sandbox.test.ts` runs the real
+wasm on a local NEAR node (`near-sandbox` 0.3.4 with neard 2.14.0, protocol 88; it has Linux and macOS arm64 binaries
+only, none for Windows) through `scripts/setup-testnet.mjs` (accounts, merchant function-call keys, deploy + init),
+the server's routes (custodial accounts, NEP-366 relayed calls, faucet, trade, stalls, journey with a fast-forwarded
+chain clock, cron tick, pause) and the worker's chain adapter. **It passes on GitHub Actions (job `sandbox`, Ubuntu,
+11 of 11 tests, 2026-11-07).** Run it yourself on Linux or WSL with
+`(cd contracts/caravan && cargo build --target wasm32-unknown-unknown --release) && pnpm --filter @caravan/web test:sandbox`;
+it skips itself on Windows. This is a local node, not testnet: real gas and storage rules run, but no live network,
+no real accounts and no real keys are involved.
