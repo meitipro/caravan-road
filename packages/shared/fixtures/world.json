@@ -46,10 +46,7 @@
         }
       },
       "mood": "calm",
-      "last_line": {
-        "en": "Harvest is in. Grain is cheap today.",
-        "fa": "برداشت تمام شد. غله امروز ارزان است."
-      },
+      "last_line": "Harvest is in. Grain is cheap today.",
       "verified": {
         "model": "fixture-model",
         "request_id": "fixture-request-0001",
@@ -100,10 +97,7 @@
         }
       },
       "mood": "greedy",
-      "last_line": {
-        "en": "Iron by the cartload, but we are short on grain.",
-        "fa": "آهن فراوان است، اما غله کم داریم."
-      },
+      "last_line": "Iron by the cartload, but we are short on grain.",
       "verified": null
     },
     {
@@ -149,10 +143,7 @@
         }
       },
       "mood": "worried",
-      "last_line": {
-        "en": "Ships are late. Spice and silk will not stay cheap.",
-        "fa": "کشتی‌ها دیر کرده‌اند. ادویه و ابریشم ارزان نمی‌ماند."
-      },
+      "last_line": "Ships are late. Spice and silk will not stay cheap.",
       "verified": null
     },
     {
@@ -198,10 +189,7 @@
         }
       },
       "mood": "generous",
-      "last_line": {
-        "en": "The capital pays well for salt.",
-        "fa": "پایتخت برای نمک خوب پول می‌دهد."
-      },
+      "last_line": "The capital pays well for salt.",
       "verified": null
     }
   ],
